@@ -4,7 +4,6 @@ networks:
   hsm-network:
     name: hsm-network
     driver: bridge
-    internal: true
 
 services:
   hsm-app-be-main:
@@ -18,7 +17,7 @@ services:
     networks:
       - hsm-network
     volumes:
-      - ../../../apps/main:/app
+      - ../../../apps:/app
       - /app/node_modules
     environment:
       DB_HOST_POSTGRES: hsm-app-db-postgres
@@ -42,7 +41,7 @@ services:
     networks:
       - hsm-network
     volumes:
-      - ../../../apps/worker:/app
+      - ../../../:/app
       - /app/node_modules
     environment:
       DB_HOST_POSTGRES: hsm-app-db-postgres
@@ -58,10 +57,12 @@ services:
       - hsm-app-db-redis
 
   hsm-app-db-postgres:
-    image: postgres:latest
+    image: postgres:17-bookworm
     container_name: hsm-app-db-postgres
     ports:
       - 5432:5432
+    tmpfs:
+      - /var/lib/postgresql/data
     networks:
       - hsm-network
     environment:
@@ -69,12 +70,22 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: hsm
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d hsm"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
   hsm-app-db-redis:
-    image: redis:latest
+    image: redis:8-bookworm
     container_name: hsm-app-db-redis
     ports:
       - 6379:6379
     networks:
       - hsm-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
