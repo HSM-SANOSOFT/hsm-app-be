@@ -23,12 +23,4 @@
     "noFallthroughCasesInSwitch": false,
     "paths": {}
   },
-  "watchOptions": {
-    "watchFile": "dynamicPriorityPolling",
-    "watchDirectory": "dynamicPriorityPolling",
-    "excludeDirectories": [
-      "**/node_modules",
-      "dist"
-    ]
-  }
 }

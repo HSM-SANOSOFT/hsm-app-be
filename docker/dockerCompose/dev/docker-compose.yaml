@@ -5,8 +5,7 @@ networks:
     name: hsm-network
     driver: bridge
 
-volumes:
-  hsm-app-be-node-modules: {}
+
 services:
   hsm-app-be-main:
     image: hsm-app-be-main
@@ -18,10 +17,13 @@ services:
       - 3000:3000
     networks:
       - hsm-network
+    env_file:
+      - ../../../.env
     volumes:
       - ../../../:/app
-      - hsm-app-be-node-modules:/app/node_modules
+      - /app/node_modules
     environment:
+      SECRET_PATH: /be/core/gateway
       DB_HOST_POSTGRES: hsm-app-db-postgres
       DB_PORT_POSTGRES: 5432
       DB_USER_POSTGRES: postgres
@@ -34,7 +36,6 @@ services:
       - hsm-app-db-postgres
       - hsm-app-db-redis
       - hsm-app-be-worker
-      
 
   hsm-app-be-worker:
     image: hsm-app-be-worker
@@ -44,10 +45,13 @@ services:
     container_name: hsm-app-be-worker
     networks:
       - hsm-network
+    env_file:
+      - ../../../.env
     volumes:
       - ../../../:/app
-      - hsm-app-be-node-modules:/app/node_modules
+      - /app/node_modules
     environment:
+      SECRET_PATH: /be/core/gateway
       DB_HOST_POSTGRES: hsm-app-db-postgres
       DB_PORT_POSTGRES: 5432
       DB_USER_POSTGRES: postgres
@@ -75,7 +79,7 @@ services:
       POSTGRES_DB: hsm
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d hsm"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d hsm']
       interval: 5s
       timeout: 3s
       retries: 20
@@ -89,7 +93,7 @@ services:
       - hsm-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 3s
       retries: 20

@@ -1,11 +1,20 @@
 FROM node:24-bookworm-slim
 
+RUN apt-get update && apt-get install -y bash curl && curl -1sLf \
+  'https://artifacts-cli.infisical.com/setup.deb.sh' \
+  | bash && apt-get update && apt-get install -y infisical
+
+
 WORKDIR /app
 RUN corepack enable
 
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install
 
+COPY docker/entryPoint/dev/entrypoint.sh /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
+
 COPY . .
 
+ENTRYPOINT [ "/entrypoint.sh" ]
 CMD ["pnpm", "start:main:dev"]
