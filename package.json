@@ -82,7 +82,11 @@
     "coverageDirectory": "./coverage",
     "testEnvironment": "node",
     "roots": [
-      "<rootDir>/apps/"
-    ]
+      "<rootDir>/apps/",
+      "<rootDir>/libs/"
+    ],
+    "moduleNameMapper": {
+      "^hsm-lib/definitions(|/.*)$": "<rootDir>/libs/definitions/src/$1"
+    }
   }
 }

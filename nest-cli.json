@@ -10,6 +10,15 @@
   "monorepo": true,
   "root": "apps/main",
   "projects": {
+    "definitions": {
+      "type": "library",
+      "root": "libs/definitions",
+      "entryFile": "index",
+      "sourceRoot": "libs/definitions/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/definitions/tsconfig.lib.json"
+      }
+    },
     "main": {
       "type": "application",
       "root": "apps/main",
