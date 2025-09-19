@@ -1,4 +1,4 @@
-import { ConsoleLogger } from '@nestjs/common';
+import { ConsoleLogger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
 import { MainModule } from './main.module';
@@ -11,6 +11,13 @@ async function bootstrap() {
     }),
   });
   app.enableShutdownHooks();
-  await app.listen(3000);
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+  await app.listen(3000, '0.0.0.0');
 }
 void bootstrap();
