@@ -1,0 +1,80 @@
+name: hsm
+
+networks:
+  hsm-network:
+    name: hsm-network
+    driver: bridge
+    internal: true
+
+services:
+  hsm-app-be-main:
+    image: hsm-app-be-main
+    build:
+      context: ../../..
+      dockerfile: ./docker/dockerFile/dev/dockerFile.main
+    container_name: hsm-app-be-main
+    ports:
+      - 3000:3000
+    networks:
+      - hsm-network
+    volumes:
+      - ../../../apps/main:/app
+      - /app/node_modules
+    environment:
+      DB_HOST_POSTGRES: hsm-app-db-postgres
+      DB_PORT_POSTGRES: 5432
+      DB_USER_POSTGRES: postgres
+      DB_PASSWORD_POSTGRES: postgres
+      DB_NAME_POSTGRES: hsm
+      DB_HOST_REDIS: hsm-app-db-redis
+      DB_PORT_REDIS: 6379
+    restart: unless-stopped
+    depends_on:
+      - hsm-app-db-postgres
+      - hsm-app-db-redis
+
+  hsm-app-be-worker:
+    image: hsm-app-be-worker
+    build:
+      context: ../../..
+      dockerfile: ./docker/dockerFile/dev/dockerFile.worker
+    container_name: hsm-app-be-worker
+    networks:
+      - hsm-network
+    volumes:
+      - ../../../apps/worker:/app
+      - /app/node_modules
+    environment:
+      DB_HOST_POSTGRES: hsm-app-db-postgres
+      DB_PORT_POSTGRES: 5432
+      DB_USER_POSTGRES: postgres
+      DB_PASSWORD_POSTGRES: postgres
+      DB_NAME_POSTGRES: hsm
+      DB_HOST_REDIS: hsm-app-db-redis
+      DB_PORT_REDIS: 6379
+    restart: unless-stopped
+    depends_on:
+      - hsm-app-db-postgres
+      - hsm-app-db-redis
+
+  hsm-app-db-postgres:
+    image: postgres:latest
+    container_name: hsm-app-db-postgres
+    ports:
+      - 5432:5432
+    networks:
+      - hsm-network
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hsm
+    restart: unless-stopped
+
+  hsm-app-db-redis:
+    image: redis:latest
+    container_name: hsm-app-db-redis
+    ports:
+      - 6379:6379
+    networks:
+      - hsm-network
+    restart: unless-stopped
