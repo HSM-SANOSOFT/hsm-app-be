@@ -1,8 +1,15 @@
+import { ConsoleLogger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+
 import { WorkerModule } from './worker.module';
 
 async function bootstrap() {
-  const app = await NestFactory.createApplicationContext(WorkerModule);
+  const app = await NestFactory.createApplicationContext(WorkerModule, {
+    logger: new ConsoleLogger({
+      prefix: 'hsm-app-be-worker',
+      json: true,
+    }),
+  });
   app.enableShutdownHooks();
 }
-bootstrap();
+void bootstrap();

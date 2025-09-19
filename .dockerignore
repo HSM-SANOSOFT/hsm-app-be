@@ -1,0 +1,51 @@
+# Ignore dependencies (we use named volume for node_modules in dev)
+node_modules
+**/node_modules
+
+# pnpm store (huge cache, not needed in image)
+.pnpm-store
+**/.pnpm-store
+
+# Logs and runtime output
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage / test output
+coverage
+.nyc_output
+*.lcov
+
+# Build artifacts
+dist
+build
+tmp
+temp
+
+# Editor / OS files
+.idea
+.vscode
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Local env/config
+.env
+.env.*.local
+!.env.example
+
+# Git and metadata
+.git
+.gitignore
+.gitattributes
+
+# Docker-related itself
+docker-compose*.yml
+Dockerfile*
+dockerfiles

@@ -1,13 +1,25 @@
-// @ts-check
 import eslint from '@eslint/js';
 import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export default tseslint.config(
   {
-    ignores: ['eslint.config.mjs'],
+    ignores: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/build/**',
+      '**/.next/**',
+      '**/coverage/**',
+      'eslint.config.mjs',
+    ],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
@@ -25,14 +37,13 @@ export default tseslint.config(
       sourceType: 'module',
       parserOptions: {
         projectService: true,
-        tsconfigRootDir: import.meta.url,
+        tsconfigRootDir: __dirname
       },
     },
   },
   {
     rules: {
-      // TypeScript Rules
-      'no-unused-vars': 'off', // Disable base rule
+      'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-use-before-define': 'error',
 
@@ -61,14 +72,11 @@ export default tseslint.config(
       "@typescript-eslint/no-unnecessary-qualifier": "error",
       "@typescript-eslint/no-unnecessary-parameter-property-assignment": "error",
 
-      // Import Sorting
       'simple-import-sort/imports': 'error',
       'simple-import-sort/exports': 'error',
 
-      // Prettier Integration
       'prettier/prettier': 'warn',
 
-      // General Code Quality Rules
       'no-console': 'warn',
       'no-debugger': 'error',
       'eol-last': ['error', 'always'],

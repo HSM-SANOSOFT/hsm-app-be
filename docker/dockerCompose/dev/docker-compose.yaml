@@ -5,11 +5,13 @@ networks:
     name: hsm-network
     driver: bridge
 
+volumes:
+  hsm-app-be-node-modules: {}
 services:
   hsm-app-be-main:
     image: hsm-app-be-main
     build:
-      context: ../../..
+      context: ../../../
       dockerfile: ./docker/dockerFile/dev/dockerFile.main
     container_name: hsm-app-be-main
     ports:
@@ -17,8 +19,8 @@ services:
     networks:
       - hsm-network
     volumes:
-      - ../../../apps:/app
-      - /app/node_modules
+      - ../../../:/app
+      - hsm-app-be-node-modules:/app/node_modules
     environment:
       DB_HOST_POSTGRES: hsm-app-db-postgres
       DB_PORT_POSTGRES: 5432
@@ -32,18 +34,19 @@ services:
       - hsm-app-db-postgres
       - hsm-app-db-redis
       - hsm-app-be-worker
+      
 
   hsm-app-be-worker:
     image: hsm-app-be-worker
     build:
-      context: ../../..
+      context: ../../../
       dockerfile: ./docker/dockerFile/dev/dockerFile.worker
     container_name: hsm-app-be-worker
     networks:
       - hsm-network
     volumes:
       - ../../../:/app
-      - /app/node_modules
+      - hsm-app-be-node-modules:/app/node_modules
     environment:
       DB_HOST_POSTGRES: hsm-app-db-postgres
       DB_PORT_POSTGRES: 5432
