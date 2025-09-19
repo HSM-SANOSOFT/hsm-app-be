@@ -13,12 +13,4 @@
     "test",
     "**/*spec.ts"
   ],
-  "watchOptions": {
-    "watchFile": "dynamicPriorityPolling",
-    "watchDirectory": "dynamicPriorityPolling",
-    "excludeDirectories": [
-      "**/node_modules",
-      "dist"
-    ]
-  }
 }

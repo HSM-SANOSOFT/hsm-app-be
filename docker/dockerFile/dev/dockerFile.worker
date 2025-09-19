@@ -15,5 +15,9 @@ RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 COPY . .
 
+ENV CHOKIDAR_USEPOLLING="1"
+ENV CHOKIDAR_INTERVAL="800"
+ENV WATCHPACK_POLLING="true"
+
 ENTRYPOINT [ "/entrypoint.sh" ]
 CMD ["pnpm", "start:worker:dev"]
