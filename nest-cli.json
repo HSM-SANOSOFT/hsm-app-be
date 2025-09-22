@@ -7,6 +7,7 @@
     "webpack": true,
     "tsConfigPath": "apps/main/tsconfig.app.json"
   },
+  "defaultLibraryPrefix": "@hsm-lib",
   "monorepo": true,
   "root": "apps/main",
   "projects": {
