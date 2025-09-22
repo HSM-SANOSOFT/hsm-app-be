@@ -1,5 +1,6 @@
 import { ConsoleLogger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { MainModule } from './main.module';
 
@@ -10,6 +11,15 @@ async function bootstrap() {
       json: true,
     }),
   });
+  const config = new DocumentBuilder()
+    .setTitle('HSM App Backend')
+    .setVersion('1.0')
+    .build();
+
+  const docs = () => SwaggerModule.createDocument(app, config);
+
+  SwaggerModule.setup('api', app, docs);
+
   app.enableShutdownHooks();
   app.useGlobalPipes(
     new ValidationPipe({
@@ -18,6 +28,6 @@ async function bootstrap() {
       transform: true,
     }),
   );
-  await app.listen(3000, '0.0.0.0');
+  await app.listen(3000);
 }
 void bootstrap();
