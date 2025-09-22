@@ -1,4 +1,4 @@
-import { ConsoleLogger, ValidationPipe } from '@nestjs/common';
+import { ConsoleLogger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
@@ -28,6 +28,12 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  app.enableVersioning({
+    type: VersioningType.URI,
+    defaultVersion: '1',
+  });
+
   await app.listen(3000);
 }
 void bootstrap();
