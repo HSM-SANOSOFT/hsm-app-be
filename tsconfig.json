@@ -22,10 +22,16 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "paths": {
-      "hsm-lib/definitions": [
+      "@hsm-lib/types": [
+        "libs/types/src"
+      ],
+      "@hsm-lib/types/*": [
+        "libs/types/src/*"
+      ],
+      "@hsm-lib/definitions": [
         "libs/definitions/src"
       ],
-      "hsm-lib/definitions/*": [
+      "@hsm-lib/definitions/*": [
         "libs/definitions/src/*"
       ]
     }

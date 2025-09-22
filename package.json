@@ -87,7 +87,8 @@
       "<rootDir>/libs/"
     ],
     "moduleNameMapper": {
-      "^hsm-lib/definitions(|/.*)$": "<rootDir>/libs/definitions/src/$1"
+      "^@hsm-lib/types(|/.*)$": "<rootDir>/libs/types/src/$1",
+      "^@hsm-lib/definitions(|/.*)$": "<rootDir>/libs/definitions/src/$1"
     }
   }
 }
