@@ -22,7 +22,7 @@ services:
       - ../../../:/app
       - /app/node_modules
     environment:
-      SECRET_PATH: /app/be/main
+      SECRET_PATH: /app/be
     restart: unless-stopped
     depends_on:
       - hsm-app-db-postgres
@@ -43,7 +43,7 @@ services:
       - ../../../:/app
       - /app/node_modules
     environment:
-      SECRET_PATH: /app/be/worker
+      SECRET_PATH: /app/be
     restart: unless-stopped
     depends_on:
       - hsm-app-db-postgres
