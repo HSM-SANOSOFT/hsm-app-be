@@ -1,9 +1,7 @@
-import type { DynamicModule } from '@nestjs/common';
-
 import { DatabaseSourceOracle } from './database.oracle';
 import { DatabaseSourcePostgres } from './database.postgres';
 
-export const DatabaseSources: ReadonlyArray<DynamicModule> = [
+export const DatabaseSources = [
   DatabaseSourcePostgres,
   DatabaseSourceOracle,
 ] as const;
