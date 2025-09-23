@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 import * as joi from 'joi';
 
 interface EnvVars {
@@ -18,7 +20,7 @@ interface EnvVars {
   HSM_DB_REDIS_PASSWORD: string;
 }
 
-const envSchema = joi
+const EnvSchema = joi
   .object({
     HSM_DB_POSTGRES_HOST: joi.string().required(),
     HSM_DB_POSTGRES_PORT: joi.number().default(5432),
@@ -39,7 +41,7 @@ const envSchema = joi
   .unknown()
   .required();
 
-const validation = envSchema.validate(process.env);
+const validation = EnvSchema.validate(process.env);
 
 if (validation.error) {
   throw new Error(`Config validation error: ${validation.error.message}`);
@@ -47,7 +49,7 @@ if (validation.error) {
 
 const envVars: EnvVars = validation.value as EnvVars;
 
-export const envs = {
+export const envs = Object.freeze({
   HSM_DB_POSTGRES_HOST: envVars.HSM_DB_POSTGRES_HOST,
   HSM_DB_POSTGRES_PORT: envVars.HSM_DB_POSTGRES_PORT,
   HSM_DB_POSTGRES_USER: envVars.HSM_DB_POSTGRES_USER,
@@ -63,4 +65,5 @@ export const envs = {
   HSM_DB_REDIS_HOST: envVars.HSM_DB_REDIS_HOST,
   HSM_DB_REDIS_PORT: envVars.HSM_DB_REDIS_PORT,
   HSM_DB_REDIS_PASSWORD: envVars.HSM_DB_REDIS_PASSWORD,
-};
+} as const);
+export type Envs = Readonly<typeof envs>;

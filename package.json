@@ -40,6 +40,7 @@
     "cache-manager": "^7.2.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
+    "dotenv": "^17.2.2",
     "glob": "^11.0.3",
     "inflight": "^1.0.6",
     "joi": "^18.0.1",
@@ -102,8 +103,11 @@
       "<rootDir>/libs/"
     ],
     "moduleNameMapper": {
-      "^@hsm-lib/types(|/.*)$": "<rootDir>/libs/types/src/$1",
-      "^@hsm-lib/definitions(|/.*)$": "<rootDir>/libs/definitions/src/$1"
+      "^@hsm-lib/config(|/.*)$": "<rootDir>/libs/config/src/$1",
+      "^@hsm-lib/database(|/.*)$": "<rootDir>/libs/database/src/$1",
+      "^@hsm-lib/definitions(|/.*)$": "<rootDir>/libs/definitions/src/$1",
+      "^@hsm-lib/queue(|/.*)$": "<rootDir>/libs/queue/src/$1",
+      "^@hsm-lib/types(|/.*)$": "<rootDir>/libs/types/src/$1"
     }
   }
 }

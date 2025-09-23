@@ -22,17 +22,35 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "paths": {
-      "@hsm-lib/types": [
-        "libs/types/src"
+      "@hsm-lib/config": [
+        "libs/config/src/"
       ],
-      "@hsm-lib/types/*": [
-        "libs/types/src/*"
+      "@hsm-lib/config/*": [
+        "libs/config/src/*"
+      ],
+      "@hsm-lib/database": [
+        "libs/database/src"
+      ],
+      "@hsm-lib/database/*": [
+        "libs/database/src/*"
       ],
       "@hsm-lib/definitions": [
         "libs/definitions/src"
       ],
       "@hsm-lib/definitions/*": [
         "libs/definitions/src/*"
+      ],
+      "@hsm-lib/queue": [
+        "libs/queue/src"
+      ],
+      "@hsm-lib/queue/*": [
+        "libs/queue/src/*"
+      ],
+      "@hsm-lib/types": [
+        "libs/types/src"
+      ],
+      "@hsm-lib/types/*": [
+        "libs/types/src/*"
       ]
     }
   }

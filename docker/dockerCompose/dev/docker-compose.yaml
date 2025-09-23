@@ -102,8 +102,6 @@ services:
       RI_REDIS_PORT: 6379
       RI_REDIS_PASSWORD: redis
     restart: unless-stopped
-    depends_on:
-      - hsm-app-db-redis
 
   pgadmin:
     image: dpage/pgadmin4:latest
