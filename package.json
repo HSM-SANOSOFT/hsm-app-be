@@ -106,8 +106,7 @@
       "^@hsm-lib/config(|/.*)$": "<rootDir>/libs/config/src/$1",
       "^@hsm-lib/database(|/.*)$": "<rootDir>/libs/database/src/$1",
       "^@hsm-lib/definitions(|/.*)$": "<rootDir>/libs/definitions/src/$1",
-      "^@hsm-lib/queue(|/.*)$": "<rootDir>/libs/queue/src/$1",
-      "^@hsm-lib/types(|/.*)$": "<rootDir>/libs/types/src/$1"
+      "^@hsm-lib/queue(|/.*)$": "<rootDir>/libs/queue/src/$1"
     }
   }
 }

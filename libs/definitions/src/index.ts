@@ -1,2 +1,2 @@
-export * from './definitions.module';
-export * from './definitions.service';
+export * as Core from './core';
+export * as Domain from './domain';

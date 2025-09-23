@@ -46,12 +46,6 @@
       "@hsm-lib/queue/*": [
         "libs/queue/src/*"
       ],
-      "@hsm-lib/types": [
-        "libs/types/src"
-      ],
-      "@hsm-lib/types/*": [
-        "libs/types/src/*"
-      ]
     }
   }
 }
