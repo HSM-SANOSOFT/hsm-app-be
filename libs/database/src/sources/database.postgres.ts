@@ -1,5 +1,6 @@
-import { envs } from '@hsm-lib/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+
+import { envs } from '@hsm-lib/config';
 
 import { Databases } from './database.enum';
 

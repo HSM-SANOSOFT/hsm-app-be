@@ -1,8 +1,11 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+
 import { WorkerController } from './worker.controller';
 import { WorkerService } from './worker.service';
 
-describe('WorkerController', () => {
+import type { TestingModule } from '@nestjs/testing';
+
+describe('workerController', () => {
   let workerController: WorkerController;
 
   beforeEach(async () => {

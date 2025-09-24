@@ -175,28 +175,28 @@ export const cantones: Cantones = {
     MOCACHE: { code: '12', label: 'Mocache' },
   },
   MANABI: {
-    PORTOVIEJO: { code: '01', label: 'Portoviejo' },
-    BOLIVAR: { code: '02', label: 'Bolívar' },
-    CHONE: { code: '03', label: 'Chone' },
-    EL_CARMEN: { code: '04', label: 'El Carmen' },
-    FLAVIO_ALFARO: { code: '05', label: 'Flavio Alfaro' },
-    JIPIJAPA: { code: '06', label: 'Jipijapa' },
-    JUNIN: { code: '07', label: 'Junín' },
-    MANTA: { code: '08', label: 'Manta' },
-    MONTECRISTI: { code: '09', label: 'Montecristi' },
-    PAJAN: { code: '10', label: 'Paján' },
-    PICHINCHA: { code: '11', label: 'Pichincha' },
-    ROCAFUERTE: { code: '12', label: 'Rocafuerte' },
-    SANTA_ANA: { code: '13', label: 'Santa Ana' },
-    SUCRE: { code: '14', label: 'Sucre' },
-    TOSAGUA: { code: '15', label: 'Tosagua' },
+    'PORTOVIEJO': { code: '01', label: 'Portoviejo' },
+    'BOLIVAR': { code: '02', label: 'Bolívar' },
+    'CHONE': { code: '03', label: 'Chone' },
+    'EL_CARMEN': { code: '04', label: 'El Carmen' },
+    'FLAVIO_ALFARO': { code: '05', label: 'Flavio Alfaro' },
+    'JIPIJAPA': { code: '06', label: 'Jipijapa' },
+    'JUNIN': { code: '07', label: 'Junín' },
+    'MANTA': { code: '08', label: 'Manta' },
+    'MONTECRISTI': { code: '09', label: 'Montecristi' },
+    'PAJAN': { code: '10', label: 'Paján' },
+    'PICHINCHA': { code: '11', label: 'Pichincha' },
+    'ROCAFUERTE': { code: '12', label: 'Rocafuerte' },
+    'SANTA_ANA': { code: '13', label: 'Santa Ana' },
+    'SUCRE': { code: '14', label: 'Sucre' },
+    'TOSAGUA': { code: '15', label: 'Tosagua' },
     '24_DE_MAYO': { code: '16', label: '24 De Mayo' },
-    PEDERNALES: { code: '17', label: 'Pedernales' },
-    OLMEDO: { code: '18', label: 'Olmedo' },
-    PUERTO_LOPEZ: { code: '19', label: 'Puerto López' },
-    JAMA: { code: '20', label: 'Jama' },
-    JARAMIJO: { code: '21', label: 'Jaramijó' },
-    SAN_VICENTE: { code: '22', label: 'San Vicente' },
+    'PEDERNALES': { code: '17', label: 'Pedernales' },
+    'OLMEDO': { code: '18', label: 'Olmedo' },
+    'PUERTO_LOPEZ': { code: '19', label: 'Puerto López' },
+    'JAMA': { code: '20', label: 'Jama' },
+    'JARAMIJO': { code: '21', label: 'Jaramijó' },
+    'SAN_VICENTE': { code: '22', label: 'San Vicente' },
   },
   MORONA_SANTIAGO: {
     MORONA: { code: '01', label: 'Morona' },
@@ -302,16 +302,19 @@ export const cantones: Cantones = {
 
 export function canton(parroquia_code: string, code: string) {
   const prov = provincia(parroquia_code);
-  if (!prov) return undefined;
+  if (!prov)
+    return undefined;
 
   const provCantones = cantones[prov.key] as Record<
     string,
     { code: string; label: string }
   >;
-  if (!provCantones) return undefined;
+  if (!provCantones)
+    return undefined;
 
   const entry = Object.entries(provCantones).find(([, v]) => v.code === code);
-  if (!entry) return undefined;
+  if (!entry)
+    return undefined;
 
   const [key, { label }] = entry;
   return { key, label };

@@ -1,7 +1,8 @@
+import { Module } from '@nestjs/common';
+
 import { DatabaseModule } from '@hsm-lib/database';
 import { DefinitionsModule } from '@hsm-lib/definitions';
 import { QueueModule } from '@hsm-lib/queue';
-import { Module } from '@nestjs/common';
 
 import { MainController } from './main.controller';
 import { MainService } from './main.service';

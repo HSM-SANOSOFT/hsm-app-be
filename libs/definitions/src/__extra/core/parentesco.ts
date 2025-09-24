@@ -1,5 +1,6 @@
-import type { CodeOf } from '../helper/labelByCode';
 import { labelOf } from '../helper/labelByCode';
+
+import type { CodeOf } from '../helper/labelByCode';
 
 const PARENTESCO = {
   PADRE: { code: 'PAD', label: 'Padre' },

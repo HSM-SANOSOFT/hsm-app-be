@@ -1,6 +1,7 @@
-import { envs } from '@hsm-lib/config';
-import { Logger } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import oracledb from 'oracledb';
+
+import { envs } from '@hsm-lib/config';
 
 import { Databases } from './database.enum';
 
@@ -26,14 +27,14 @@ export const DatabaseProviderOracle = {
       });
       logger.log('Oracle connection pool established successfully.');
       return pool;
-    } catch (error) {
+    }
+    catch (error) {
       logger.error('Error establishing Oracle connection pool:', error);
       throw error;
     }
   },
 };
 
-import { Module } from '@nestjs/common';
 @Module({
   providers: [DatabaseProviderOracle],
   exports: [DatabaseProviderOracle],

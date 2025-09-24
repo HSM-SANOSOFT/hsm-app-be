@@ -17,7 +17,8 @@
     "start:worker:dev": "nest start worker --watch",
     "start:worker:debug": "nest start worker --debug --watch",
     "start:worker:prod": "node dist/apps/worker/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
+    "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
@@ -54,6 +55,7 @@
     "typeorm": "^0.3.27"
   },
   "devDependencies": {
+    "@antfu/eslint-config": "^5.4.1",
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.36.0",
     "@nestjs/cli": "^11.0.0",
@@ -68,6 +70,7 @@
     "@typescript-eslint/parser": "^8.44.0",
     "eslint": "^9.36.0",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-format": "^1.0.2",
     "eslint-plugin-prettier": "^5.5.4",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "eslint-plugin-unused-imports": "^4.2.0",

@@ -1,5 +1,6 @@
-import type { CodeOf } from '../helper/labelByCode';
 import { labelOf } from '../helper/labelByCode';
+
+import type { CodeOf } from '../helper/labelByCode';
 
 const SEXO = {
   MASCULINO: { code: 'M', label: 'Masculino' },

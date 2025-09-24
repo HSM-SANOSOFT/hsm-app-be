@@ -1,5 +1,6 @@
-import type { CodeOf } from '../helper/labelByCode';
 import { labelOf } from '../helper/labelByCode';
+
+import type { CodeOf } from '../helper/labelByCode';
 import type { Parentesco } from './parentesco';
 
 export interface ContactoItem {
@@ -9,10 +10,10 @@ export interface ContactoItem {
   preferencia?: PreferenciaContacto;
 }
 
-export interface ContactoReferencia extends ContactoItem {
+export type ContactoReferencia = {
   nombre: string;
   parentesco?: Parentesco;
-}
+} & ContactoItem;
 
 const TIPO_CONTACTO = {
   TELEFONO: { code: 'TEL', label: 'Teléfono' },

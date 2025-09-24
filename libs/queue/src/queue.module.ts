@@ -1,6 +1,7 @@
-import { envs } from '@hsm-lib/config';
 import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
+
+import { envs } from '@hsm-lib/config';
 
 @Global()
 @Module({

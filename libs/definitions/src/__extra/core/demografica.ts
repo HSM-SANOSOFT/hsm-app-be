@@ -1,5 +1,6 @@
-import type { CodeOf } from '../helper/labelByCode';
 import { labelOf } from '../helper/labelByCode';
+
+import type { CodeOf } from '../helper/labelByCode';
 
 const ETNIA = {
   MESTIZO: { code: 'MEST', label: 'Mestizo' },
@@ -224,8 +225,8 @@ const USO_NACIONALIDAD = {
 export type UsoNacionalidad = CodeOf<typeof USO_NACIONALIDAD>;
 export const UsoNacionalidadLabel = labelOf(USO_NACIONALIDAD);
 
-export type NacimientoItem = {
+export interface NacimientoItem {
   fecha?: Date;
   lugar?: string;
   nacionalidad?: Nacionalidad;
-};
+}

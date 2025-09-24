@@ -1,10 +1,11 @@
-import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
 
 import { MainController } from './main.controller';
 import { MainService } from './main.service';
 
-describe('MainController', () => {
+import type { TestingModule } from '@nestjs/testing';
+
+describe('mainController', () => {
   let mainController: MainController;
 
   beforeEach(async () => {
