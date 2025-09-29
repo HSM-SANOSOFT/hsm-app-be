@@ -118,7 +118,7 @@
     }
   },
   "lint-staged": {
-    "*.{ts,tsx,js,cjs,mjs}": "eslint --fix",
-    "*.{json,md,yml,yaml}": "prettier --write"
+    "{src,apps,libs,test}/**/*.ts": "pnpm lint:fix",
+    "*.{json,md,css,scss,html}": "pnpm format:fix"
   }
 }
