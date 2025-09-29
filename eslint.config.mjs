@@ -40,6 +40,7 @@ export default antfu(
       },
     },
 
+    files: ['**/*.{ts,tsx}'],
     rules: {
       'no-unused-vars': 'off',
       'ts/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
@@ -93,6 +94,14 @@ export default antfu(
         case: 'kebabCase',
         ignore: ['README.md'],
       }],
+    },
+
+  },
+  {
+    files: ['**/*.{json,yml,yaml}'],
+    rules: {
+      'ts/consistent-type-imports': 'off',
+      'ts/no-unused-vars': 'off',
     },
   },
 );

@@ -1,9 +1,9 @@
 {
   "name": "hsm-app-be",
   "version": "0.0.1",
+  "private": true,
   "description": "",
   "author": "",
-  "private": true,
   "license": "UNLICENSED",
   "scripts": {
     "build:main": "nest build main",
