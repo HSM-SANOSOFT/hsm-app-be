@@ -18,4 +18,4 @@ jobs:
       - name: Install dependencies
         run: pnpm install
       - name: Run linter
-        run: pnpm lint:fix
+        run: pnpm lint

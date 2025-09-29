@@ -8,7 +8,8 @@
   "scripts": {
     "build:main": "nest build main",
     "build:worker": "nest build worker",
-    "format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\"",
+    "format": "prettier --check",
+    "format:fix": "prettier --write",
     "start:main": "nest start main",
     "start:main:dev": "nest start main --watch",
     "start:main:debug": "nest start main --debug --watch",
@@ -117,6 +118,7 @@
     }
   },
   "lint-staged": {
-    "*": "pnpm lint:fix"
+    "{src,apps,libs,test}/**/*.ts": "pnpm lint:fix",
+    "*.{json,md,css,scss,html}": "pnpm format:fix"
   }
 }

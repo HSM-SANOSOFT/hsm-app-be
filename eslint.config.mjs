@@ -24,9 +24,10 @@ export default antfu(
       '**/build/**',
       '**/.next/**',
       '**/coverage/**',
-      '.github/workflows/**',
+      '.github/**/**',
       'eslint.config.mjs',
       './pnpm-store/**',
+      '.husky/**',
     ],
     languageOptions: {
       globals: {
