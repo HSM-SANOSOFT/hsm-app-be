@@ -1,5 +1,7 @@
 import 'dotenv/config';
 
+import * as process from 'node:process';
+
 import * as joi from 'joi';
 
 interface EnvVars {
