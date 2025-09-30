@@ -2,13 +2,15 @@ import { ConsoleLogger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
+import { envs } from '@hsm-lib/config';
+
 import { MainModule } from './main.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(MainModule, {
     logger: new ConsoleLogger({
       prefix: 'hsm-app-be-main',
-      json: true,
+      json: envs.ENVIRONMENT !== 'dev',
     }),
   });
   const config = new DocumentBuilder()
@@ -26,6 +28,8 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      disableErrorMessages: true,
+      validationError: { target: false, value: false },
     }),
   );
 

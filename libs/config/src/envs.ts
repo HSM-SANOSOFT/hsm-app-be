@@ -5,6 +5,8 @@ import * as process from 'node:process';
 import * as joi from 'joi';
 
 interface EnvVars {
+  ENVIRONMENT: string;
+
   HSM_DB_POSTGRES_HOST: string;
   HSM_DB_POSTGRES_PORT: number;
   HSM_DB_POSTGRES_USER: string;
@@ -24,6 +26,8 @@ interface EnvVars {
 
 const EnvSchema = joi
   .object({
+    ENVIRONMENT: joi.string().required(),
+
     HSM_DB_POSTGRES_HOST: joi.string().required(),
     HSM_DB_POSTGRES_PORT: joi.number().default(5432),
     HSM_DB_POSTGRES_USER: joi.string().required(),
@@ -52,6 +56,8 @@ if (validation.error) {
 const envVars: EnvVars = validation.value as EnvVars;
 
 export const envs = Object.freeze({
+  ENVIRONMENT: envVars.ENVIRONMENT,
+
   HSM_DB_POSTGRES_HOST: envVars.HSM_DB_POSTGRES_HOST,
   HSM_DB_POSTGRES_PORT: envVars.HSM_DB_POSTGRES_PORT,
   HSM_DB_POSTGRES_USER: envVars.HSM_DB_POSTGRES_USER,

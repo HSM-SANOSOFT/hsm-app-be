@@ -14,7 +14,7 @@ export const DatabaseSourcePostgres = TypeOrmModule.forRoot({
   database: envs.HSM_DB_POSTGRES_DB,
   synchronize: false,
   logging: true,
-  logger: 'advanced-console',
+  logger: 'debug',
   retryAttempts: 5,
   retryDelay: 1000,
   entities: [],
