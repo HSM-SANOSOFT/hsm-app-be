@@ -11,10 +11,10 @@ export const DatabaseProviderOracle = {
     const logger = new Logger('OracleDB');
     try {
       oracledb.initOracleClient({
-        libDir: '',
+        libDir: '/usr/lib/oracle/12.1/client64/lib',
       });
-      (oracledb.fetchAsString as unknown) = [oracledb.CLOB];
-      (oracledb.fetchAsBuffer as unknown) = [oracledb.BLOB];
+      (oracledb.fetchAsString) = [oracledb.CLOB];
+      (oracledb.fetchAsBuffer) = [oracledb.BLOB];
 
       const pool = oracledb.createPool({
         user: envs.HSM_DB_ORACLE_USER,
