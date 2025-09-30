@@ -9,17 +9,19 @@ services:
   hsm-app-be-main:
     image: hsm-app-be-main
     build:
-      context: ../../../
-      dockerfile: ./docker/dockerFile/dev/dockerFile.main
+      context: ../
+      args:
+        - APP_TYPE=main
+      dockerfile: ./docker/dockerFile.dev
     container_name: hsm-app-be-main
     ports:
       - 3000:3000
     networks:
       - hsm-network
     env_file:
-      - ../../../.env
+      - ../.env
     volumes:
-      - ../../../:/app
+      - ../:/app
       - /app/node_modules
     environment:
       SECRET_PATH: /app/be
@@ -32,15 +34,17 @@ services:
   hsm-app-be-worker:
     image: hsm-app-be-worker
     build:
-      context: ../../../
-      dockerfile: ./docker/dockerFile/dev/dockerFile.worker
+      context: ../
+      args:
+        - APP_TYPE=worker
+      dockerfile: ./docker/dockerFile.dev
     container_name: hsm-app-be-worker
     networks:
       - hsm-network
     env_file:
-      - ../../../.env
+      - ../.env
     volumes:
-      - ../../../:/app
+      - ../:/app
       - /app/node_modules
     environment:
       SECRET_PATH: /app/be
