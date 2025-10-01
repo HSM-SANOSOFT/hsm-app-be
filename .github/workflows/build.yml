@@ -1,0 +1,41 @@
+name: Build and Push Image
+
+on:
+  workflow_call:
+    inputs:
+      APP_TYPE:
+        description: 'Type of application to build (main or worker)'
+        required: true
+        type: string
+permissions:
+  contents: read
+  packages: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{vars.REGISTRY}}
+          username: ${{secrets.GHCR_USERNAME}}
+          password: ${{secrets.GHCR_PASSWORD}}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/dockerFile.prod
+          push: true
+          tags: ${{vars.REGISTRY}}/${{vars.IMAGE_OWNER}}/hsm-app-be-${{inputs.APP_TYPE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            APP_TYPE=${{ inputs.APP_TYPE }}
