@@ -1,0 +1,2 @@
+user default off
+user redis on >redis +@all ~*

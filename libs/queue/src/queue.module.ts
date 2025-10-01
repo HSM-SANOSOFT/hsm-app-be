@@ -10,6 +10,7 @@ import { envs } from '@hsm-lib/config';
       connection: {
         host: envs.HSM_DB_REDIS_HOST,
         port: envs.HSM_DB_REDIS_PORT,
+        username: envs.HSM_DB_REDIS_USER,
         password: envs.HSM_DB_REDIS_PASSWORD,
         keyPrefix: 'hsm-app-be-queue:',
       },

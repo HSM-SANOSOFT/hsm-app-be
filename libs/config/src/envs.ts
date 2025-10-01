@@ -21,6 +21,7 @@ interface EnvVars {
 
   HSM_DB_REDIS_HOST: string;
   HSM_DB_REDIS_PORT: number;
+  HSM_DB_REDIS_USER: string;
   HSM_DB_REDIS_PASSWORD: string;
 }
 
@@ -42,6 +43,7 @@ const EnvSchema = joi
 
     HSM_DB_REDIS_HOST: joi.string().required(),
     HSM_DB_REDIS_PORT: joi.number().default(6379),
+    HSM_DB_REDIS_USER: joi.string().required(),
     HSM_DB_REDIS_PASSWORD: joi.string().required(),
   })
   .unknown()
@@ -72,6 +74,7 @@ export const envs = Object.freeze({
 
   HSM_DB_REDIS_HOST: envVars.HSM_DB_REDIS_HOST,
   HSM_DB_REDIS_PORT: envVars.HSM_DB_REDIS_PORT,
+  HSM_DB_REDIS_USER: envVars.HSM_DB_REDIS_USER,
   HSM_DB_REDIS_PASSWORD: envVars.HSM_DB_REDIS_PASSWORD,
 } as const);
 export type Envs = Readonly<typeof envs>;

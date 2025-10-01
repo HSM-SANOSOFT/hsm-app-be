@@ -1,7 +1,7 @@
 
 FROM node:24-bookworm-slim
 
-ADD docker/instantclient-basic-linux.x64-12.1.0.2.0.zip /tmp/
+ADD docker/oracle/instantclient-basic-linux.x64-12.1.0.2.0.zip /tmp/
 RUN set -eux; \
   apt-get update && \
   apt-get install -y --no-install-recommends unzip libaio1 libnsl2 && \
