@@ -83,5 +83,17 @@
     "scss",
     "pcss",
     "postcss"
-  ]
+  ],
+
+  "symbols.files.associations": {
+    "*.module.ts": "nest",
+    "*.service.ts": "nest-service",
+    "*.controller.ts": "nest-controller",
+    "*.middleware.ts": "nest-middleware",
+    "*.guard.ts": "nest-guard",
+    "*.decorator.ts": "nest-decorator",
+    "*.pipe.ts": "nest-pipe",
+    "*.filter.ts": "nest-filter",
+    "*.interceptor.ts": "nest-interceptor"
+  }
 }
