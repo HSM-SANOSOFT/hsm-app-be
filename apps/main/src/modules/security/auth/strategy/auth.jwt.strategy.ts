@@ -3,6 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
 import { envs } from '@hsm-lib/config';
+import { IUser } from '@hsm-lib/definitions/interfaces';
 import { JwtPayload } from '@hsm-lib/definitions/types/modules/security/auth';
 
 @Injectable()
@@ -16,6 +17,8 @@ export class AuthJwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
-    return { userId: payload.sub, username: payload.username, roles: payload.roles };
+    const { sub, ...rest } = payload;
+    const user: Omit<IUser, 'password'> = { id: sub, ...rest };
+    return user;
   }
 }

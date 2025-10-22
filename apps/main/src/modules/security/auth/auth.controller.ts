@@ -1,10 +1,12 @@
-import { Controller, Get, Post, Request, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+
+import { IUser } from '@hsm-lib/definitions/interfaces/modules/core/users';
 
 import { Public } from './auth.decorator';
 import { AuthService } from './auth.service';
 
-import type { IUser } from '@hsm-lib/definitions/interfaces';
+import type { Request } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -13,12 +15,13 @@ export class AuthController {
   @Public()
   @UseGuards(AuthGuard('local'))
   @Post('login')
-  login(@Request() req) {
-    return this.authService.login(req.user);
+  login(@Req() req: Request) {
+    const user = req.user as Omit<IUser, 'password'>;
+    return this.authService.login(user);
   }
 
   @Get('profile')
-  profile(@Request() req) {
-    return (req.user);
+  profile(@Req() req: Request) {
+    return req.user;
   }
 }
