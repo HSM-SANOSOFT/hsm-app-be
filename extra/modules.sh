@@ -22,3 +22,22 @@ nest g co roles modules/security -p main
 nest g s auth modules/security -p main
 nest g s user modules/security -p main
 nest g s roles modules/security -p main
+
+nest g mo clinical modules -p main
+
+nest g mo patients modules/clinical -p main
+nest g mo appointments modules/clinical -p main
+
+nest g co patients modules/clinical -p main
+nest g co appointments modules/clinical -p main
+
+nest g s patients modules/clinical -p main
+nest g s appointments modules/clinical -p main
+
+nest g mo administrative modules -p main
+
+nest g mo scheduling modules/administrative -p main
+
+nest g co scheduling modules/administrative -p main
+
+nest g s scheduling modules/administrative -p main
