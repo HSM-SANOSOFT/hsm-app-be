@@ -23,7 +23,6 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, docs);
 
   app.useGlobalGuards(
-    app.get('AUTH_JWT_GUARD'),
   );
 
   app.enableShutdownHooks();

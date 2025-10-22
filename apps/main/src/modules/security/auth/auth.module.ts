@@ -18,9 +18,7 @@ import { AuthLocalStrategy } from './strategy/auth.local.strategy';
     signOptions: { expiresIn: '1d' },
   })],
   controllers: [AuthController],
-  providers: [AuthService, AuthLocalStrategy, AuthJwtStrategy, {
-    provide: 'AUTH_JWT_GUARD',
-    useClass: AuthJwtGuard,
-  }],
+  providers: [AuthService, AuthLocalStrategy, AuthJwtStrategy, AuthJwtGuard],
+  exports: [AuthJwtGuard],
 })
 export class AuthModule {}

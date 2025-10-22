@@ -4,9 +4,7 @@ import { RolesGuard } from './roles.guard';
 
 @Module({
   controllers: [],
-  providers: [{
-    provide: 'ROLES_GUARD',
-    useClass: RolesGuard,
-  }],
+  providers: [RolesGuard],
+  exports: [RolesGuard],
 })
 export class RolesModule {}
