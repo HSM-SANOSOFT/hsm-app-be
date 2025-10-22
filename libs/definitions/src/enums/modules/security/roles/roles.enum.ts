@@ -1,14 +1,14 @@
-enum SystemRole {
+export enum SystemRoles {
   Admin = 'admin',
   Integration = 'integration',
 }
 
-enum ClinicalRole {
+export enum ClinicalRoles {
   Doctor = 'doctor',
   Nurse = 'nurse',
 }
 
 export const Role = {
-  System: SystemRole,
-  Clinical: ClinicalRole,
-};
+  System: SystemRoles,
+  Clinical: ClinicalRoles,
+} as const;

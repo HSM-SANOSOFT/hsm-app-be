@@ -26,10 +26,10 @@ services:
     environment:
       SECRET_PATH: /app/be
     restart: unless-stopped
-    depends_on:
+    #depends_on:
       #- hsm-app-db-postgres
-      - hsm-app-db-redis
-      - hsm-app-be-worker
+      #- hsm-app-db-redis
+      #- hsm-app-be-worker
 
   hsm-app-be-worker:
     image: hsm-app-be-worker

@@ -7,6 +7,8 @@ import * as joi from 'joi';
 interface EnvVars {
   ENVIRONMENT: string;
 
+  JWT_SECRET: string;
+
   HSM_DB_POSTGRES_HOST: string;
   HSM_DB_POSTGRES_PORT: number;
   HSM_DB_POSTGRES_USER: string;
@@ -28,6 +30,8 @@ interface EnvVars {
 const EnvSchema = joi
   .object({
     ENVIRONMENT: joi.string().required(),
+
+    JWT_SECRET: joi.string().required(),
 
     HSM_DB_POSTGRES_HOST: joi.string().required(),
     HSM_DB_POSTGRES_PORT: joi.number().default(5432),
@@ -59,6 +63,8 @@ const envVars: EnvVars = validation.value as EnvVars;
 
 export const envs = Object.freeze({
   ENVIRONMENT: envVars.ENVIRONMENT,
+
+  JWT_SECRET: envVars.JWT_SECRET,
 
   HSM_DB_POSTGRES_HOST: envVars.HSM_DB_POSTGRES_HOST,
   HSM_DB_POSTGRES_PORT: envVars.HSM_DB_POSTGRES_PORT,

@@ -1,13 +1,24 @@
-import { Controller, Post } from '@nestjs/common';
+import { Controller, Get, Post, Request, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 
-import { Roles } from '../roles/roles.decorator';
-import { Role } from '../roles/roles.enum';
+import { Public } from './auth.decorator';
+import { AuthService } from './auth.service';
+
+import type { IUser } from '@hsm-lib/definitions/interfaces';
 
 @Controller('auth')
 export class AuthController {
-  @Roles(Role.System.Admin)
+  constructor(private authService: AuthService) {}
+
+  @Public()
+  @UseGuards(AuthGuard('local'))
   @Post('login')
-  login() {
-    return 'Login successful';
+  login(@Request() req) {
+    return this.authService.login(req.user);
+  }
+
+  @Get('profile')
+  profile(@Request() req) {
+    return (req.user);
   }
 }
