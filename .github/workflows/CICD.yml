@@ -1,12 +1,15 @@
 name: CI & CD
 
 on:
-  pull_request:
-    branches:
-      - main
   push:
     branches:
       - main
+    paths-ignore:
+      - 'docker/**'
+      - '.github/**'
+      - 'husky/**'
+      - '.vscode/**'
+      - 'extra/**'
 permissions:
   contents: read
   packages: write
