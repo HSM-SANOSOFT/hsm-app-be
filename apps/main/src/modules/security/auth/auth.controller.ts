@@ -1,8 +1,9 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
+import { GenerateIntegrationTokenDto } from '@hsm-lib/definitions/dtos';
 import { Role } from '@hsm-lib/definitions/enums';
-import { IUser } from '@hsm-lib/definitions/interfaces/modules/core/users';
+import { IUser, SigninResponse } from '@hsm-lib/definitions/interfaces';
 
 import { Roles } from '../roles/roles.decorator';
 import { Public } from './auth.decorator';
@@ -17,19 +18,23 @@ export class AuthController {
   @Public()
   @UseGuards(AuthGuard('local'))
   @Post('login')
-  login(@Req() req: Request) {
+  login(@Req() req: Request): Promise<SigninResponse> {
     const user = req.user as Omit<IUser, 'password'>;
-    return this.authService.login(user);
+    return this.authService.signin(user);
+  }
+  
+  @Get("logout")
+
+  @Get('refresh')
+
+  @Post('token/integration')
+  @Roles(Role.System.Admin)
+  async generateIntegrationToken(@Body() payload: GenerateIntegrationTokenDto) {
+    return await this.authService.generateIntegrationToken(payload);
   }
 
   @Get('profile')
   profile(@Req() req: Request) {
     return req.user;
-  }
-
-  @Post('token/integration')
-  @Roles(Role.System.Admin)
-  async generateIntegrationToken(@Body() payload) {
-    return await this.authService.generateIntegrationToken(payload);
   }
 }

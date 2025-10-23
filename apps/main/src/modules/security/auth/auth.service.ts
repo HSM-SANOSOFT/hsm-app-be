@@ -1,10 +1,10 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
-import { GenerateIntegrationTokenDto } from '@hsm-lib/definitions/dtos/modules/security/auth';
+import { GenerateIntegrationTokenDto } from '@hsm-lib/definitions/dtos';
 import { Role } from '@hsm-lib/definitions/enums/modules/security/roles';
-import { IUser } from '@hsm-lib/definitions/interfaces';
-import { JwtPayload } from '@hsm-lib/definitions/types/modules/security/auth';
+import { IUser, SigninResponse } from '@hsm-lib/definitions/interfaces';
+import { JwtPayload } from '@hsm-lib/definitions/types';
 
 import { UsersService } from '../../core/users/users.service';
 
@@ -26,22 +26,23 @@ export class AuthService {
     return result;
   }
 
-  async login(user: Omit<IUser, 'password'>) {
+  async signin(user: Omit<IUser, 'password'>) {
     const { id, ...rest } = user;
 
     const jwtPayload: JwtPayload = { sub: id, ...rest };
-    return {
-      access_token: this.jwtService.sign(jwtPayload),
+    const response: SigninResponse = {
+      access_token: this.jwtService.sign(jwtPayload, { expiresIn: '15m' }),
+      refresh_token: this.jwtService.sign(jwtPayload, { expiresIn: '7d' }),
     };
+    return response;
   }
 
   async generateIntegrationToken(payload: GenerateIntegrationTokenDto) {
-    const { expiresIn, ...rest } = payload;
+    const expiresIn = payload.expiresIn ?? '100y';
     const roles = Role.System.Integration;
-    const jwtPayload = { ...rest, roles };
-
+    const jwtPayload = { sub: payload.name, description: payload.description, functionality: payload.functionality, roles };
     return {
-      integration_token: this.jwtService.sign(jwtPayload, { expiresIn: expiresIn ?? '100y' }),
+      integration_token: this.jwtService.sign(jwtPayload, { expiresIn }),
     };
   }
 }
