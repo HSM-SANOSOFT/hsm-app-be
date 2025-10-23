@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 import { Role } from '@hsm-lib/definitions/enums';
@@ -27,10 +27,9 @@ export class AuthController {
     return req.user;
   }
 
-  @Get('test')
-  @Public()
+  @Post('token/integration')
   @Roles(Role.System.Admin)
-  test(@Req() req: Request) {
-    return { message: 'This is a test endpoint', user: req.user };
+  async generateIntegrationToken(@Body() payload) {
+    return await this.authService.generateIntegrationToken(payload);
   }
 }

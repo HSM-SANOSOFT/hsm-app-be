@@ -1,7 +1,8 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
-import { LoginDto } from '@hsm-lib/definitions/dtos';
+import { GenerateIntegrationTokenDto } from '@hsm-lib/definitions/dtos/modules/security/auth';
+import { Role } from '@hsm-lib/definitions/enums/modules/security/roles';
 import { IUser } from '@hsm-lib/definitions/interfaces';
 import { JwtPayload } from '@hsm-lib/definitions/types/modules/security/auth';
 
@@ -31,6 +32,16 @@ export class AuthService {
     const jwtPayload: JwtPayload = { sub: id, ...rest };
     return {
       access_token: this.jwtService.sign(jwtPayload),
+    };
+  }
+
+  async generateIntegrationToken(payload: GenerateIntegrationTokenDto) {
+    const { expiresIn, ...rest } = payload;
+    const roles = Role.System.Integration;
+    const jwtPayload = { ...rest, roles };
+
+    return {
+      integration_token: this.jwtService.sign(jwtPayload, { expiresIn: expiresIn ?? '100y' }),
     };
   }
 }
