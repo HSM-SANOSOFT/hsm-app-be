@@ -1,34 +1,10 @@
 
-FROM node:24-bookworm-slim
-
-ADD docker/oracle/instantclient-basic-linux.x64-12.1.0.2.0.zip /tmp/
-RUN set -eux; \
-  apt-get update && \
-  apt-get install -y --no-install-recommends unzip libaio1 libnsl2 && \
-  rm -rf /var/lib/apt/lists/*; \
-  install -d /usr/lib/oracle/12.1/client64/lib /tmp/ic && \
-  unzip -q /tmp/instantclient-basic-linux.x64-12.1.0.2.0.zip -d /tmp/ic && \
-  mv /tmp/ic/instantclient_*/** /usr/lib/oracle/12.1/client64/lib/ 2>/dev/null || \
-  mv /tmp/ic/instantclient_*/* /usr/lib/oracle/12.1/client64/lib/ && \
-  rm -rf /tmp/ic /tmp/instantclient-basic-linux.x64-12.1.0.2.0.zip; \
-  ln -sfn /usr/lib/oracle/12.1/client64/lib/libclntsh.so.12.1 \
-  /usr/lib/oracle/12.1/client64/lib/libclntsh.so || true; \
-  echo "/usr/lib/oracle/12.1/client64/lib" > /etc/ld.so.conf.d/oracle-instantclient.conf && \
-  ldconfig
-
-RUN apt-get update && apt-get install -y bash curl debian-keyring && curl -1sLf \
-  'https://artifacts-cli.infisical.com/setup.deb.sh' \
-  | bash && apt-get update && apt-get install -y infisical \
-  && rm -rf /var/lib/apt/lists/*
+FROM ghcr.io/hsm-sanosoft/hsm-app-be-base:latest
 
 WORKDIR /app
-RUN corepack enable
-
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --prod
-
 COPY . .
-
 ARG  APP_TYPE
 RUN pnpm build:$APP_TYPE
 ENV APP_TYPE=${APP_TYPE}

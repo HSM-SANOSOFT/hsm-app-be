@@ -8,7 +8,20 @@ export enum ClinicalRoles {
   Nurse = 'nurse',
 }
 
+export enum AdministrativeRole {
+  Receptionist = 'receptionist',
+
+}
+
+export enum DefaultRole {
+  Basic = 'basic',
+  User = 'user',
+  Auditor = 'auditor',
+}
+
 export const Role = {
+  Default: DefaultRole,
   System: SystemRoles,
   Clinical: ClinicalRoles,
+  Administrative: AdministrativeRole,
 } as const;

@@ -3,7 +3,7 @@ import { AuthGuard } from '@nestjs/passport';
 
 import { GenerateIntegrationTokenDto } from '@hsm-lib/definitions/dtos';
 import { Role } from '@hsm-lib/definitions/enums';
-import { IUser, SigninResponse } from '@hsm-lib/definitions/interfaces';
+import { ITokens, IUnsignedUser, IUser, LoginResponse } from '@hsm-lib/definitions/interfaces';
 
 import { Roles } from '../roles/roles.decorator';
 import { Public } from './auth.decorator';
@@ -16,16 +16,29 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Public()
+  @Post('signup')
+  async signup(@Body() user: Omit<IUser, 'id'>): Promise<ITokens> {
+    const newUser = await this.authService.signup(user);
+    return newUser;
+  }
+
+  @Public()
   @UseGuards(AuthGuard('local'))
   @Post('login')
-  login(@Req() req: Request): Promise<SigninResponse> {
-    const user = req.user as Omit<IUser, 'password'>;
-    return this.authService.signin(user);
+  async login(@Req() req: Request): Promise<LoginResponse> {
+    const user = req.user as IUnsignedUser;
+    return await this.authService.login(user);
   }
-  
-  @Get("logout")
+
+  @Get('logout')
+  async logout() {
+    return await this.authService.logout();
+  }
 
   @Get('refresh')
+  async refresh() {
+    return await this.authService.refresh();
+  }
 
   @Post('token/integration')
   @Roles(Role.System.Admin)

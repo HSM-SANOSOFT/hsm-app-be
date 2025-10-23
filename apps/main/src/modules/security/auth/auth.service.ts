@@ -2,9 +2,8 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
 import { GenerateIntegrationTokenDto } from '@hsm-lib/definitions/dtos';
-import { Role } from '@hsm-lib/definitions/enums/modules/security/roles';
-import { IUser, SigninResponse } from '@hsm-lib/definitions/interfaces';
-import { JwtPayload } from '@hsm-lib/definitions/types';
+import { Role } from '@hsm-lib/definitions/enums';
+import { IJwtPayload, ISignedUser, ITokens, IUnsignedUser, IUser, LoginResponse } from '@hsm-lib/definitions/interfaces';
 
 import { UsersService } from '../../core/users/users.service';
 
@@ -12,8 +11,8 @@ import { UsersService } from '../../core/users/users.service';
 export class AuthService {
   constructor(private usersService: UsersService, private jwtService: JwtService) {}
 
-  async validateUser(username: string, pass: string): Promise<Omit<IUser, 'password'>> {
-    const user = await this.usersService.findOne(username);
+  async validateUser(username: string, pass: string): Promise<IUnsignedUser> {
+    const user = await this.usersService.findByUsername(username);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
@@ -22,20 +21,34 @@ export class AuthService {
       throw new UnauthorizedException('Invalid password');
     }
 
-    const { password, ...result } = user;
+    const result: IUnsignedUser = { ...user };
     return result;
   }
 
-  async signin(user: Omit<IUser, 'password'>) {
-    const { id, ...rest } = user;
+  async generateTokens(user: IUnsignedUser): Promise<ITokens> {
+    const userToSign: ISignedUser = { ...user };
+    const jwtPayload: IJwtPayload = { sub: user.id, ...userToSign };
+    const [access_token, refresh_token] = await Promise.all([
+      this.jwtService.signAsync(jwtPayload, { expiresIn: '15m' }),
+      this.jwtService.signAsync(jwtPayload, { expiresIn: '7d' }),
+    ]);
+    return { access_token, refresh_token };
+  }
 
-    const jwtPayload: JwtPayload = { sub: id, ...rest };
-    const response: SigninResponse = {
-      access_token: this.jwtService.sign(jwtPayload, { expiresIn: '15m' }),
-      refresh_token: this.jwtService.sign(jwtPayload, { expiresIn: '7d' }),
-    };
+  async signup(newUser: Omit<IUser, 'id'>): Promise<ITokens> {
+    const user = await this.usersService.createUser(newUser);
+    const tokens: ITokens = await this.generateTokens(user);
+    return tokens;
+  }
+
+  async login(user: IUnsignedUser): Promise<LoginResponse> {
+    const response: LoginResponse = await this.generateTokens(user);
     return response;
   }
+
+  async logout() {}
+
+  async refresh() {}
 
   async generateIntegrationToken(payload: GenerateIntegrationTokenDto) {
     const expiresIn = payload.expiresIn ?? '100y';

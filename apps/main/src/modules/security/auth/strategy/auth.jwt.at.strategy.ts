@@ -3,22 +3,22 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
 import { envs } from '@hsm-lib/config';
-import { IUser } from '@hsm-lib/definitions/interfaces';
-import { JwtPayload } from '@hsm-lib/definitions/types/modules/security/auth';
+import { IJwtPayload, ISignedUser } from '@hsm-lib/definitions/interfaces';
 
 @Injectable()
-export class AuthJwtStrategy extends PassportStrategy(Strategy) {
+export class AuthJwtATStrategy extends PassportStrategy(Strategy) {
   constructor() {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: envs.JWT_SECRET,
+      secretOrKey: envs.JWT_AT_SECRET,
+      passReqToCallback: false,
     });
   }
 
-  async validate(payload: JwtPayload) {
+  async validate(payload: IJwtPayload) {
     const { sub, ...rest } = payload;
-    const user: Omit<IUser, 'password'> = { id: sub, ...rest };
+    const user: ISignedUser = { id: sub, ...rest };
     return user;
   }
 }

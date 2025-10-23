@@ -1,10 +1,7 @@
-// import { DatabaseSourceOracle } from './database.oracle';
-// import { DatabaseSourcePostgres } from './database.postgres';
-
 import { DatabaseSourceOracle } from './database.oracle';
+import { DatabaseSourcePostgres } from './database.postgres';
 
 export const DatabaseSources = [
-  // DatabaseSourcePostgres,
-  // DatabaseSourceOracle2,
+  DatabaseSourcePostgres,
   DatabaseSourceOracle,
 ] as const;

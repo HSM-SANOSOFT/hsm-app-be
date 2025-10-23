@@ -2,6 +2,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { envs } from '@hsm-lib/config';
 
+import { UserEntity, UserRoleEntity } from '../entities/modules/core/users';
 import { Databases } from './database.enum';
 
 export const DatabaseSourcePostgres = TypeOrmModule.forRoot({
@@ -12,10 +13,10 @@ export const DatabaseSourcePostgres = TypeOrmModule.forRoot({
   username: envs.HSM_DB_POSTGRES_USER,
   password: envs.HSM_DB_POSTGRES_PASSWORD,
   database: envs.HSM_DB_POSTGRES_DB,
-  synchronize: false,
+  synchronize: envs.ENVIRONMENT === 'dev',
   logging: true,
   logger: 'debug',
   retryAttempts: 5,
   retryDelay: 1000,
-  entities: [],
+  entities: [UserEntity, UserRoleEntity],
 });
