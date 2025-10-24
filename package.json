@@ -68,6 +68,7 @@
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
+    "@stylistic/eslint-plugin": "^5.5.0",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.10.7",
@@ -78,6 +79,7 @@
     "@typescript-eslint/eslint-plugin": "^8.44.0",
     "@typescript-eslint/parser": "^8.44.0",
     "eslint": "^9.36.0",
+    "eslint-auto-fix": "^1.0.4",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-format": "^1.0.2",
     "eslint-plugin-prettier": "^5.5.4",
@@ -125,6 +127,6 @@
     }
   },
   "lint-staged": {
-    "{src,apps,libs,test}/**/*.ts": "pnpm eslint --fix --fix-type layout ."
+    "*": "pnpm dlx eslint --fix --fix-type layout"
   }
 }
