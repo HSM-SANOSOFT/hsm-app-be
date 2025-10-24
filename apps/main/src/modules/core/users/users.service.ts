@@ -1,46 +1,45 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm/repository/Repository.js';
+import { Repository } from 'typeorm';
 
 import { UserEntity } from '@hsm-lib/database/entities';
-import { Role } from '@hsm-lib/definitions/enums/modules/security/roles';
-
-import type { IUser } from '@hsm-lib/definitions/interfaces';
+import { Databases } from '@hsm-lib/database/sources';
+import {
+  CreateUserPayloadDto,
+  DeleteUserPayloadDto,
+  UpdateUserPayloadDto,
+} from '@hsm-lib/definitions/dtos';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectRepository(UserEntity) private readonly userRepository: Repository<UserEntity>) {}
-  private readonly users: IUser[] = [
-    {
-      id: '1',
-      username: 'john_doe',
-      email: 'john.doe@example.com',
-      password: 'password123',
-      name: 'John',
-      surname: 'Doe',
-      roles: [Role.System.Admin],
-    },
-    {
-      id: '2',
-      username: 'jane_smith',
-      email: 'jane.smith@example.com',
-      password: 'password456',
-      name: 'Jane',
-      surname: 'Smith',
-      roles: [Role.Clinical.Doctor],
-    },
-  ];
+  constructor(
+    @InjectRepository(UserEntity, Databases.HsmDbPostgres)
+    private UserRepository: Repository<UserEntity>,
+  ) {}
 
-  async findByUsername(username: string): Promise<IUser | undefined> {
-    return this.users.find(user => user.username === username);
+  async findOneByUsername(username: string): Promise<UserEntity | null> {
+    return await this.UserRepository.findOne({ where: { username } });
   }
 
-  async createUser(user: Omit<IUser, 'id'>): Promise<IUser> {
-    const newUser: IUser = {
-      id: (this.users.length + 1).toString(),
-      ...user,
-    };
-    this.users.push(newUser);
-    return newUser;
+  async createUser(user: CreateUserPayloadDto): Promise<UserEntity> {
+    const newUser = this.UserRepository.create(user);
+    return await this.UserRepository.save(newUser);
+  }
+
+  async updateUser(user: UpdateUserPayloadDto): Promise<UserEntity | null> {
+    const { id } = user;
+    const response = await this.UserRepository.update(id, user);
+    if (!response.affected) {
+      return null;
+    }
+    const updatedUser = await this.UserRepository.findOne({ where: { id } });
+    if (!updatedUser) {
+      return null;
+    }
+    return updatedUser;
+  }
+
+  async deleteUser(user: DeleteUserPayloadDto): Promise<void> {
+    await this.UserRepository.delete(user.id);
   }
 }

@@ -10,7 +10,6 @@ export enum ClinicalRoles {
 
 export enum AdministrativeRole {
   Receptionist = 'receptionist',
-
 }
 
 export enum DefaultRole {

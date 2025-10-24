@@ -1,18 +1,33 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
-import { GenerateIntegrationTokenDto } from '@hsm-lib/definitions/dtos';
+import { UserEntity } from '@hsm-lib/database/entities';
+import {
+  GenerateIntegrationTokenDto,
+  LoginPayloadDto,
+  LogoutPayloadDto,
+  SignupPayloadDto,
+} from '@hsm-lib/definitions/dtos';
 import { Role } from '@hsm-lib/definitions/enums';
-import { IJwtPayload, ISignedUser, ITokens, IUnsignedUser, IUser, LoginResponse } from '@hsm-lib/definitions/interfaces';
+import {
+  IJwtPayload,
+  ISignedUser,
+  ITokens,
+  IUnsignedUser,
+  LoginResponse,
+} from '@hsm-lib/definitions/interfaces';
 
 import { UsersService } from '../../core/users/users.service';
 
 @Injectable()
 export class AuthService {
-  constructor(private usersService: UsersService, private jwtService: JwtService) {}
+  constructor(
+    private usersService: UsersService,
+    private jwtService: JwtService,
+  ) {}
 
   async validateUser(username: string, pass: string): Promise<IUnsignedUser> {
-    const user = await this.usersService.findByUsername(username);
+    const user = await this.usersService.findOneByUsername(username);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
@@ -35,25 +50,32 @@ export class AuthService {
     return { access_token, refresh_token };
   }
 
-  async signup(newUser: Omit<IUser, 'id'>): Promise<ITokens> {
+  async signup(newUser: SignupPayloadDto): Promise<ITokens> {
     const user = await this.usersService.createUser(newUser);
     const tokens: ITokens = await this.generateTokens(user);
     return tokens;
   }
 
-  async login(user: IUnsignedUser): Promise<LoginResponse> {
+  async login(user: UserEntity): Promise<LoginResponse> {
     const response: LoginResponse = await this.generateTokens(user);
     return response;
   }
 
-  async logout() {}
+  async logout(id: LogoutPayloadDto) {
+    return id;
+  }
 
   async refresh() {}
 
   async generateIntegrationToken(payload: GenerateIntegrationTokenDto) {
     const expiresIn = payload.expiresIn ?? '100y';
     const roles = Role.System.Integration;
-    const jwtPayload = { sub: payload.name, description: payload.description, functionality: payload.functionality, roles };
+    const jwtPayload = {
+      sub: payload.name,
+      description: payload.description,
+      functionality: payload.functionality,
+      roles,
+    };
     return {
       integration_token: this.jwtService.sign(jwtPayload, { expiresIn }),
     };

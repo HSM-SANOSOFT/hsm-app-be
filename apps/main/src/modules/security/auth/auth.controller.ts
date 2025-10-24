@@ -1,9 +1,22 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
-import { GenerateIntegrationTokenDto } from '@hsm-lib/definitions/dtos';
+import {
+  GenerateIntegrationTokenDto,
+  LoginPayloadDto,
+  LogoutPayloadDto,
+  SignupPayloadDto,
+} from '@hsm-lib/definitions/dtos';
 import { Role } from '@hsm-lib/definitions/enums';
-import { ITokens, IUnsignedUser, IUser, LoginResponse } from '@hsm-lib/definitions/interfaces';
+import { ITokens, LoginResponse } from '@hsm-lib/definitions/interfaces';
 
 import { Roles } from '../roles/roles.decorator';
 import { Public } from './auth.decorator';
@@ -17,22 +30,22 @@ export class AuthController {
 
   @Public()
   @Post('signup')
-  async signup(@Body() user: Omit<IUser, 'id'>): Promise<ITokens> {
-    const newUser = await this.authService.signup(user);
+  async signup(@Body() signupDto: SignupPayloadDto): Promise<ITokens> {
+    const newUser = await this.authService.signup(signupDto);
     return newUser;
   }
 
-  @Public()
-  @UseGuards(AuthGuard('local'))
-  @Post('login')
-  async login(@Req() req: Request): Promise<LoginResponse> {
-    const user = req.user as IUnsignedUser;
-    return await this.authService.login(user);
-  }
+  //@Public()
+  //@UseGuards(AuthGuard('local'))
+  //@Post('login')
+  //async login(@Body() loginDto: LoginPayloadDto): Promise<LoginResponse> {
+  //  const user = await this.authService.validateUser(loginDto.username, loginDto.password);
+  //  return await this.authService.login(user);
+  //}
 
-  @Get('logout')
-  async logout() {
-    return await this.authService.logout();
+  @Get('logout/:id')
+  async logout(@Param('id') logoutDto: LogoutPayloadDto) {
+    return await this.authService.logout(logoutDto);
   }
 
   @Get('refresh')

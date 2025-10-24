@@ -13,8 +13,8 @@ import { CoreModule } from './modules/core/core.module';
 import { SecurityModule } from './modules/security/security.module';
 
 @Module({
-  imports: [ThrottlerModule.forRoot(
-    {
+  imports: [
+    ThrottlerModule.forRoot({
       throttlers: [
         {
           name: 'short',
@@ -32,12 +32,21 @@ import { SecurityModule } from './modules/security/security.module';
           limit: 100,
         },
       ],
-    },
-  ), DatabaseModule, QueueModule, CoreModule, SecurityModule, ClinicalModule, AdministrativeModule],
+    }),
+    DatabaseModule,
+    QueueModule,
+    CoreModule,
+    SecurityModule,
+    ClinicalModule,
+    AdministrativeModule,
+  ],
   controllers: [MainController],
-  providers: [MainService, {
-    provide: APP_GUARD,
-    useClass: ThrottlerGuard,
-  }],
+  providers: [
+    MainService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class MainModule {}

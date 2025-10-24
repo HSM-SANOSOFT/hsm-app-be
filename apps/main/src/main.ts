@@ -22,8 +22,7 @@ async function bootstrap() {
 
   SwaggerModule.setup('api', app, docs);
 
-  app.useGlobalGuards(
-  );
+  app.useGlobalGuards();
 
   app.enableShutdownHooks();
   app.useGlobalPipes(

@@ -1,2 +1,1 @@
-export * from './database.enum';
-export * from './database.sources';
+export * from './database-source.enum';

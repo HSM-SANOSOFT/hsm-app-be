@@ -1,4 +1,10 @@
-import { CanActivate, ExecutionContext, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 import { IUser } from '@hsm-lib/definitions/interfaces';
@@ -32,7 +38,9 @@ export class RolesGuard implements CanActivate {
       throw new InternalServerErrorException();
     }
 
-    const { user }: { user: Omit<IUser, 'password'> } = context.switchToHttp().getRequest();
+    const { user }: { user: Omit<IUser, 'password'> } = context
+      .switchToHttp()
+      .getRequest();
     return requiredRoles.some(role => user.roles?.includes(role));
   }
 }

@@ -18,7 +18,10 @@ export class AuthJwtRTStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(req: Request, payload: IJwtPayload) {
-    const refreshToken = req.get('Authorization')?.replace('Bearer ', '').trim();
+    const refreshToken = req
+      .get('Authorization')
+      ?.replace('Bearer ', '')
+      .trim();
     const { sub, ...rest } = payload;
     const user: ISignedUser = { id: sub, ...rest };
     return { user, refresh_token: refreshToken };

@@ -36,8 +36,7 @@ export const provincias: Provincias = {
 
 export function provincia(code: string) {
   const entry = Object.entries(provincias).find(([, v]) => v.code === code);
-  if (!entry)
-    return undefined;
+  if (!entry) return undefined;
   const [key, { label }] = entry as [string, { code: string; label: string }];
   return { key, label };
 }

@@ -1,11 +1,11 @@
 import { Global, Module } from '@nestjs/common';
 
-import { DatabaseRepositories } from './repositories/database.repositories';
-import { DatabaseSources } from './sources/database.sources';
+import { DatabaseRepositoryModule } from './repositories/database-repository.module';
+import { DatabaseSourcesModule } from './sources/database-sources.module';
 
 @Global()
 @Module({
-  imports: [...DatabaseSources, ...DatabaseRepositories],
-  exports: [...DatabaseSources, ...DatabaseRepositories],
+  imports: [DatabaseSourcesModule, DatabaseRepositoryModule],
+  exports: [DatabaseRepositoryModule, DatabaseSourcesModule],
 })
 export class DatabaseModule {}

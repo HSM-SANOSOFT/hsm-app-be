@@ -13,7 +13,7 @@ import { UserEntity } from './users.entity';
 import type { RoleDomains, Roles } from '@hsm-lib/definitions/types';
 
 @Entity({ name: 'user_roles', schema: 'users' })
-@Unique (['userId', 'domain', 'role'])
+@Unique(['userId', 'domain', 'role'])
 export class UserRoleEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

@@ -1,15 +1,33 @@
 import { Test } from '@nestjs/testing';
 
-import { AuthController } from './auth.controller';
+import { Role } from '@hsm-lib/definitions/enums';
 
+import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
+
+import type { SignupPayloadDto } from '@hsm-lib/definitions/dtos';
 import type { TestingModule } from '@nestjs/testing';
 
 describe('authController', () => {
   let controller: AuthController;
 
+  class MockAuthService {
+    signup = jest.fn();
+    login = jest.fn();
+    logout = jest.fn();
+    refresh = jest.fn();
+    generateIntegrationToken = jest.fn();
+  }
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
+      providers: [
+        {
+          provide: AuthService,
+          useValue: MockAuthService,
+        },
+      ],
     }).compile();
 
     controller = module.get<AuthController>(AuthController);
@@ -17,5 +35,21 @@ describe('authController', () => {
 
   it('should be defined', () => {
     expect(controller).toBeDefined();
+  });
+
+  it('should call signup method', async () => {
+    const signupDto: SignupPayloadDto = {
+      username: 'test',
+      password: 'test',
+      email: 'test@example.com',
+      firstName: 'Test',
+      firstLastName: 'User',
+      gender: undefined,
+      phoneNumber: undefined,
+      secondLastName: undefined,
+      secondName: undefined,
+      role: [Role.System.Admin],
+    };
+    expect(await controller.signup(signupDto)).toBeDefined();
   });
 });

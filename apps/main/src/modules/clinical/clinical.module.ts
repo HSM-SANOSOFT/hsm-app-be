@@ -3,6 +3,6 @@ import { PatientsModule } from './patients/patients.module';
 import { AppointmentsModule } from './appointments/appointments.module';
 
 @Module({
-  imports: [PatientsModule, AppointmentsModule]
+  imports: [PatientsModule, AppointmentsModule],
 })
 export class ClinicalModule {}
