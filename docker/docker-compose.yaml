@@ -70,7 +70,7 @@ services:
       - ./database/postgres.schemas.sql:/docker-entrypoint-initdb.d/postgres.schemas.sql:ro
     restart: unless-stopped
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d hsm']
+      test: [CMD-SHELL, pg_isready -U postgres -d hsm]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -79,7 +79,7 @@ services:
   hsm-app-db-redis:
     image: redis:8-bookworm
     container_name: hsm-app-db-redis
-    command: ['redis-server', "/usr/local/etc/redis/redis.conf"]
+    command: [redis-server, /usr/local/etc/redis/redis.conf]
     volumes:
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
       - ./redis/users.acl:/usr/local/etc/redis/users.acl:ro
@@ -92,7 +92,7 @@ services:
       REDIS_USER: redis
       REDIS_PASSWORD: redis
     healthcheck:
-      test: ['CMD', 'redis-cli', '-a', 'redis', 'ping']
+      test: [CMD, redis-cli, -a, redis, ping]
       interval: 5s
       timeout: 3s
       retries: 20

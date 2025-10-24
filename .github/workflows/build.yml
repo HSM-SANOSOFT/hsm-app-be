@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       APP_TYPE:
-        description: 'Type of application to build (main or worker)'
+        description: Type of application to build (main or worker)
         required: true
         type: string
 permissions:

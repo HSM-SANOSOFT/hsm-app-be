@@ -4,11 +4,11 @@ on:
   workflow_call:
     inputs:
       APP_TYPE:
-        description: 'Type of application to deploy (main or worker)'
+        description: Type of application to deploy (main or worker)
         required: true
         type: string
       NAMESPACE:
-        description: 'Kubernetes namespace to deploy to'
+        description: Kubernetes namespace to deploy to
         required: true
         type: string
 jobs:

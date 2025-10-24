@@ -35,13 +35,13 @@ export class AuthController {
     return newUser;
   }
 
-  //@Public()
-  //@UseGuards(AuthGuard('local'))
-  //@Post('login')
-  //async login(@Body() loginDto: LoginPayloadDto): Promise<LoginResponse> {
+  // @Public()
+  // @UseGuards(AuthGuard('local'))
+  // @Post('login')
+  // async login(@Body() loginDto: LoginPayloadDto): Promise<LoginResponse> {
   //  const user = await this.authService.validateUser(loginDto.username, loginDto.password);
   //  return await this.authService.login(user);
-  //}
+  // }
 
   @Get('logout/:id')
   async logout(@Param('id') logoutDto: LogoutPayloadDto) {

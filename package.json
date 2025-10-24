@@ -8,8 +8,7 @@
   "scripts": {
     "build:main": "nest build main",
     "build:worker": "nest build worker",
-    "format": "eslint \"{src,apps,libs,test}/**/*.ts\" --quiet",
-    "format:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix --quiet",
+    "format": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix --fix-type layout",
     "start:main": "nest start main",
     "start:main:dev": "nest start main --watch",
     "start:main:debug": "nest start main --debug --watch",

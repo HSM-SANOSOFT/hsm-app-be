@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'docker/dockerFile.base'
+      - docker/dockerFile.base
 permissions:
   contents: read
   packages: write
