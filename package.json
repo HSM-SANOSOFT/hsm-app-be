@@ -125,6 +125,6 @@
     }
   },
   "lint-staged": {
-    "{src,apps,libs,test}/**/*.ts": "pnpm format:fix"
+    "{src,apps,libs,test}/**/*.ts": "pnpm eslint --fix --fix-type layout ."
   }
 }
