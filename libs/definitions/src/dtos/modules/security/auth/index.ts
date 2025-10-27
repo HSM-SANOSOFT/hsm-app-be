@@ -1,4 +1,4 @@
-export * from './generate-integration-token.dto';
+export * from './generate-integration-token-payload.dto';
 export * from './integration-token-payload.dto';
 export * from './integration-token-response.dto';
 export * from './login-payload.dto';

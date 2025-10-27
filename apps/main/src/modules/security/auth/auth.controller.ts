@@ -1,8 +1,8 @@
-import type {
+import {
+  CreateUserIntegrationDto,
   LoginPayloadDto,
   LogoutPayloadDto,
   SignupPayloadDto,
-  UserIntegrationDto,
 } from '@hsm-lib/definitions/dtos';
 import { Role } from '@hsm-lib/definitions/enums';
 import type { ITokens } from '@hsm-lib/definitions/interfaces';
@@ -21,7 +21,7 @@ import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
 import { Roles } from '../roles/roles.decorator';
 import { Public } from './auth.decorator';
-import type { AuthService } from './auth.service';
+import { AuthService } from './auth.service';
 
 @Controller('auth')
 export class AuthController {
@@ -29,9 +29,10 @@ export class AuthController {
 
   @Public()
   @Post('signup')
-  async signup(@Body() signupDto: SignupPayloadDto): Promise<ITokens> {
-    const newUser = await this.authService.signup(signupDto);
-    return newUser;
+  async signup(@Body() payload: SignupPayloadDto) /*: Promise<ITokens>*/ {
+    //const newUser = await this.authService.signup(payload);
+    //return newUser;
+    return payload;
   }
 
   @Public()
@@ -54,7 +55,7 @@ export class AuthController {
 
   @Post('token/integration')
   @Roles(Role.System.Admin)
-  async generateIntegrationToken(@Body() payload: UserIntegrationDto) {
+  async generateIntegrationToken(@Body() payload: CreateUserIntegrationDto) {
     return await this.authService.generateIntegrationToken(payload);
   }
 

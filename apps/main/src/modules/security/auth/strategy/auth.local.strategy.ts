@@ -1,4 +1,4 @@
-import type { UserEntity } from '@hsm-lib/database/entities';
+import { UserEntity } from '@hsm-lib/database/entities';
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-local';

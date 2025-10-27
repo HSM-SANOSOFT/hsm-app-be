@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "hsm-app-be",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

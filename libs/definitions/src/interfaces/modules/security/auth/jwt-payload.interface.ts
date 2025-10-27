@@ -1,4 +1,4 @@
-import type {
+import {
   UserEntity,
   UserIntegrationEntity,
 } from '@hsm-lib/database/entities';

@@ -1,8 +1,7 @@
+import { envs } from '@hsm-lib/config';
 import { ConsoleLogger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-
-import { envs } from '@hsm-lib/config';
 
 import { MainModule } from './main.module';
 
@@ -30,7 +29,7 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-      disableErrorMessages: true,
+      disableErrorMessages: false,
       validationError: { target: false, value: false },
     }),
   );

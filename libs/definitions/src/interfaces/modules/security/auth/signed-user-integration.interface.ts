@@ -1,2 +1,2 @@
-import type { UserIntegrationEntity } from '@hsm-lib/database/entities';
+import { UserIntegrationEntity } from '@hsm-lib/database/entities';
 export type ISignedUserIntegration = UserIntegrationEntity;

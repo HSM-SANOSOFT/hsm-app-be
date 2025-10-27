@@ -1,3 +1,3 @@
-import { UserIntegrationDto } from '@hsm-lib/definitions/dtos';
+import { CreateUserIntegrationDto } from '@hsm-lib/definitions/dtos';
 
-export class CreateUserIntegrationPayloadDto extends UserIntegrationDto {}
+export class CreateUserIntegrationPayloadDto extends CreateUserIntegrationDto {}

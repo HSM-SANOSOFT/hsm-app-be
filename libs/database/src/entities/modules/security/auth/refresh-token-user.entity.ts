@@ -25,7 +25,7 @@ export class RefreshTokenUserEntity {
   user!: UserEntity;
 
   @Column({ type: 'varchar' })
-  @Index({ unique: true, where: '"deleted_at" IS NULL' })
+  @Index({ unique: true, where: '"deletedAt" IS NULL' })
   refreshToken!: string;
 
   @Column({ type: 'boolean', default: true })

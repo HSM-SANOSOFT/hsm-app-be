@@ -3,11 +3,11 @@ import {
   RefreshTokenUserIntegrationEntity,
 } from '@hsm-lib/database/entities';
 import { Databases } from '@hsm-lib/database/sources';
-import type {
+import {
+  CreateUserIntegrationDto,
   LoginPayloadDto,
   LogoutPayloadDto,
   SignupPayloadDto,
-  UserIntegrationDto,
 } from '@hsm-lib/definitions/dtos';
 import { Role } from '@hsm-lib/definitions/enums';
 import type {
@@ -125,7 +125,7 @@ export class AuthService {
   }
 
   async generateIntegrationToken(
-    payload: UserIntegrationDto,
+    payload: CreateUserIntegrationDto,
   ): Promise<ITokens> {
     const user = await this.usersService.createUserIntegration(payload);
 

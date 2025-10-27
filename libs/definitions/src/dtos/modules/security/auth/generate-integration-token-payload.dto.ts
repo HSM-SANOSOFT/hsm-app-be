@@ -1,7 +1,7 @@
-import { FunctionalityRole } from '@hsm-lib/definitions/enums/modules/security/roles';
+import { FunctionalityRole } from '@hsm-lib/definitions/enums';
 import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
 
-export class UserIntegrationDto {
+export class CreateUserIntegrationDto {
   @IsString()
   @IsNotEmpty()
   name: string;

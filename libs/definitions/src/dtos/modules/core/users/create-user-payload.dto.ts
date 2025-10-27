@@ -1,14 +1,12 @@
+import { Role } from '@hsm-lib/definitions/enums';
+import type { Roles } from '@hsm-lib/definitions/types';
 import {
   ArrayMinSize,
   IsArray,
-  IsEnum,
+  IsIn,
   IsNotEmpty,
   IsString,
 } from 'class-validator';
-
-import { Role } from '@hsm-lib/definitions/enums';
-
-import type { Roles } from '@hsm-lib/definitions/types';
 
 export class CreateUserPayloadDto {
   @IsNotEmpty()
@@ -45,6 +43,8 @@ export class CreateUserPayloadDto {
 
   @ArrayMinSize(1)
   @IsArray()
-  @IsEnum(Role, { each: true })
+  @IsIn(Object.values(Role).flatMap(Object.values) as readonly string[], {
+    each: true,
+  })
   role!: Roles[];
 }

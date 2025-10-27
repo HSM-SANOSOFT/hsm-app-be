@@ -7,7 +7,7 @@ export const DatabaseSourceOptions: Pick<
   'retryAttempts' | 'retryDelay' | 'logging' | 'extra' | 'logger'
 > = {
   logging: true,
-  logger: envs.ENVIRONMENT === 'dev' ? 'advanced-console' : 'simple-console',
+  logger: envs.ENVIRONMENT === 'dev' ? 'debug' : 'simple-console',
   extra: {
     poolMin: 2,
     poolMax: 10,

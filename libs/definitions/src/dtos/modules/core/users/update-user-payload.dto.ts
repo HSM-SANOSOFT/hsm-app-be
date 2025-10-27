@@ -1,6 +1,5 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
-
 import type { Roles } from '@hsm-lib/definitions/types';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class UpdateUserPayloadDto {
   @IsNotEmpty()

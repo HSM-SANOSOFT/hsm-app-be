@@ -1,6 +1,6 @@
 import { UserEntity, UserIntegrationEntity } from '@hsm-lib/database/entities';
 import { Databases } from '@hsm-lib/database/sources';
-import type {
+import {
   CreateUserIntegrationPayloadDto,
   CreateUserPayloadDto,
   DeleteUserPayloadDto,
@@ -8,7 +8,7 @@ import type {
 } from '@hsm-lib/definitions/dtos';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import type { Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class UsersService {

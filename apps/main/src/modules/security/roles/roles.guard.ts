@@ -1,8 +1,8 @@
-import type { UserEntity } from '@hsm-lib/database/entities';
-import type { Roles } from '@hsm-lib/definitions/types/modules/security/roles';
+import { UserEntity } from '@hsm-lib/database/entities';
+import type { Roles } from '@hsm-lib/definitions/types';
 import {
-  type CanActivate,
-  type ExecutionContext,
+  CanActivate,
+  ExecutionContext,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -32,7 +32,7 @@ export class RolesGuard implements CanActivate {
     ]);
     if (isPublic) {
       this.logger.error('Public route - RolesGuard should not be applied');
-      throw new InternalServerErrorException();
+      throw new InternalServerErrorException({ message: 'Public route - RolesGuard should not be applied' });
     }
 
     const { user }: { user: Omit<UserEntity, 'password'> } = context

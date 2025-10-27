@@ -67,7 +67,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: hsm
     volumes:
-      - ./database/postgres.schemas.sql:/docker-entrypoint-initdb.d/postgres.schemas.sql:ro
+      - ./postgres/init-schemas.sql:/docker-entrypoint-initdb.d/postgres.schemas.sql:ro
     restart: unless-stopped
     healthcheck:
       test: [CMD-SHELL, pg_isready -U postgres -d hsm]

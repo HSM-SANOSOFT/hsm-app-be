@@ -1,4 +1,4 @@
-import type * as RoleEnums from '@hsm-lib/definitions/enums/modules/security/roles/roles.enum';
+import type * as RoleEnums from '@hsm-lib/definitions/enums';
 
 export type Roles =
   | RoleEnums.ClinicalRoles

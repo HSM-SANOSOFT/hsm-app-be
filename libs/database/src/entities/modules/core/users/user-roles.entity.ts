@@ -14,7 +14,7 @@ import {
 } from 'typeorm';
 
 @Entity({ name: 'user_roles', schema: 'users' })
-@Unique(['userId', 'domain', 'role'])
+@Unique(['domain', 'role'])
 export class UserRoleEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

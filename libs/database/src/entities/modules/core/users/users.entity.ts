@@ -20,11 +20,11 @@ export class UserEntity {
   id!: string;
 
   @Column({ type: 'citext' })
-  @Index({ unique: true, where: '"deleted_at" IS NULL' })
+  @Index({ unique: true, where: '"deletedAt" IS NULL' })
   username!: string;
 
   @Column({ type: 'citext' })
-  @Index({ unique: true, where: '"deleted_at" IS NULL' })
+  @Index({ unique: true, where: '"deletedAt" IS NULL' })
   email!: string;
 
   @Column({ type: 'text' })
