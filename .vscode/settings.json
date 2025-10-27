@@ -1,6 +1,7 @@
 {
   // Disable the default formatter, use eslint instead
   "prettier.enable": false,
+  "eslint.enable": false,
   "editor.formatOnSave": false,
   // Auto fix
   "editor.codeActionsOnSave": {
@@ -111,5 +112,8 @@
     "revealOn": "run",
     "revealWithFocus": "none",
     "clearOnRun": "none"
-  }
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
 }

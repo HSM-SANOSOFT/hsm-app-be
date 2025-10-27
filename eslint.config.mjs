@@ -1,22 +1,16 @@
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import antfu from '@antfu/eslint-config';
+import eslint from '@eslint/js';
+import eslintPluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
+import simpleImportSort from 'eslint-plugin-simple-import-sort';
 import globals from 'globals';
+import tseslint from 'typescript-eslint';
+
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export default antfu(
-  {
-    type: 'app',
-    typescript: true,
-    formatters: true,
-    stylistic: {
-      indent: 2,
-      semi: true,
-      quotes: 'single',
-    },
-  },
+export default tseslint.config(
   {
     ignores: [
       '**/node_modules/**',
@@ -24,84 +18,68 @@ export default antfu(
       '**/build/**',
       '**/.next/**',
       '**/coverage/**',
-      '.github/**/**',
       'eslint.config.mjs',
-      './pnpm-store/**',
-      '.husky/**',
     ],
+  },
+  eslint.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
+  eslintPluginPrettierRecommended,
+  {
+    plugins: {
+      'simple-import-sort': simpleImportSort,
+    },
     languageOptions: {
       globals: {
         ...globals.node,
         ...globals.jest,
       },
+      ecmaVersion: 'latest',
+      sourceType: 'module',
       parserOptions: {
         projectService: true,
-        tsconfigRootDir: __dirname,
+        tsconfigRootDir: __dirname
       },
     },
-
-    files: ['**/*.{ts,tsx}'],
+  },
+  {
     rules: {
       'no-unused-vars': 'off',
-      'ts/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-      'ts/no-use-before-define': 'error',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-use-before-define': 'error',
 
-      'ts/consistent-type-imports': 'error',
-      'ts/triple-slash-reference': 'error',
-      'ts/no-import-type-side-effects': 'error',
-      'ts/no-require-imports': 'error',
+      '@typescript-eslint/consistent-type-imports': 'error',
+      "@typescript-eslint/triple-slash-reference": "error",
+      "@typescript-eslint/no-import-type-side-effects": "error",
+      '@typescript-eslint/no-require-imports': 'error',
 
-      'ts/no-deprecated': 'error',
-      'ts/no-empty-function': 'error',
-      'ts/no-empty-interface': 'error',
-      'ts/no-empty-object-type': 'error',
+      '@typescript-eslint/no-deprecated': 'error',
+      '@typescript-eslint/no-empty-function': 'error',
+      '@typescript-eslint/no-empty-interface': 'error',
+      '@typescript-eslint/no-empty-object-type': 'error',
 
-      'ts/no-unsafe-return': 'error',
-      'ts/no-explicit-any': 'error',
-      'ts/no-unsafe-call': 'error',
-      'ts/no-unsafe-member-access': 'error',
-      'ts/no-unsafe-assignment': 'error',
-      'ts/no-floating-promises': 'error',
+      "@typescript-eslint/no-unsafe-return": "error",
+      '@typescript-eslint/no-explicit-any': 'error',
+      "@typescript-eslint/no-unsafe-call": "error",
+      "@typescript-eslint/no-unsafe-member-access": "error",
+      "@typescript-eslint/no-unsafe-assignment": "error",
+      '@typescript-eslint/no-floating-promises': 'error',
 
-      'ts/no-unnecessary-boolean-literal-compare': 'error',
-      'ts/no-unnecessary-type-arguments': 'error',
-      'ts/no-unnecessary-type-assertion': 'error',
-      'ts/no-unnecessary-type-constraint': 'error',
-      'ts/no-unnecessary-template-expression': 'error',
-      'ts/no-unnecessary-qualifier': 'error',
-      'ts/no-unnecessary-parameter-property-assignment': 'error',
+      '@typescript-eslint/no-unnecessary-boolean-literal-compare': 'error',
+      '@typescript-eslint/no-unnecessary-type-arguments': 'error',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'error',
+      '@typescript-eslint/no-unnecessary-type-constraint': 'error',
+      "@typescript-eslint/no-unnecessary-template-expression": "error",
+      "@typescript-eslint/no-unnecessary-qualifier": "error",
+      "@typescript-eslint/no-unnecessary-parameter-property-assignment": "error",
 
-      'perfectionist/sort-imports': ['error', {
-        type: 'natural',
-        groups: [
-          'side-effect',
-          'builtin',
-          'external',
-          'internal',
-          ['parent', 'sibling', 'index'],
-          'type',
-          'object',
-          'unknown',
-        ],
-        tsconfigRootDir: __dirname,
-      }],
+      'simple-import-sort/imports': 'error',
+      'simple-import-sort/exports': 'error',
+
+      'prettier/prettier': 'warn',
 
       'no-console': 'warn',
       'no-debugger': 'error',
       'eol-last': ['error', 'always'],
-
-      'unicorn/filename-case': ['error', {
-        case: 'kebabCase',
-        ignore: ['README.md'],
-      }],
-    },
-
-  },
-  {
-    files: ['**/*.{json,yml,yaml}'],
-    rules: {
-      'ts/consistent-type-imports': 'off',
-      'ts/no-unused-vars': 'off',
     },
   },
 );
