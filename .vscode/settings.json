@@ -6,7 +6,8 @@
   // Auto fix
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit",
-    "source.organizeImports": "never"
+    "source.fixAll.biome": "explicit",
+    "source.organizeImports.biome": "explicit"
   },
   // Silent the stylistic rules in you IDE, but still auto fix them
   "eslint.rules.customizations": [
@@ -112,8 +113,5 @@
     "revealOn": "run",
     "revealWithFocus": "none",
     "clearOnRun": "none"
-  },
-  "[typescript]": {
-    "editor.defaultFormatter": "biomejs.biome"
   }
 }

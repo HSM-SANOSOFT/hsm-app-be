@@ -120,8 +120,5 @@
       "^@hsm-lib/definitions(|/.*)$": "<rootDir>/libs/definitions/src/$1",
       "^@hsm-lib/queue(|/.*)$": "<rootDir>/libs/queue/src/$1"
     }
-  },
-  "lint-staged": {
-    "*": "pnpm dlx eslint --fix --fix-type layout"
   }
 }

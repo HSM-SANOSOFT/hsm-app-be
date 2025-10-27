@@ -1,4 +1,12 @@
 import {
+  GenerateIntegrationTokenDto,
+  LoginPayloadDto,
+  LogoutPayloadDto,
+  SignupPayloadDto,
+} from '@hsm-lib/definitions/dtos';
+import { Role } from '@hsm-lib/definitions/enums';
+import { ITokens, LoginResponse } from '@hsm-lib/definitions/interfaces';
+import {
   Body,
   Controller,
   Get,
@@ -8,21 +16,10 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-
-import {
-  GenerateIntegrationTokenDto,
-  LoginPayloadDto,
-  LogoutPayloadDto,
-  SignupPayloadDto,
-} from '@hsm-lib/definitions/dtos';
-import { Role } from '@hsm-lib/definitions/enums';
-import { ITokens, LoginResponse } from '@hsm-lib/definitions/interfaces';
-
+import type { Request } from 'express';
 import { Roles } from '../roles/roles.decorator';
 import { Public } from './auth.decorator';
 import { AuthService } from './auth.service';
-
-import type { Request } from 'express';
 
 @Controller('auth')
 export class AuthController {
