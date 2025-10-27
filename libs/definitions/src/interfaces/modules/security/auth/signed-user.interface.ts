@@ -1,3 +1,3 @@
-import type { IUser } from '@hsm-lib/definitions/interfaces';
+import type { UserEntity } from '@hsm-lib/database/entities';
 
-export type ISignedUser = Omit<IUser, 'password' | 'name' | 'surname'>;
+export type ISignedUser = Pick<UserEntity, "id" | "username" | "email" | "roles">;

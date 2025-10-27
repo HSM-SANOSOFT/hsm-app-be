@@ -1,11 +1,16 @@
+import { envs } from '@hsm-lib/config';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
-import { envs } from '@hsm-lib/config';
-
-import { UserEntity, UserRoleEntity } from '../entities/modules/core/users';
-import { DatabaseSourceOptions } from './database-source-options';
+import {
+  RefreshTokenUserEntity,
+  RefreshTokenUserIntegrationEntity,
+  UserEntity,
+  UserIntegrationEntity,
+  UserRoleEntity,
+} from '../entities/modules';
 import { Databases } from './database-source.enum';
+import { DatabaseSourceOptions } from './database-source-options';
 
 @Module({
   imports: [
@@ -18,7 +23,13 @@ import { Databases } from './database-source.enum';
       password: envs.HSM_DB_POSTGRES_PASSWORD,
       database: envs.HSM_DB_POSTGRES_DB,
       synchronize: envs.ENVIRONMENT === 'dev',
-      entities: [UserEntity, UserRoleEntity],
+      entities: [
+        UserEntity,
+        UserRoleEntity,
+        UserIntegrationEntity,
+        RefreshTokenUserEntity,
+        RefreshTokenUserIntegrationEntity,
+      ],
       ...DatabaseSourceOptions,
     }),
   ],

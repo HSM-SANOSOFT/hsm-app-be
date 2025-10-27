@@ -1,5 +1,4 @@
 import { UserEntity } from '@hsm-lib/database/entities';
-import type { RoleDomains, Roles } from '@hsm-lib/definitions/types';
 import {
   Column,
   CreateDateColumn,
@@ -7,33 +6,31 @@ import {
   Entity,
   Index,
   JoinColumn,
-  ManyToOne,
+  OneToOne,
   PrimaryGeneratedColumn,
-  Unique,
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity({ name: 'user_roles', schema: 'users' })
-@Unique(['userId', 'domain', 'role'])
-export class UserRoleEntity {
+@Entity({ name: 'refresh_token_users', schema: 'auth' })
+export class RefreshTokenUserEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @ManyToOne(
+  @OneToOne(
     () => UserEntity,
-    user => user.roles,
+    user => user.refreshToken,
     { onDelete: 'CASCADE' },
   )
   @JoinColumn()
   user!: UserEntity;
 
   @Column({ type: 'varchar' })
-  domain!: RoleDomains;
+  @Index({ unique: true, where: '"deleted_at" IS NULL' })
+  refreshToken!: string;
 
-  @Column({ type: 'varchar' })
-  @Index()
-  role!: Roles;
-  
+  @Column({ type: 'boolean', default: true })
+  isActive!: boolean;
+
   @CreateDateColumn()
   createdAt!: Date;
 

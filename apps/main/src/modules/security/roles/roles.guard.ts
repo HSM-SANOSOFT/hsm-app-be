@@ -1,18 +1,15 @@
+import type { UserEntity } from '@hsm-lib/database/entities';
+import type { Roles } from '@hsm-lib/definitions/types/modules/security/roles';
 import {
-  CanActivate,
-  ExecutionContext,
+  type CanActivate,
+  type ExecutionContext,
   Injectable,
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-
-import { IUser } from '@hsm-lib/definitions/interfaces';
-
 import { IS_PUBLIC_KEY } from '../auth/auth.decorator';
 import { ROLES_KEY } from './roles.decorator';
-
-import type { Roles } from '@hsm-lib/definitions/types/modules/security/roles';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -38,9 +35,11 @@ export class RolesGuard implements CanActivate {
       throw new InternalServerErrorException();
     }
 
-    const { user }: { user: Omit<IUser, 'password'> } = context
+    const { user }: { user: Omit<UserEntity, 'password'> } = context
       .switchToHttp()
       .getRequest();
-    return requiredRoles.some(role => user.roles?.includes(role));
+    return requiredRoles.some(role =>
+      user.roles?.some(userRole => userRole.role === role),
+    );
   }
 }

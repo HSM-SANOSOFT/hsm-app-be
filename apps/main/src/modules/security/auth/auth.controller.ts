@@ -1,16 +1,18 @@
-import {
-  type GenerateIntegrationTokenDto,
+import type {
   LoginPayloadDto,
-  type LogoutPayloadDto,
-  type SignupPayloadDto,
+  LogoutPayloadDto,
+  SignupPayloadDto,
+  UserIntegrationDto,
 } from '@hsm-lib/definitions/dtos';
 import { Role } from '@hsm-lib/definitions/enums';
-import { type ITokens, LoginResponse } from '@hsm-lib/definitions/interfaces';
+import type { ITokens } from '@hsm-lib/definitions/interfaces';
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -32,16 +34,16 @@ export class AuthController {
     return newUser;
   }
 
-  // @Public()
-  // @UseGuards(AuthGuard('local'))
-  // @Post('login')
-  // async login(@Body() loginDto: LoginPayloadDto): Promise<LoginResponse> {
-  //  const user = await this.authService.validateUser(loginDto.username, loginDto.password);
-  //  return await this.authService.login(user);
-  // }
+  @Public()
+  @UseGuards(AuthGuard('local'))
+  @Post('login')
+  async login(@Body() payload: LoginPayloadDto): Promise<ITokens> {
+    return await this.authService.login(payload);
+  }
 
   @Get('logout/:id')
-  async logout(@Param('id') logoutDto: LogoutPayloadDto) {
+  async logout(@Param('id') id: string) {
+    const logoutDto: LogoutPayloadDto = { id };
     return await this.authService.logout(logoutDto);
   }
 
@@ -52,8 +54,20 @@ export class AuthController {
 
   @Post('token/integration')
   @Roles(Role.System.Admin)
-  async generateIntegrationToken(@Body() payload: GenerateIntegrationTokenDto) {
+  async generateIntegrationToken(@Body() payload: UserIntegrationDto) {
     return await this.authService.generateIntegrationToken(payload);
+  }
+  
+  @Patch('token/integration/:id')
+  @Roles(Role.System.Admin)
+  async deactivateIntegrationToken(@Param('id') id: string) {
+    //return await this.authService.deactivateIntegrationToken(id);
+  }
+
+  @Delete('token/integration/:id')
+  @Roles(Role.System.Admin)
+  async deleteIntegrationToken(@Param('id') id: string) {
+    //return await this.authService.deleteIntegrationToken(id);
   }
 
   @Get('profile')

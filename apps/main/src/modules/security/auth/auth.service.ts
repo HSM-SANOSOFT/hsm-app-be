@@ -1,29 +1,63 @@
-import type { UserEntity } from '@hsm-lib/database/entities';
 import {
-  type GenerateIntegrationTokenDto,
+  RefreshTokenUserEntity,
+  RefreshTokenUserIntegrationEntity,
+} from '@hsm-lib/database/entities';
+import { Databases } from '@hsm-lib/database/sources';
+import type {
   LoginPayloadDto,
-  type LogoutPayloadDto,
-  type SignupPayloadDto,
+  LogoutPayloadDto,
+  SignupPayloadDto,
+  UserIntegrationDto,
 } from '@hsm-lib/definitions/dtos';
 import { Role } from '@hsm-lib/definitions/enums';
 import type {
-  IJwtPayload,
-  ISignedUser,
+  IJwtPayloadUser,
+  IJwtPayloadUserIntegration,
   ITokens,
   IUnsignedUser,
-  LoginResponse,
+  IUnsignedUserIntegration,
 } from '@hsm-lib/definitions/interfaces';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import type { JwtService } from '@nestjs/jwt';
-
-import type { UsersService } from '../../core/users/users.service';
+import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
+import * as bcrypt from 'bcrypt';
+import { Repository } from 'typeorm/repository/Repository.js';
+import { UsersService } from '../../core/users/users.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
+    @InjectRepository(RefreshTokenUserEntity, Databases.HsmDbPostgres)
+    private refreshTokenUserRepository: Repository<RefreshTokenUserEntity>,
+    @InjectRepository(
+      RefreshTokenUserIntegrationEntity,
+      Databases.HsmDbPostgres,
+    )
+    private refreshTokenUserIntegrationRepository: Repository<RefreshTokenUserIntegrationEntity>,
     private jwtService: JwtService,
   ) {}
+
+  async hashData(data: string): Promise<string> {
+    return await bcrypt.hash(data, 10);
+  }
+
+  async updateRefreshTokenHash(
+    userId: string,
+    refreshToken: string,
+    integration: boolean = false,
+  ): Promise<void> {
+    const hashedRefreshToken = await this.hashData(refreshToken);
+    if (integration) {
+      await this.refreshTokenUserIntegrationRepository.update(userId, {
+        refreshToken: hashedRefreshToken,
+      });
+    } else {
+      await this.refreshTokenUserRepository.update(userId, {
+        refreshToken: hashedRefreshToken,
+      });
+    }
+  }
 
   async validateUser(username: string, pass: string): Promise<IUnsignedUser> {
     const user = await this.usersService.findOneByUsername(username);
@@ -31,52 +65,86 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    if (user.password !== pass) {
+    const passwordValid = await bcrypt.compare(pass, user.password);
+    if (!passwordValid) {
       throw new UnauthorizedException('Invalid password');
     }
 
-    const result: IUnsignedUser = { ...user };
+    const { password, ...result } = user;
+
     return result;
   }
 
-  async generateTokens(user: IUnsignedUser): Promise<ITokens> {
-    const userToSign: ISignedUser = { ...user };
-    const jwtPayload: IJwtPayload = { sub: user.id, ...userToSign };
+  async generateTokens(
+    user: IUnsignedUser | IUnsignedUserIntegration,
+    integration: boolean = false,
+  ): Promise<ITokens> {
+    let payload: IJwtPayloadUser | IJwtPayloadUserIntegration;
+    if (integration) {
+      payload = {
+        sub: user.id,
+        ...user,
+        roles: [Role.System.Integration],
+      } as IJwtPayloadUserIntegration;
+    } else {
+      payload = { sub: user.id, ...user } as IJwtPayloadUser;
+    }
     const [access_token, refresh_token] = await Promise.all([
-      this.jwtService.signAsync(jwtPayload, { expiresIn: '15m' }),
-      this.jwtService.signAsync(jwtPayload, { expiresIn: '7d' }),
+      this.jwtService.signAsync(payload, { expiresIn: '15m' }),
+      this.jwtService.signAsync(payload, {
+        expiresIn: integration ? '7d' : '30d',
+      }),
     ]);
     return { access_token, refresh_token };
   }
 
   async signup(newUser: SignupPayloadDto): Promise<ITokens> {
-    const user = await this.usersService.createUser(newUser);
+    const hashedPassword = await this.hashData(newUser.password);
+    const user = await this.usersService.createUser({
+      ...newUser,
+      password: hashedPassword,
+    });
     const tokens: ITokens = await this.generateTokens(user);
+    const refreshToken = this.hashData(tokens.refresh_token);
+    await this.refreshTokenUserRepository.save({
+      user: user,
+      refreshToken: await refreshToken,
+      isActive: true,
+    });
     return tokens;
   }
 
-  async login(user: UserEntity): Promise<LoginResponse> {
-    const response: LoginResponse = await this.generateTokens(user);
-    return response;
+  async login(payload: LoginPayloadDto): Promise<ITokens> {
+    const user: IUnsignedUser = await this.validateUser(
+      payload.username,
+      payload.password,
+    );
+    const tokens: ITokens = await this.generateTokens(user);
+    await this.updateRefreshTokenHash(user.id, tokens.refresh_token);
+    return tokens;
   }
 
-  async logout(id: LogoutPayloadDto) {
-    return id;
+  async generateIntegrationToken(
+    payload: UserIntegrationDto,
+  ): Promise<ITokens> {
+    const user = await this.usersService.createUserIntegration(payload);
+
+    const tokens: ITokens = await this.generateTokens(
+      payload as IUnsignedUserIntegration,
+      true,
+    );
+    const refreshToken = this.hashData(tokens.refresh_token);
+    await this.refreshTokenUserIntegrationRepository.save({
+      user: user,
+      refreshToken: await refreshToken,
+      isActive: true,
+    });
+    return tokens;
+  }
+
+  async logout(user: LogoutPayloadDto) {
+    return user;
   }
 
   async refresh() {}
-
-  async generateIntegrationToken(payload: GenerateIntegrationTokenDto) {
-    const expiresIn = payload.expiresIn ?? '100y';
-    const roles = Role.System.Integration;
-    const jwtPayload = {
-      sub: payload.name,
-      description: payload.description,
-      functionality: payload.functionality,
-      roles,
-    };
-    return {
-      integration_token: this.jwtService.sign(jwtPayload, { expiresIn }),
-    };
-  }
 }

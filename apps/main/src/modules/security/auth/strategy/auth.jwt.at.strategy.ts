@@ -1,9 +1,8 @@
+import { envs } from '@hsm-lib/config';
+import type { IJwtPayloadUser, IJwtPayloadUserIntegration } from '@hsm-lib/definitions/interfaces';
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-
-import { envs } from '@hsm-lib/config';
-import { IJwtPayload, ISignedUser } from '@hsm-lib/definitions/interfaces';
 
 @Injectable()
 export class AuthJwtATStrategy extends PassportStrategy(Strategy) {
@@ -16,9 +15,9 @@ export class AuthJwtATStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: IJwtPayload) {
+  validate(payload: IJwtPayloadUser | IJwtPayloadUserIntegration) {
     const { sub, ...rest } = payload;
-    const user: ISignedUser = { id: sub, ...rest };
+    const user = { id: sub, ...rest };
     return user;
   }
 }

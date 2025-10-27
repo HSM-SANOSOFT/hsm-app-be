@@ -1,3 +1,4 @@
+export * from './create-user-integration-payload.dto';
 export * from './create-user-payload.dto';
 export * from './create-user-response.dto';
 export * from './delete-user-payload.dto';

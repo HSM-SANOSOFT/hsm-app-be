@@ -1,3 +1,4 @@
-import type { IUser } from '@hsm-lib/definitions/interfaces';
 
-export type IUnsignedUser = Omit<IUser, 'password'>;
+import type { UserEntity } from '@hsm-lib/database/entities';
+
+export type IUnsignedUser = Omit<UserEntity, 'password'>;
