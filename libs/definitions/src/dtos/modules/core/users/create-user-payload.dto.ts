@@ -13,22 +13,22 @@ import {
 export class CreateUserPayloadDto {
   @IsNotEmpty()
   @IsString()
-  @ApiProperty({required: true})
+  @ApiProperty({ required: true })
   username!: string;
 
   @IsNotEmpty()
   @IsString()
-  @ApiProperty({required: true})
+  @ApiProperty({ required: true })
   email!: string;
 
   @IsNotEmpty()
   @IsString()
-  @ApiProperty({required: true})
+  @ApiProperty({ required: true })
   password!: string;
 
   @IsNotEmpty()
   @IsString()
-  @ApiProperty({required: true})
+  @ApiProperty({ required: true })
   firstName!: string;
 
   @IsOptional()
@@ -38,7 +38,7 @@ export class CreateUserPayloadDto {
 
   @IsNotEmpty()
   @IsString()
-  @ApiProperty({required: true})
+  @ApiProperty({ required: true })
   firstLastName!: string;
 
   @IsOptional()
@@ -61,6 +61,6 @@ export class CreateUserPayloadDto {
   @IsIn(Object.values(Role).flatMap(Object.values) as readonly string[], {
     each: true,
   })
-  @ApiProperty({required: true})
+  @ApiProperty({ required: true })
   role!: Roles[];
 }
