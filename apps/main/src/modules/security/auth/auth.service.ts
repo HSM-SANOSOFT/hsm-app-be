@@ -4,7 +4,7 @@ import {
 } from '@hsm-lib/database/entities';
 import { Databases } from '@hsm-lib/database/sources';
 import {
-  CreateUserIntegrationDto,
+  GenerateIntegrationTokenPayloadDto,
   LoginPayloadDto,
   LogoutPayloadDto,
   SignupPayloadDto,
@@ -125,7 +125,7 @@ export class AuthService {
   }
 
   async generateIntegrationToken(
-    payload: CreateUserIntegrationDto,
+    payload: GenerateIntegrationTokenPayloadDto,
   ): Promise<ITokens> {
     const user = await this.usersService.createUserIntegration(payload);
 

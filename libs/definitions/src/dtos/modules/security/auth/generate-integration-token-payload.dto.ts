@@ -1,16 +1,3 @@
-import { FunctionalityRole } from '@hsm-lib/definitions/enums';
-import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
+import { CreateUserIntegrationPayloadDto } from '../../core/users/create-user-integration-payload.dto';
 
-export class CreateUserIntegrationDto {
-  @IsString()
-  @IsNotEmpty()
-  name: string;
-
-  @IsString()
-  @IsNotEmpty()
-  description: string;
-
-  @IsEnum(FunctionalityRole)
-  @IsNotEmpty()
-  functionality: FunctionalityRole;
-}
+export class GenerateIntegrationTokenPayloadDto extends CreateUserIntegrationPayloadDto {}

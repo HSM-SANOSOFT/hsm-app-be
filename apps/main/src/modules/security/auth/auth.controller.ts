@@ -1,5 +1,5 @@
 import {
-  CreateUserIntegrationDto,
+  GenerateIntegrationTokenPayloadDto,
   LoginPayloadDto,
   LogoutPayloadDto,
   SignupPayloadDto,
@@ -29,10 +29,9 @@ export class AuthController {
 
   @Public()
   @Post('signup')
-  async signup(@Body() payload: SignupPayloadDto) /*: Promise<ITokens>*/ {
-    //const newUser = await this.authService.signup(payload);
-    //return newUser;
-    return payload;
+  async signup(@Body() payload: SignupPayloadDto) : Promise<ITokens> {
+    const newUser = await this.authService.signup(payload);
+    return newUser; 
   }
 
   @Public()
@@ -55,7 +54,7 @@ export class AuthController {
 
   @Post('token/integration')
   @Roles(Role.System.Admin)
-  async generateIntegrationToken(@Body() payload: CreateUserIntegrationDto) {
+  async generateIntegrationToken(@Body() payload: GenerateIntegrationTokenPayloadDto) {
     return await this.authService.generateIntegrationToken(payload);
   }
 
