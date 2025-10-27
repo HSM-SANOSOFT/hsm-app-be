@@ -63,6 +63,7 @@
   },
   "devDependencies": {
     "@antfu/eslint-config": "^5.4.1",
+    "@biomejs/biome": "^2.3.1",
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.36.0",
     "@nestjs/cli": "^11.0.0",
