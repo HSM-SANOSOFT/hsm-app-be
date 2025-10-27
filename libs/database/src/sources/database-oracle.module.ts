@@ -13,8 +13,7 @@ try {
   });
   oracledb.fetchAsString = [oracledb.CLOB];
   oracledb.fetchAsBuffer = [oracledb.BLOB];
-}
-catch (err) {
+} catch (err) {
   Logger.error('Error initializing Oracle client', err);
 }
 

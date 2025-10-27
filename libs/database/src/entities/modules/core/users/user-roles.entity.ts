@@ -22,7 +22,11 @@ export class UserRoleEntity {
   @Index()
   userId!: string;
 
-  @ManyToOne(() => UserEntity, user => user.roles, { onDelete: 'CASCADE' })
+  @ManyToOne(
+    () => UserEntity,
+    user => user.roles,
+    { onDelete: 'CASCADE' },
+  )
   @JoinColumn({ name: 'user_id' })
   user!: UserEntity;
 

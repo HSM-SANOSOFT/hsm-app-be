@@ -429,15 +429,15 @@ export const parroquias: Parroquias = {
       LOS_ANDES: { code: '52', label: 'Los Andes' },
     },
     ESPEJO: {
-      'SAN_ISIDRO': { code: '53', label: 'San Isidro' },
-      'LA_LIBERTAD_ALIZO': { code: '52', label: 'La Libertad (Alizo)' },
-      'EL_GOALTAL': { code: '51', label: 'El Goaltal' },
-      'EL_ANGEL_CABECERA_CANTONAL': {
+      SAN_ISIDRO: { code: '53', label: 'San Isidro' },
+      LA_LIBERTAD_ALIZO: { code: '52', label: 'La Libertad (Alizo)' },
+      EL_GOALTAL: { code: '51', label: 'El Goaltal' },
+      EL_ANGEL_CABECERA_CANTONAL: {
         code: '50',
         label: 'El Angel, Cabecera Cantonal',
       },
       '27_DE_SEPTIEMBRE': { code: '02', label: '27 De Septiembre' },
-      'EL_ANGEL': { code: '01', label: 'El Angel' },
+      EL_ANGEL: { code: '01', label: 'El Angel' },
     },
     MIRA: {
       MIRA_CHONTAHUASI_CABECERA_CANTONAL: {
@@ -477,37 +477,37 @@ export const parroquias: Parroquias = {
   },
   COTOPAXI: {
     LATACUNGA: {
-      'LATACUNGA_CABECERA_CANTONAL_Y_CAPITAL': {
+      LATACUNGA_CABECERA_CANTONAL_Y_CAPITAL: {
         code: '50',
         label: 'Latacunga, Cabecera Cantonal Y Capital',
       },
-      'ELOY_ALFARO_SAN_FELIPE': { code: '01', label: 'Eloy Alfaro (San Felipe)' },
-      'PALO_QUEMADO': { code: '63', label: 'Palo Quemado' },
-      'TOACASO': { code: '62', label: 'Toacaso' },
-      'LAS_PAMPAS': { code: '55', label: 'Las Pampas' },
-      'MULALO': { code: '56', label: 'Mulalo' },
-      'JOSEGUANGO_BAJO': { code: '54', label: 'Joseguango Bajo' },
-      'BELISARIO_QUEVEDO_GUANAILIN': {
+      ELOY_ALFARO_SAN_FELIPE: { code: '01', label: 'Eloy Alfaro (San Felipe)' },
+      PALO_QUEMADO: { code: '63', label: 'Palo Quemado' },
+      TOACASO: { code: '62', label: 'Toacaso' },
+      LAS_PAMPAS: { code: '55', label: 'Las Pampas' },
+      MULALO: { code: '56', label: 'Mulalo' },
+      JOSEGUANGO_BAJO: { code: '54', label: 'Joseguango Bajo' },
+      BELISARIO_QUEVEDO_GUANAILIN: {
         code: '52',
         label: 'Belisario Quevedo (Guanailin)',
       },
-      'GUAITACAMA_GUAYTACAMA': { code: '53', label: 'Guaitacama (Guaytacama)' },
-      'SIGCHOS': { code: '60', label: 'Sigchos' },
-      'TANICUCHI': { code: '61', label: 'Tanicuchi' },
-      'SAN_JUAN_DE_PASTOCALLE': { code: '59', label: 'San Juan De Pastocalle' },
+      GUAITACAMA_GUAYTACAMA: { code: '53', label: 'Guaitacama (Guaytacama)' },
+      SIGCHOS: { code: '60', label: 'Sigchos' },
+      TANICUCHI: { code: '61', label: 'Tanicuchi' },
+      SAN_JUAN_DE_PASTOCALLE: { code: '59', label: 'San Juan De Pastocalle' },
       '11_DE_NOVIEMBRE_ILINCHISI': {
         code: '57',
         label: '11 De Noviembre (Ilinchisi)',
       },
-      'POALO': { code: '58', label: 'Poalo' },
-      'SAN_BUENAVENTURA': { code: '05', label: 'San Buenaventura' },
-      'LA_MATRIS': { code: '04', label: 'La Matris' },
-      'JUAN_MONTALVO_SAN_SEBASTIAN': {
+      POALO: { code: '58', label: 'Poalo' },
+      SAN_BUENAVENTURA: { code: '05', label: 'San Buenaventura' },
+      LA_MATRIS: { code: '04', label: 'La Matris' },
+      JUAN_MONTALVO_SAN_SEBASTIAN: {
         code: '03',
         label: 'Juan Montalvo (San Sebastian)',
       },
-      'ALAQUE_ALAQUEZ': { code: '51', label: 'Alaque (Alaquez)' },
-      'IGNACIO_FLORES_PARQUE_FLORES': {
+      ALAQUE_ALAQUEZ: { code: '51', label: 'Alaque (Alaquez)' },
+      IGNACIO_FLORES_PARQUE_FLORES: {
         code: '02',
         label: 'Ignacio Flores (Parque Flores)',
       },
@@ -898,44 +898,44 @@ export const parroquias: Parroquias = {
     },
     ESMERALDAS: {
       '5_DE_AGOSTO': { code: '02', label: '5 De Agosto' },
-      'ESMERALDAS': { code: '03', label: 'Esmeraldas' },
-      'ESMERALDAS_CABECERA_CANTONAL_Y_CAPITAL': {
+      ESMERALDAS: { code: '03', label: 'Esmeraldas' },
+      ESMERALDAS_CABECERA_CANTONAL_Y_CAPITAL: {
         code: '50',
         label: 'Esmeraldas, Cabecera Cantonal Y Capital',
       },
-      'BARTOLOME_RUIZ_CESAR_FRANCO_CARRION': {
+      BARTOLOME_RUIZ_CESAR_FRANCO_CARRION: {
         code: '01',
         label: 'Bartolome Ruiz (Cesar Franco Carrion',
       },
-      'CAMARONES_CAB_EN_SAN_VICENTE': {
+      CAMARONES_CAB_EN_SAN_VICENTE: {
         code: '52',
         label: 'Camarones (Cab. En San Vicente)',
       },
-      'CRNEL_CARLOS_CONCHA_TORRES_CAB_EN_HUE': {
+      CRNEL_CARLOS_CONCHA_TORRES_CAB_EN_HUE: {
         code: '53',
         label: 'Crnel. Carlos Concha Torres (Cab. En Hue',
       },
-      'LUIS_TELLO_LAS_PALMAS': { code: '04', label: 'Luis Tello (Las Palmas)' },
-      'ATACAMES': { code: '51', label: 'Atacames' },
-      'SIMON_PLATA_TORRES': { code: '05', label: 'Simon Plata Torres' },
-      'CHINCA': { code: '54', label: 'Chinca' },
-      'TIBIAZO': { code: '65', label: 'Tibiazo' },
-      'TACHINA': { code: '66', label: 'Tachina' },
-      'SAN_MATEO': { code: '63', label: 'San Mateo' },
-      'SUA_CAN_EN_LA_BOCANA': { code: '64', label: 'Sua (Can En La Bocana)' },
-      'TONCHIGÜE': { code: '67', label: 'Tonchigüe' },
-      'VUELTA_LARGA': { code: '68', label: 'Vuelta Larga' },
-      'RIO_VERDE': { code: '61', label: 'Rio Verde' },
-      'ROCAFUERTE': { code: '62', label: 'Rocafuerte' },
-      'MAJUA': { code: '59', label: 'Majua' },
-      'MONTALVO_CAB_EN_HORQUETA': {
+      LUIS_TELLO_LAS_PALMAS: { code: '04', label: 'Luis Tello (Las Palmas)' },
+      ATACAMES: { code: '51', label: 'Atacames' },
+      SIMON_PLATA_TORRES: { code: '05', label: 'Simon Plata Torres' },
+      CHINCA: { code: '54', label: 'Chinca' },
+      TIBIAZO: { code: '65', label: 'Tibiazo' },
+      TACHINA: { code: '66', label: 'Tachina' },
+      SAN_MATEO: { code: '63', label: 'San Mateo' },
+      SUA_CAN_EN_LA_BOCANA: { code: '64', label: 'Sua (Can En La Bocana)' },
+      TONCHIGÜE: { code: '67', label: 'Tonchigüe' },
+      VUELTA_LARGA: { code: '68', label: 'Vuelta Larga' },
+      RIO_VERDE: { code: '61', label: 'Rio Verde' },
+      ROCAFUERTE: { code: '62', label: 'Rocafuerte' },
+      MAJUA: { code: '59', label: 'Majua' },
+      MONTALVO_CAB_EN_HORQUETA: {
         code: '60',
         label: 'Montalvo (Cab. En Horqueta)',
       },
-      'CHUMUNDE': { code: '56', label: 'Chumunde' },
-      'CHONTADURO': { code: '55', label: 'Chontaduro' },
-      'LA_UNION': { code: '58', label: 'La Union' },
-      'LAGARTO': { code: '57', label: 'Lagarto' },
+      CHUMUNDE: { code: '56', label: 'Chumunde' },
+      CHONTADURO: { code: '55', label: 'Chontaduro' },
+      LA_UNION: { code: '58', label: 'La Union' },
+      LAGARTO: { code: '57', label: 'Lagarto' },
     },
     ELOY_ALFARO: {
       MALDONADO: { code: '56', label: 'Maldonado' },
@@ -998,37 +998,37 @@ export const parroquias: Parroquias = {
       MALIMPIA: { code: '53', label: 'Malimpia' },
     },
     SAN_LORENZO: {
-      'SANTA_RITA': { code: '59', label: 'Santa Rita' },
-      'SAN_JAVIER_DE_CACHAVI_CAB_EN_SAN_JAVIE': {
+      SANTA_RITA: { code: '59', label: 'Santa Rita' },
+      SAN_JAVIER_DE_CACHAVI_CAB_EN_SAN_JAVIE: {
         code: '58',
         label: 'San Javier De Cachavi (Cab. En San Javie',
       },
-      'TAMBILLO': { code: '60', label: 'Tambillo' },
-      'URBINA': { code: '62', label: 'Urbina' },
-      'TULULBI_CAB_EN_RICAURTE': {
+      TAMBILLO: { code: '60', label: 'Tambillo' },
+      URBINA: { code: '62', label: 'Urbina' },
+      TULULBI_CAB_EN_RICAURTE: {
         code: '61',
         label: 'Tululbi (Cab. En Ricaurte)',
       },
-      'MATAJE_CAB_EN_SANTANDER': {
+      MATAJE_CAB_EN_SANTANDER: {
         code: '57',
         label: 'Mataje (Cab. En Santander)',
       },
-      'CALDERON': { code: '53', label: 'Calderon' },
-      'ANCON_PICHANGAL_CAB_EN_PALMA_REAL': {
+      CALDERON: { code: '53', label: 'Calderon' },
+      ANCON_PICHANGAL_CAB_EN_PALMA_REAL: {
         code: '52',
         label: 'Ancon (Pichangal) (Cab. En Palma Real)',
       },
-      'CARONDELET': { code: '54', label: 'Carondelet' },
-      'CONCEPCION': { code: '56', label: 'Concepcion' },
+      CARONDELET: { code: '54', label: 'Carondelet' },
+      CONCEPCION: { code: '56', label: 'Concepcion' },
       '5_DE_JUNIO_CAB_EN_UIMBI': {
         code: '55',
         label: '5 De Junio (Cab. En Uimbi)',
       },
-      'SAN_LORENZO_CABECERA_CANTONAL': {
+      SAN_LORENZO_CABECERA_CANTONAL: {
         code: '50',
         label: 'San Lorenzo, Cabecera Cantonal',
       },
-      'ALTO_TAMBO_CAB_EN_GUADAL': {
+      ALTO_TAMBO_CAB_EN_GUADAL: {
         code: '51',
         label: 'Alto Tambo (Cab. En Guadal)',
       },
@@ -1390,29 +1390,29 @@ export const parroquias: Parroquias = {
       SAN_JOSE_DE_CHALTURA: { code: '53', label: 'San Jose De Chaltura' },
     },
     COTACACHI: {
-      'COTACACHI_CABECERA_CANTONAL': {
+      COTACACHI_CABECERA_CANTONAL: {
         code: '50',
         label: 'Cotacachi, Cabecera Cantonal',
       },
-      'SAGRARIO': { code: '01', label: 'Sagrario' },
-      'SAN_FRANCISCO': { code: '02', label: 'San Francisco' },
-      'PENAHERRERA': { code: '54', label: 'Peñaherrera' },
-      'PLAZA_GUTIERREZ_CALVARIO': {
+      SAGRARIO: { code: '01', label: 'Sagrario' },
+      SAN_FRANCISCO: { code: '02', label: 'San Francisco' },
+      PENAHERRERA: { code: '54', label: 'Peñaherrera' },
+      PLAZA_GUTIERREZ_CALVARIO: {
         code: '55',
         label: 'Plaza Gutierrez (Calvario)',
       },
-      'IMANTAG': { code: '53', label: 'Imantag' },
-      'APUELA': { code: '51', label: 'Apuela' },
-      'GARCIA_MORENO_LLURIMAGUA': {
+      IMANTAG: { code: '53', label: 'Imantag' },
+      APUELA: { code: '51', label: 'Apuela' },
+      GARCIA_MORENO_LLURIMAGUA: {
         code: '52',
         label: 'Garcia Moreno (Llurimagua)',
       },
-      'QUIROGA': { code: '56', label: 'Quiroga' },
+      QUIROGA: { code: '56', label: 'Quiroga' },
       '6_DE_JULIO_DE_CUELLAJE_CAB_EN_CUELLAJE': {
         code: '57',
         label: '6 De Julio De Cuellaje (Cab. En Cuellaje',
       },
-      'VACAS_GALINDO_EL_CHURO_CAB_EN_SAN_MI': {
+      VACAS_GALINDO_EL_CHURO_CAB_EN_SAN_MI: {
         code: '58',
         label: 'Vacas Galindo (El Churo) (Cab. En San Mi',
       },
@@ -1523,16 +1523,16 @@ export const parroquias: Parroquias = {
       SAN_JOSE: { code: '02', label: 'San Jose' },
     },
     CELICA: {
-      'SABANILLA': { code: '56', label: 'Sabanilla' },
-      'TNTE_MAXIMILIANO_RODRIGUEZ_LOAIZA': {
+      SABANILLA: { code: '56', label: 'Sabanilla' },
+      TNTE_MAXIMILIANO_RODRIGUEZ_LOAIZA: {
         code: '57',
         label: 'Tnte. Maximiliano Rodriguez Loaiza',
       },
-      'POZUL_SAN_JUAN_DE_POZUL': {
+      POZUL_SAN_JUAN_DE_POZUL: {
         code: '55',
         label: 'Pozul (San Juan De Pozul)',
       },
-      'CELICA_CABECERA_CANTONAL': {
+      CELICA_CABECERA_CANTONAL: {
         code: '50',
         label: 'Celica, Cabecera Cantonal',
       },
@@ -1540,12 +1540,12 @@ export const parroquias: Parroquias = {
         code: '53',
         label: '12 De Dicembre (Cab. En Achiotes)',
       },
-      'PINDAL_FEDERICO_PAEZ': { code: '54', label: 'Pindal (Federico Paez)' },
-      'CRUZPAMBA_CAB_EN_CARLOS_BUSTAMANTE': {
+      PINDAL_FEDERICO_PAEZ: { code: '54', label: 'Pindal (Federico Paez)' },
+      CRUZPAMBA_CAB_EN_CARLOS_BUSTAMANTE: {
         code: '51',
         label: 'Cruzpamba (Cab. En Carlos Bustamante)',
       },
-      'CHAQUINAL': { code: '52', label: 'Chaquinal' },
+      CHAQUINAL: { code: '52', label: 'Chaquinal' },
     },
     CHAGUARPAMBA: {
       CHAGUARPAMBA_CABECERA_CANTONAL: {
@@ -1558,15 +1558,15 @@ export const parroquias: Parroquias = {
       AMARILLOS: { code: '54', label: 'Amarillos' },
     },
     ESPINDOLA: {
-      'AMALUZA_CABECERA_CANTONAL': {
+      AMALUZA_CABECERA_CANTONAL: {
         code: '50',
         label: 'Amaluza, Cabecera Cantonal',
       },
-      'BELLAVISTA': { code: '51', label: 'Bellavista' },
-      'JIMBURA': { code: '52', label: 'Jimbura' },
-      'EL_INGENIO': { code: '55', label: 'El Ingenio' },
-      'EL_AIRO': { code: '56', label: 'El Airo' },
-      'SANTA_TERESITA': { code: '53', label: 'Santa Teresita' },
+      BELLAVISTA: { code: '51', label: 'Bellavista' },
+      JIMBURA: { code: '52', label: 'Jimbura' },
+      EL_INGENIO: { code: '55', label: 'El Ingenio' },
+      EL_AIRO: { code: '56', label: 'El Airo' },
+      SANTA_TERESITA: { code: '53', label: 'Santa Teresita' },
       '27_DE_ABRIL_CAB_EN_LA_NARANJA': {
         code: '54',
         label: '27 De Abril (Cab. En La Naranja)',
@@ -1681,11 +1681,11 @@ export const parroquias: Parroquias = {
       BOLASPAMBA: { code: '55', label: 'Bolaspamba' },
     },
     PINDAL: {
-      'PINDAL_CABECERA_CANTONAL': {
+      PINDAL_CABECERA_CANTONAL: {
         code: '50',
         label: 'Pindal, Cabecera Cantonal',
       },
-      'CHAQUINAL': { code: '51', label: 'Chaquinal' },
+      CHAQUINAL: { code: '51', label: 'Chaquinal' },
       '12_DE_DICEMBRE_CAB_EN_ACHIOTES': {
         code: '52',
         label: '12 De Dicembre (Cab. En Achiotes)',
@@ -1752,25 +1752,25 @@ export const parroquias: Parroquias = {
       PUERTO_PECHICHE: { code: '51', label: 'Puerto Pechiche' },
     },
     QUEVEDO: {
-      'LA_ESPERANZA': { code: '55', label: 'La Esperanza' },
-      'SAN_CAMILO': { code: '02', label: 'San Camilo' },
-      'SAN_JOSE': { code: '03', label: 'San Jose' },
-      'GUAYACAN': { code: '04', label: 'Guayacan' },
-      'QUEVEDO_CABECERA_CANTONAL': {
+      LA_ESPERANZA: { code: '55', label: 'La Esperanza' },
+      SAN_CAMILO: { code: '02', label: 'San Camilo' },
+      SAN_JOSE: { code: '03', label: 'San Jose' },
+      GUAYACAN: { code: '04', label: 'Guayacan' },
+      QUEVEDO_CABECERA_CANTONAL: {
         code: '50',
         label: 'Quevedo, Cabecera Cantonal',
       },
-      'QUEVEDO': { code: '01', label: 'Quevedo' },
-      'NICOLAS_INFANTE_DIAZ': { code: '05', label: 'Nicolas Infante Diaz' },
-      'BUENA_FE': { code: '51', label: 'Buena Fe' },
-      'VIVA_ALFARO': { code: '10', label: 'Viva Alfaro' },
-      'MOCACHE': { code: '52', label: 'Mocache' },
-      'SIETE_DE_OCTUBRE': { code: '07', label: 'Siete De Octubre' },
-      'VENUS_DEL_RIO_QUEVEDO': { code: '09', label: 'Venus Del Rio Quevedo' },
+      QUEVEDO: { code: '01', label: 'Quevedo' },
+      NICOLAS_INFANTE_DIAZ: { code: '05', label: 'Nicolas Infante Diaz' },
+      BUENA_FE: { code: '51', label: 'Buena Fe' },
+      VIVA_ALFARO: { code: '10', label: 'Viva Alfaro' },
+      MOCACHE: { code: '52', label: 'Mocache' },
+      SIETE_DE_OCTUBRE: { code: '07', label: 'Siete De Octubre' },
+      VENUS_DEL_RIO_QUEVEDO: { code: '09', label: 'Venus Del Rio Quevedo' },
       '24_DE_MAYO': { code: '08', label: '24 De Mayo' },
-      'SAN_CRISTOBAL': { code: '06', label: 'San Cristobal' },
-      'SAN_CARLOS': { code: '53', label: 'San Carlos' },
-      'VALENCIA': { code: '54', label: 'Valencia' },
+      SAN_CRISTOBAL: { code: '06', label: 'San Cristobal' },
+      SAN_CARLOS: { code: '53', label: 'San Carlos' },
+      VALENCIA: { code: '54', label: 'Valencia' },
     },
     URDANETA: {
       RICAURTE: { code: '51', label: 'Ricaurte' },
@@ -1805,11 +1805,11 @@ export const parroquias: Parroquias = {
       },
     },
     BUENA_FE: {
-      'SAN_JACINTO_DE_BUENA_FE': { code: '01', label: 'San Jacinto De Buena Fe' },
+      SAN_JACINTO_DE_BUENA_FE: { code: '01', label: 'San Jacinto De Buena Fe' },
       '7_DE_AGOSTO': { code: '02', label: '7 De Agosto' },
       '11_DE_OCTUBRE': { code: '03', label: '11 De Octubre' },
-      'PATRICIA_PILAR': { code: '51', label: 'Patricia Pilar' },
-      'SAN_JACINTO_DE_BUENA_FE_CABECERA_CANTON': {
+      PATRICIA_PILAR: { code: '51', label: 'Patricia Pilar' },
+      SAN_JACINTO_DE_BUENA_FE_CABECERA_CANTON: {
         code: '50',
         label: 'San Jacinto De Buena Fe, Cabecera Canton',
       },
@@ -1825,32 +1825,32 @@ export const parroquias: Parroquias = {
     },
   },
   MANABI: {
-    'PORTOVIEJO': {
-      'FRANCISCO_PACHECO': { code: '07', label: 'Francisco Pacheco' },
-      'SIMON_BOLIVAR': { code: '09', label: 'Simon Bolivar' },
+    PORTOVIEJO: {
+      FRANCISCO_PACHECO: { code: '07', label: 'Francisco Pacheco' },
+      SIMON_BOLIVAR: { code: '09', label: 'Simon Bolivar' },
       '18_DE_OCTUBRE': { code: '08', label: '18 De Octubre' },
-      'CHIRIJOS': { code: '27', label: 'Chirijos' },
-      'ALHAJUELA_BAJO_GRANDE': { code: '52', label: 'Alhajuela (Bajo Grande)' },
-      'ABDON_CALDERON_SAN_FRANCISCO': {
+      CHIRIJOS: { code: '27', label: 'Chirijos' },
+      ALHAJUELA_BAJO_GRANDE: { code: '52', label: 'Alhajuela (Bajo Grande)' },
+      ABDON_CALDERON_SAN_FRANCISCO: {
         code: '51',
         label: 'Abdon Calderon (San Francisco)',
       },
-      'SAN_PABLO': { code: '06', label: 'San Pablo' },
-      'RIOCHICO_RIO_CHICO': { code: '55', label: 'Riochico (Rio Chico)' },
-      'PUEBLO_NUEVO': { code: '54', label: 'Pueblo Nuevo' },
-      'CRUCITA': { code: '53', label: 'Crucita' },
-      'COLON': { code: '02', label: 'Colon' },
-      'ANDRES_DE_VERA': { code: '01', label: 'Andres De Vera' },
-      'PORTOVIEJO_CABECERA_CANTONAL_Y_CAPITAL': {
+      SAN_PABLO: { code: '06', label: 'San Pablo' },
+      RIOCHICO_RIO_CHICO: { code: '55', label: 'Riochico (Rio Chico)' },
+      PUEBLO_NUEVO: { code: '54', label: 'Pueblo Nuevo' },
+      CRUCITA: { code: '53', label: 'Crucita' },
+      COLON: { code: '02', label: 'Colon' },
+      ANDRES_DE_VERA: { code: '01', label: 'Andres De Vera' },
+      PORTOVIEJO_CABECERA_CANTONAL_Y_CAPITAL: {
         code: '50',
         label: 'Portoviejo, Cabecera Cantonal Y Capital',
       },
-      'PORTOVIEJO': { code: '05', label: 'Portoviejo' },
-      'POCOAZA': { code: '04', label: 'Pocoaza' },
+      PORTOVIEJO: { code: '05', label: 'Portoviejo' },
+      POCOAZA: { code: '04', label: 'Pocoaza' },
       '12_DE_MARZO': { code: '03', label: '12 De Marzo' },
-      'SAN_PLACIDO': { code: '56', label: 'San Placido' },
+      SAN_PLACIDO: { code: '56', label: 'San Placido' },
     },
-    'BOLIVAR': {
+    BOLIVAR: {
       MEMBRILLO: { code: '51', label: 'Membrillo' },
       CALCETA_CABECERA_CANTONAL: {
         code: '50',
@@ -1858,7 +1858,7 @@ export const parroquias: Parroquias = {
       },
       QUIROGA: { code: '52', label: 'Quiroga' },
     },
-    'CHONE': {
+    CHONE: {
       SAN_ANTONIO: { code: '57', label: 'San Antonio' },
       RICAURTE: { code: '56', label: 'Ricaurte' },
       CANUTO: { code: '52', label: 'Canuto' },
@@ -1873,20 +1873,20 @@ export const parroquias: Parroquias = {
         label: 'Chone, Cabecera Cantonal',
       },
     },
-    'EL_CARMEN': {
-      'SAN_PEDRO_DE_SUMA': { code: '52', label: 'San Pedro De Suma' },
-      'EL_CARMEN_CABECERA_CANTONAL': {
+    EL_CARMEN: {
+      SAN_PEDRO_DE_SUMA: { code: '52', label: 'San Pedro De Suma' },
+      EL_CARMEN_CABECERA_CANTONAL: {
         code: '50',
         label: 'El Carmen, Cabecera Cantonal',
       },
-      'WILFRIDO_LA_MOREIRA_MAICITO': {
+      WILFRIDO_LA_MOREIRA_MAICITO: {
         code: '51',
         label: 'Wilfrido La Moreira (Maicito)',
       },
       '4_DE_DICEMBRE': { code: '02', label: '4 De Dicembre' },
-      'EL_CARMEN': { code: '01', label: 'El Carmen' },
+      EL_CARMEN: { code: '01', label: 'El Carmen' },
     },
-    'FLAVIO_ALFARO': {
+    FLAVIO_ALFARO: {
       ZAPALLO: { code: '52', label: 'Zapallo' },
       SAN_FRANCISCO_DE_NOVILLO_CAB_EN_NOVILL: {
         code: '51',
@@ -1897,7 +1897,7 @@ export const parroquias: Parroquias = {
         label: 'Flavio Alfaro, Cabecera Cantonal',
       },
     },
-    'JIPIJAPA': {
+    JIPIJAPA: {
       SAN_LORENZO_DE_JIPIJAPA: { code: '03', label: 'San Lorenzo De Jipijapa' },
       MANUEL_INOCENCIO_PARRALES_Y_GUALE: {
         code: '02',
@@ -1921,13 +1921,13 @@ export const parroquias: Parroquias = {
       MACHALILLA: { code: '55', label: 'Machalilla' },
       LA_UNION: { code: '54', label: 'La Union' },
     },
-    'JUNIN': {
+    JUNIN: {
       JUNIN_CABECERA_CANTONAL: {
         code: '50',
         label: 'Junin, Cabecera Cantonal',
       },
     },
-    'MANTA': {
+    MANTA: {
       ELOY_ALFARO: { code: '05', label: 'Eloy Alfaro' },
       LOS_ESTEROS: { code: '01', label: 'Los Esteros' },
       MANTA_CABECERA_CANTONAL: {
@@ -1943,7 +1943,7 @@ export const parroquias: Parroquias = {
         label: 'Santa Marianita (Boca De Pachoche)',
       },
     },
-    'MONTECRISTI': {
+    MONTECRISTI: {
       LA_PILA: { code: '52', label: 'La Pila' },
       MONTECRISTI: { code: '02', label: 'Montecristi' },
       ANIBAL_SAN_ANDRES: { code: '01', label: 'Anibal San Andres' },
@@ -1953,7 +1953,7 @@ export const parroquias: Parroquias = {
         label: 'Montecristi, Cabecera Cantonal',
       },
     },
-    'PAJAN': {
+    PAJAN: {
       LASCANO: { code: '54', label: 'Lascano' },
       CAMPOZANO_LA_PALMA_DE_PAJAN: {
         code: '51',
@@ -1966,7 +1966,7 @@ export const parroquias: Parroquias = {
       CASCOL: { code: '52', label: 'Cascol' },
       GUALE: { code: '53', label: 'Guale' },
     },
-    'PICHINCHA': {
+    PICHINCHA: {
       PICHINCHA_CABECERA_CANTONAL: {
         code: '50',
         label: 'Pichincha, Cabecera Cantonal',
@@ -1974,13 +1974,13 @@ export const parroquias: Parroquias = {
       SAN_SEBASTIAN: { code: '52', label: 'San Sebastian' },
       BARRAGANETE: { code: '51', label: 'Barraganete' },
     },
-    'ROCAFUERTE': {
+    ROCAFUERTE: {
       ROCAFUERTE_CABECERA_CANTONAL: {
         code: '50',
         label: 'Rocafuerte, Cabecera Cantonal',
       },
     },
-    'SANTA_ANA': {
+    SANTA_ANA: {
       AYACUCHO: { code: '51', label: 'Ayacucho' },
       LODANA: { code: '02', label: 'Lodana' },
       SANTA_ANA: { code: '01', label: 'Santa Ana' },
@@ -1999,26 +1999,26 @@ export const parroquias: Parroquias = {
         label: 'Santa Ana De Vuelta Larga, Cabecera Cant',
       },
     },
-    'SUCRE': {
-      'BAHIA_DE_CARAQUEZ_CABECERA_CANTONAL': {
+    SUCRE: {
+      BAHIA_DE_CARAQUEZ_CABECERA_CANTONAL: {
         code: '50',
         label: 'Bahia De Caraquez, Cabecera Cantonal',
       },
-      'COJIMIES': { code: '52', label: 'Cojimies' },
-      'CHARAPOTO': { code: '53', label: 'Charapoto' },
-      'CANOA': { code: '51', label: 'Canoa' },
-      'BAHIA_DE_CARAQUEZ': { code: '01', label: 'Bahia De Caraquez' },
-      'LEONIDAS_PLAZA_GUTIERREZ': {
+      COJIMIES: { code: '52', label: 'Cojimies' },
+      CHARAPOTO: { code: '53', label: 'Charapoto' },
+      CANOA: { code: '51', label: 'Canoa' },
+      BAHIA_DE_CARAQUEZ: { code: '01', label: 'Bahia De Caraquez' },
+      LEONIDAS_PLAZA_GUTIERREZ: {
         code: '02',
         label: 'Leonidas Plaza Gutierrez',
       },
-      'SAN_ISIDRO': { code: '57', label: 'San Isidro' },
-      'SAN_VICENTE': { code: '58', label: 'San Vicente' },
-      'PEDEMALES': { code: '56', label: 'Pedemales' },
+      SAN_ISIDRO: { code: '57', label: 'San Isidro' },
+      SAN_VICENTE: { code: '58', label: 'San Vicente' },
+      PEDEMALES: { code: '56', label: 'Pedemales' },
       '10_DE_AGOSTO': { code: '54', label: '10 De Agosto' },
-      'JAMA': { code: '55', label: 'Jama' },
+      JAMA: { code: '55', label: 'Jama' },
     },
-    'TOSAGUA': {
+    TOSAGUA: {
       BACHILLERO: { code: '51', label: 'Bachillero' },
       LA_ESTANCIA: { code: '52', label: 'La Estancia' },
       TOSAGUA_CABECERA_CANTONAL: {
@@ -2035,22 +2035,22 @@ export const parroquias: Parroquias = {
         label: 'Sucre, Cabecera Cantonal',
       },
     },
-    'PEDERNALES': {
-      'ATAHUALPA': { code: '53', label: 'Atahualpa' },
+    PEDERNALES: {
+      ATAHUALPA: { code: '53', label: 'Atahualpa' },
       '10_DE_AGOSTO': { code: '52', label: '10 De Agosto' },
-      'PEDERNALES_CABECERA_CANTONAL': {
+      PEDERNALES_CABECERA_CANTONAL: {
         code: '50',
         label: 'Pedernales, Cabecera Cantonal',
       },
-      'COJIMIES': { code: '51', label: 'Cojimies' },
+      COJIMIES: { code: '51', label: 'Cojimies' },
     },
-    'OLMEDO': {
+    OLMEDO: {
       OLMEDO_CABECERA_CANTONAL: {
         code: '50',
         label: 'Olmedo, Cabecera Cantonal',
       },
     },
-    'PUERTO_LOPEZ': {
+    PUERTO_LOPEZ: {
       SALANGO: { code: '52', label: 'Salango' },
       PUERTO_LOPEZ_CABECERA_CANTONAL: {
         code: '50',
@@ -2058,11 +2058,11 @@ export const parroquias: Parroquias = {
       },
       MACHALILLA: { code: '51', label: 'Machalilla' },
     },
-    'JAMA': { JAMA_CAB_CANTONAL: { code: '50', label: 'Jama, Cab. Cantonal' } },
-    'JARAMIJO': {
+    JAMA: { JAMA_CAB_CANTONAL: { code: '50', label: 'Jama, Cab. Cantonal' } },
+    JARAMIJO: {
       JARAMIJO_CAB_CANTONAL: { code: '50', label: 'Jaramijo, Cab. Cantonal' },
     },
-    'SAN_VICENTE': {
+    SAN_VICENTE: {
       SAN_VICENTE_CAB_CANTONAL: {
         code: '50',
         label: 'San Vicente, Cab. Cantonal',
@@ -2140,21 +2140,21 @@ export const parroquias: Parroquias = {
       INDANZA: { code: '51', label: 'Indanza' },
     },
     PALORA: {
-      'SANGAY_CAB_EN_NAYAMANACA': {
+      SANGAY_CAB_EN_NAYAMANACA: {
         code: '54',
         label: 'Sangay (Cab. En Nayamanaca)',
       },
-      'HUAMBOYA': { code: '53', label: 'Huamboya' },
+      HUAMBOYA: { code: '53', label: 'Huamboya' },
       '16_DE_AGOSTO': { code: '55', label: '16 De Agosto' },
-      'PALORA_METZERA_CABECERA_CANTONAL': {
+      PALORA_METZERA_CABECERA_CANTONAL: {
         code: '50',
         label: 'Palora (Metzera), Cabecera Cantonal',
       },
-      'CUMANDA_CAB_EN_COLONIA_AGRICOLA_SEVILL': {
+      CUMANDA_CAB_EN_COLONIA_AGRICOLA_SEVILL: {
         code: '52',
         label: 'Cumanda (Cab. En Colonia Agricola Sevill',
       },
-      'ARAPICOS': { code: '51', label: 'Arapicos' },
+      ARAPICOS: { code: '51', label: 'Arapicos' },
     },
     SANTIAGO: {
       SAN_LUIS_DE_EL_ACHO_CAB_EN_EL_ACHO: {
@@ -2303,11 +2303,11 @@ export const parroquias: Parroquias = {
         code: '52',
         label: 'Taracoa (Cab. En Nueva Esperanza: Yuca)',
       },
-      'PUERTO_FRANCISCO_DE_ORELLANA_COCA_CAB': {
+      PUERTO_FRANCISCO_DE_ORELLANA_COCA_CAB: {
         code: '50',
         label: 'Puerto Francisco De Orellana (Coca), Cab',
       },
-      'DAYUMA': { code: '51', label: 'Dayuma' },
+      DAYUMA: { code: '51', label: 'Dayuma' },
     },
     QUIJOS: {
       PAPALLACTA: { code: '53', label: 'Papallacta' },
@@ -2771,12 +2771,12 @@ export const parroquias: Parroquias = {
       ZURMI: { code: '51', label: 'Zurmi' },
     },
     YACUAMBI: {
-      'LA_PAZ': { code: '51', label: 'La Paz' },
+      LA_PAZ: { code: '51', label: 'La Paz' },
       '28_DE_MAYO_SAN_JOSE_DE_YACUAMBI_CABEC': {
         code: '50',
         label: '28 De Mayo (San Jose De Yacuambi), Cabec',
       },
-      'TUTUPALI': { code: '52', label: 'Tutupali' },
+      TUTUPALI: { code: '52', label: 'Tutupali' },
     },
     YANTZAZA: {
       CHICANA: { code: '51', label: 'Chicaña' },
@@ -3075,24 +3075,20 @@ export function parroquia(
   code: string,
 ) {
   const prov = provincia(provincia_code);
-  if (!prov)
-    return undefined;
+  if (!prov) return undefined;
 
   const cant = canton(provincia_code, canton_code);
-  if (!cant)
-    return undefined;
+  if (!cant) return undefined;
 
   const provParroquias = parroquias[prov.key] as Record<
     string,
     Record<string, { code: string; label: string }>
   >;
   const cantParroquias = provParroquias?.[cant.key];
-  if (!cantParroquias)
-    return undefined;
+  if (!cantParroquias) return undefined;
 
   const entry = Object.entries(cantParroquias).find(([, v]) => v.code === code);
-  if (!entry)
-    return undefined;
+  if (!entry) return undefined;
 
   const [key, { label }] = entry;
   return { key, label };

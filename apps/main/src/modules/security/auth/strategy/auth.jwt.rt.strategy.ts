@@ -24,6 +24,6 @@ export class AuthJwtRTStrategy extends PassportStrategy(Strategy) {
       .trim();
     const { sub, ...rest } = payload;
     const user: ISignedUser = { id: sub, ...rest };
-    return { user, refresh_token: refreshToken }; 
+    return { user, refresh_token: refreshToken };
   }
 }

@@ -45,9 +45,13 @@ export class UserEntity {
   @Column({ type: 'varchar', nullable: true })
   gender?: string;
 
-  @OneToMany(() => UserRoleEntity, userRoles => userRoles.user, {
-    cascade: ['insert', 'update'],
-  })
+  @OneToMany(
+    () => UserRoleEntity,
+    userRoles => userRoles.user,
+    {
+      cascade: ['insert', 'update'],
+    },
+  )
   roles!: UserRoleEntity[];
 
   @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true })
