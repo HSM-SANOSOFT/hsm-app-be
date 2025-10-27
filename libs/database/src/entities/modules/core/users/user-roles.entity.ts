@@ -33,7 +33,7 @@ export class UserRoleEntity {
   @Column({ type: 'varchar' })
   @Index()
   role!: Roles;
-  
+
   @CreateDateColumn()
   createdAt!: Date;
 

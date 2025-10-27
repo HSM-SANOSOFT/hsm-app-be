@@ -1,6 +1,4 @@
-import {
-  RefreshTokenUserIntegrationEntity,
-} from '@hsm-lib/database/entities';
+import { RefreshTokenUserIntegrationEntity } from '@hsm-lib/database/entities';
 import { FunctionalityRole } from '@hsm-lib/definitions/enums';
 import {
   Column,
@@ -28,10 +26,9 @@ export class UserIntegrationEntity {
     refreshToken => refreshToken.user,
   )
   refreshToken!: RefreshTokenUserIntegrationEntity;
-  
+
   @Column({ type: 'enum', enum: FunctionalityRole })
   functionality!: FunctionalityRole;
-  
 
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;

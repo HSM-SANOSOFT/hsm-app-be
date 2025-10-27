@@ -30,13 +30,13 @@ export class UserEntity {
   @Column({ type: 'text' })
   password!: string;
 
-  @Column({type: 'varchar', nullable: false })
+  @Column({ type: 'varchar', nullable: false })
   firstName!: string;
 
-  @Column({type: 'varchar', nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   secondName?: string;
 
-  @Column({type: 'varchar', nullable: false })
+  @Column({ type: 'varchar', nullable: false })
   firstLastName!: string;
 
   @Column({ type: 'varchar', nullable: true })

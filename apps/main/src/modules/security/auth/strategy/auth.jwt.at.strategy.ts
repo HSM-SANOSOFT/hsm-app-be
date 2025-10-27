@@ -1,5 +1,8 @@
 import { envs } from '@hsm-lib/config';
-import type { IJwtPayloadUser, IJwtPayloadUserIntegration } from '@hsm-lib/definitions/interfaces';
+import type {
+  IJwtPayloadUser,
+  IJwtPayloadUserIntegration,
+} from '@hsm-lib/definitions/interfaces';
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';

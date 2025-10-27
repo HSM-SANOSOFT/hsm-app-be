@@ -57,7 +57,7 @@ export class AuthController {
   async generateIntegrationToken(@Body() payload: UserIntegrationDto) {
     return await this.authService.generateIntegrationToken(payload);
   }
-  
+
   @Patch('token/integration/:id')
   @Roles(Role.System.Admin)
   async deactivateIntegrationToken(@Param('id') id: string) {

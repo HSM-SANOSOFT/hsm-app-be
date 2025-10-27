@@ -9,7 +9,10 @@ export interface IJwtPayloadUser
 }
 
 export interface IJwtPayloadUserIntegration
-  extends Pick<UserIntegrationEntity, 'name' | 'description'|"functionality"> {
+  extends Pick<
+    UserIntegrationEntity,
+    'name' | 'description' | 'functionality'
+  > {
   sub: UserIntegrationEntity['id'];
   roles: Roles[];
 }
