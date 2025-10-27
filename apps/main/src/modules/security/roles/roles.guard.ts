@@ -32,7 +32,9 @@ export class RolesGuard implements CanActivate {
     ]);
     if (isPublic) {
       this.logger.error('Public route - RolesGuard should not be applied');
-      throw new InternalServerErrorException({ message: 'Public route - RolesGuard should not be applied' });
+      throw new InternalServerErrorException({
+        message: 'Public route - RolesGuard should not be applied',
+      });
     }
 
     const { user }: { user: Omit<UserEntity, 'password'> } = context

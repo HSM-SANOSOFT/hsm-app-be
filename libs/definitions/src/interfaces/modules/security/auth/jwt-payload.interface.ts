@@ -1,7 +1,4 @@
-import {
-  UserEntity,
-  UserIntegrationEntity,
-} from '@hsm-lib/database/entities';
+import { UserEntity, UserIntegrationEntity } from '@hsm-lib/database/entities';
 import type { Roles } from '@hsm-lib/definitions/types';
 export interface IJwtPayloadUser
   extends Pick<UserEntity, 'username' | 'email' | 'roles'> {
