@@ -1,23 +1,22 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-
-import { UserEntity } from '@hsm-lib/database/entities';
+import type { UserEntity } from '@hsm-lib/database/entities';
 import {
-  GenerateIntegrationTokenDto,
+  type GenerateIntegrationTokenDto,
   LoginPayloadDto,
-  LogoutPayloadDto,
-  SignupPayloadDto,
+  type LogoutPayloadDto,
+  type SignupPayloadDto,
 } from '@hsm-lib/definitions/dtos';
 import { Role } from '@hsm-lib/definitions/enums';
-import {
+import type {
   IJwtPayload,
   ISignedUser,
   ITokens,
   IUnsignedUser,
   LoginResponse,
 } from '@hsm-lib/definitions/interfaces';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import type { JwtService } from '@nestjs/jwt';
 
-import { UsersService } from '../../core/users/users.service';
+import type { UsersService } from '../../core/users/users.service';
 
 @Injectable()
 export class AuthService {

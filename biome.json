@@ -67,14 +67,17 @@
         "useIsNan": "error",
         "useValidForDirection": "error",
         "useValidTypeof": "error",
-        "useYield": "error"
+        "useYield": "error",
+        "noUnusedImports": "warn"
       },
       "style": {
         "noCommonJs": "error",
         "noNamespace": "error",
         "useArrayLiterals": "error",
         "useAsConstAssertion": "error",
-        "useBlockStatements": "off"
+        "useBlockStatements": "off",
+        "useImportType": "error",
+        "useConst": "error"
       },
       "suspicious": {
         "noAsyncPromiseExecutor": "error",

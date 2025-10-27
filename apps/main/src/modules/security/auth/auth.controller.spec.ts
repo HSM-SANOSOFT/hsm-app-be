@@ -1,12 +1,10 @@
-import { Test } from '@nestjs/testing';
+import type { SignupPayloadDto } from '@hsm-lib/definitions/dtos';
 
 import { Role } from '@hsm-lib/definitions/enums';
-
+import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-
-import type { SignupPayloadDto } from '@hsm-lib/definitions/dtos';
-import type { TestingModule } from '@nestjs/testing';
 
 describe('authController', () => {
   let controller: AuthController;
