@@ -1,4 +1,8 @@
-import { UserEntity, UserIntegrationEntity } from '@hsm-lib/database/entities';
+import {
+  UserEntity,
+  UserIntegrationEntity,
+  UserRoleEntity,
+} from '@hsm-lib/database/entities';
 import { Databases } from '@hsm-lib/database/sources';
 import {
   CreateUserIntegrationPayloadDto,
@@ -7,8 +11,9 @@ import {
   UpdateUserPayloadDto,
 } from '@hsm-lib/definitions/dtos';
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
+import { RolesService } from '../../security/roles/roles.service';
 
 @Injectable()
 export class UsersService {
@@ -17,6 +22,10 @@ export class UsersService {
     private UserRepository: Repository<UserEntity>,
     @InjectRepository(UserIntegrationEntity, Databases.HsmDbPostgres)
     private UserIntegrationRepository: Repository<UserIntegrationEntity>,
+    @InjectRepository(UserRoleEntity, Databases.HsmDbPostgres)
+    private UserRoleRepository: Repository<UserRoleEntity>,
+    private readonly rolesService: RolesService,
+    @InjectDataSource(Databases.HsmDbPostgres) private readonly dataSource: DataSource,
   ) {}
 
   async findOneByUsername(username: string): Promise<UserEntity | null> {
@@ -24,8 +33,31 @@ export class UsersService {
   }
 
   async createUser(user: CreateUserPayloadDto): Promise<UserEntity> {
-    const newUser = this.UserRepository.create(user);
-    return await this.UserRepository.save(newUser);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const { roles, ...userData } = user;
+      const roleDomains = this.rolesService.findRoleDomains(roles);
+      const newUser = await queryRunner.manager.save(UserEntity, userData);
+      await Promise.all(
+        roleDomains.map(({ role, domain }) =>
+          queryRunner.manager.save(UserRoleEntity, {
+            user: newUser,
+            role,
+            domain,
+          }),
+        ),
+      );
+      await queryRunner.commitTransaction();
+      return newUser;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async createUserIntegration(

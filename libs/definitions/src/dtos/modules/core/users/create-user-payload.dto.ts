@@ -62,5 +62,5 @@ export class CreateUserPayloadDto {
     each: true,
   })
   @ApiProperty({ required: true })
-  role!: Roles[];
+  roles!: Roles[];
 }

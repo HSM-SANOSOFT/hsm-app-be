@@ -46,7 +46,7 @@ describe('authController', () => {
       phoneNumber: undefined,
       secondLastName: undefined,
       secondName: undefined,
-      role: [Role.System.Admin],
+      roles: [Role.System.Admin],
     };
     expect(await controller.signup(signupDto)).toBeDefined();
   });
