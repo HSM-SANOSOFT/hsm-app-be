@@ -1,1 +1,1 @@
-export {TypeOrmExceptionFilter} from './typeorm-exeption.filter';
+export { TypeOrmExceptionFilter } from './typeorm-exeption.filter';

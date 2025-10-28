@@ -35,7 +35,8 @@ export class TypeOrmExceptionFilter implements ExceptionFilter {
       | MssqlError
       | Record<string, unknown>;
 
-    const driverError: DriverError = exception.driverError as unknown as DriverError;
+    const driverError: DriverError =
+      exception.driverError as unknown as DriverError;
     const pick = (...keys: PropertyKey[]): string | undefined => {
       const v = keys
         .map(k => (driverError as Record<PropertyKey, unknown>)[k])
@@ -61,9 +62,7 @@ export class TypeOrmExceptionFilter implements ExceptionFilter {
       schema: pick('schema', 'serverName'),
       table: pick('table', 'procName'),
     };
-    this.logger.error(
-      `${message}: ${JSON.stringify(errorInfo)}`,
-    );
+    this.logger.error(`${message}: ${JSON.stringify(errorInfo)}`);
 
     response.status(statusCode).json({
       statusCode,

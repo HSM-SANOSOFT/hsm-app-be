@@ -3,7 +3,6 @@ import { ConsoleLogger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
-
 import { MainModule } from './main.module';
 
 async function bootstrap() {
