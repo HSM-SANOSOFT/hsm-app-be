@@ -25,7 +25,8 @@ export class UsersService {
     @InjectRepository(UserRoleEntity, Databases.HsmDbPostgres)
     private UserRoleRepository: Repository<UserRoleEntity>,
     private readonly rolesService: RolesService,
-    @InjectDataSource(Databases.HsmDbPostgres) private readonly dataSource: DataSource,
+    @InjectDataSource(Databases.HsmDbPostgres)
+    private readonly dataSource: DataSource,
   ) {}
 
   async findOneByUsername(username: string): Promise<UserEntity | null> {
