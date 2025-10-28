@@ -1,11 +1,9 @@
+import { envs } from '@hsm-lib/config';
 import { Logger, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import oracledb from 'oracledb';
-
-import { envs } from '@hsm-lib/config';
-
-import { DatabaseSourceOptions } from './database-source-options';
 import { Databases } from './database-source.enum';
+import { DatabaseSourceOptions } from './database-source-options';
 
 try {
   oracledb.initOracleClient({

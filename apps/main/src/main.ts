@@ -3,6 +3,7 @@ import { ConsoleLogger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
+
 import { MainModule } from './main.module';
 
 async function bootstrap() {
@@ -22,6 +23,7 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, docs);
 
   app.useGlobalGuards();
+  app.useGlobalFilters();
 
   app.enableShutdownHooks();
   app.useGlobalPipes(
