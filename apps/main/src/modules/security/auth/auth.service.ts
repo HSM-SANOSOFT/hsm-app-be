@@ -176,5 +176,7 @@ export class AuthService {
     return user;
   }
 
-  async refresh() {}
+  async refresh() {
+    return 'hello';
+  }
 }
