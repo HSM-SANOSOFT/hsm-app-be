@@ -7,33 +7,34 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
 describe('authController', () => {
+  login = jest.fn();
+  logout = jest.fn();
+  refresh = jest.fn();
+  generateIntegrationToken = jest.fn();
+}
+
+beforeEach(async () => {
+  const module: TestingModule = await Test.createTestingModule({
+    controllers: [AuthController],
+    providers: [
+      {
+        provide: AuthService,
+        useValue: MockAuthService,
+      },
+    ],
+  }).compile();
+
+  controller = module.get<AuthController>(AuthController);
+});
+
+it('should be defined', () => {
+  expect(controller).toBeDefined();
   let controller: AuthController;
 
   class MockAuthService {
     signup = jest.fn();
-    login = jest.fn();
-    logout = jest.fn();
-    refresh = jest.fn();
-    generateIntegrationToken = jest.fn();
   }
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [AuthController],
-      providers: [
-        {
-          provide: AuthService,
-          useValue: MockAuthService,
-        },
-      ],
-    }).compile();
-
-    controller = module.get<AuthController>(AuthController);
-  });
-
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
-  });
+  )
 
   it('should call signup method', async () => {
     const signupDto: SignupPayloadDto = {
