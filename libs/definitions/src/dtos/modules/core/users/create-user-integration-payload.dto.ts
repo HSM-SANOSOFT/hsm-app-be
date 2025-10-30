@@ -15,6 +15,6 @@ export class CreateUserIntegrationPayloadDto {
 
   @IsEnum(FunctionalityRole)
   @IsNotEmpty()
-  @ApiProperty({ required: true })
+  @ApiProperty({ required: true, enum: FunctionalityRole })
   functionality: FunctionalityRole;
 }

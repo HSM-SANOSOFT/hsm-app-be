@@ -13,3 +13,28 @@ Content-Type: application/json
   "roles": ["admin"]
 }
 
+### Log in
+POST http://localhost:3000/v1/auth/login
+Content-Type: application/json
+
+{
+  "username": "rsantamaria1",
+  "password": "RSFutbol2001@"
+}
+
+### Logout
+GET http://localhost:3000/v1/auth/logout
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2Y2RmMzUzYi0zYmQwLTQzMTgtYTQyZi1mZWJjYzkzZmI1MDMiLCJpZCI6IjZjZGYzNTNiLTNiZDAtNDMxOC1hNDJmLWZlYmNjOTNmYjUwMyIsInVzZXJuYW1lIjoicnNhbnRhbWFyaWExIiwiZW1haWwiOiJyc2FudGFtYXJpYTFvQGhvc3BpdGFsc2FudGFtYXJpYS5jb20uZWMiLCJmaXJzdE5hbWUiOiJSYXVsIiwiZmlyc3RMYXN0TmFtZSI6IlNhbnRhbWFyaWEiLCJyb2xlcyI6WyJhZG1pbiJdLCJpYXQiOjE3NjE4NjA1NTMsImV4cCI6MTc2MTg2MTQ1M30.sr5OF_MbZHrC00z_8GOndzYws9RGBLi9gl-mUwah4Uk
+
+
+### Integration Token
+POST http://localhost:3000/v1/auth/token/integration
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2Y2RmMzUzYi0zYmQwLTQzMTgtYTQyZi1mZWJjYzkzZmI1MDMiLCJpZCI6IjZjZGYzNTNiLTNiZDAtNDMxOC1hNDJmLWZlYmNjOTNmYjUwMyIsInVzZXJuYW1lIjoicnNhbnRhbWFyaWExIiwiZW1haWwiOiJyc2FudGFtYXJpYTFvQGhvc3BpdGFsc2FudGFtYXJpYS5jb20uZWMiLCJmaXJzdE5hbWUiOiJSYXVsIiwiZmlyc3RMYXN0TmFtZSI6IlNhbnRhbWFyaWEiLCJyb2xlcyI6WyJhZG1pbiJdLCJpYXQiOjE3NjE4NjA1NTMsImV4cCI6MTc2MTg2MTQ1M30.sr5OF_MbZHrC00z_8GOndzYws9RGBLi9gl-mUwah4Uk
+Content-Type: application/json
+
+{
+  "name": "raul",
+  "description": "test",
+  "functionality": "dev"
+
+}

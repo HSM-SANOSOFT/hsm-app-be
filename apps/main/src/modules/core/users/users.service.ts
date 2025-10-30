@@ -10,7 +10,7 @@ import {
   DeleteUserPayloadDto,
   UpdateUserPayloadDto,
 } from '@hsm-lib/definitions/dtos';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import type { QueryRunner } from 'typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -30,8 +30,17 @@ export class UsersService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async findOneByUsername(username: string): Promise<UserEntity | null> {
-    return await this.UserRepository.findOne({ where: { username } });
+  async findOneByUsername(username: string): Promise<UserEntity> {
+    const user = await this.UserRepository.findOne({ where: { username } });
+    if (!user) {
+      throw new NotFoundException(`User with username ${username} not found`);
+    }
+    const userRoles = await this.UserRoleRepository.find({
+      where: { user: user },
+    });
+
+    user.roles = userRoles;
+    return user;
   }
 
   async createUser(
@@ -55,9 +64,9 @@ export class UsersService {
 
   async createUserIntegration(
     user: CreateUserIntegrationPayloadDto,
+    queryRunner: QueryRunner,
   ): Promise<UserIntegrationEntity> {
-    const newUserIntegration = this.UserIntegrationRepository.create(user);
-    return await this.UserIntegrationRepository.save(newUserIntegration);
+    return await queryRunner.manager.save(UserIntegrationEntity, user);
   }
 
   async updateUser(user: UpdateUserPayloadDto): Promise<UserEntity | null> {

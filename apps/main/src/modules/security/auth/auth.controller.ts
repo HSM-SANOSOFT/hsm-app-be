@@ -1,11 +1,11 @@
 import {
-  GenerateIntegrationTokenPayloadDto,
+  CreateTokenIntegrationPayloadDto,
   LoginPayloadDto,
   LogoutPayloadDto,
   SignupPayloadDto,
 } from '@hsm-lib/definitions/dtos';
 import { Role } from '@hsm-lib/definitions/enums';
-import type { ITokens } from '@hsm-lib/definitions/interfaces';
+import type { ITokens, IUnsignedUser } from '@hsm-lib/definitions/interfaces';
 import {
   Body,
   Controller,
@@ -16,7 +16,6 @@ import {
   Post,
   Req,
   UseGuards,
-  Version,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
@@ -37,16 +36,20 @@ export class AuthController {
   @Public()
   @UseGuards(AuthGuard('local'))
   @Post('login')
-  async login(@Body() payload: LoginPayloadDto): Promise<ITokens> {
-    return await this.authService.login(payload);
+  async login(@Req() req: Request): Promise<ITokens> {
+    const user = req.user as IUnsignedUser;
+    return await this.authService.login(user);
   }
 
-  @Get('logout/:id')
-  async logout(@Param('id') id: string) {
-    const logoutDto: LogoutPayloadDto = { id };
+  @Public()
+  @Get('logout')
+  async logout(@Req() req: Request) {
+    const user = req.user;
+    const logoutDto: LogoutPayloadDto = { id: user.sub };
     return await this.authService.logout(logoutDto);
   }
 
+  @UseGuards(AuthGuard('jwt-refresh'))
   @Get('refresh')
   async refresh() {
     return await this.authService.refresh();
@@ -54,16 +57,16 @@ export class AuthController {
 
   @Post('token/integration')
   @Roles(Role.System.Admin)
-  async generateIntegrationToken(
-    @Body() payload: GenerateIntegrationTokenPayloadDto,
+  async createTokenIntegration(
+    @Body() payload: CreateTokenIntegrationPayloadDto,
   ) {
-    return await this.authService.generateIntegrationToken(payload);
+    return await this.authService.createTokenIntegration(payload);
   }
 
   @Patch('token/integration/:id')
   @Roles(Role.System.Admin)
   async deactivateIntegrationToken(@Param('id') id: string) {
-    //return await this.authService.deactivateIntegrationToken(id);
+    // return await this.authService.deactivateIntegrationToken(id);
   }
 
   @Delete('token/integration/:id')

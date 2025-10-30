@@ -20,7 +20,6 @@ export class AuthJwtATStrategy extends PassportStrategy(Strategy) {
 
   validate(payload: IJwtPayloadUser | IJwtPayloadUserIntegration) {
     const { sub, ...rest } = payload;
-    const user = { id: sub, ...rest };
-    return user;
+    return { id: sub, ...rest };
   }
 }

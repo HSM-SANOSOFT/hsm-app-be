@@ -5,7 +5,7 @@ import {
 } from '@hsm-lib/database/entities';
 import { Databases } from '@hsm-lib/database/sources';
 import {
-  GenerateIntegrationTokenPayloadDto,
+  CreateTokenIntegrationPayloadDto,
   LoginPayloadDto,
   LogoutPayloadDto,
   SignupPayloadDto,
@@ -46,32 +46,31 @@ export class AuthService {
     return await bcrypt.hash(data, 10);
   }
 
-  async updateRefreshTokenHash(
-    userId: string,
+  async refreshToken(
+    user: IUnsignedUser | IUnsignedUserIntegration,
     refreshToken: string,
-    integration: boolean = false,
   ): Promise<void> {
-    const hashedRefreshToken = await this.hashData(refreshToken);
+    const integration: boolean = user.roles.includes(Role.System.Integration);
+    const userId: string = user.id;
     if (integration) {
-      await this.refreshTokenUserIntegrationRepository.update(userId, {
-        refreshToken: hashedRefreshToken,
+      await this.refreshTokenUserRepository.update(userId, {
+        refreshToken: refreshToken,
       });
     } else {
-      await this.refreshTokenUserRepository.update(userId, {
-        refreshToken: hashedRefreshToken,
+      await this.refreshTokenUserIntegrationRepository.update(userId, {
+        refreshToken: refreshToken,
       });
     }
   }
 
   async validateUser(username: string, pass: string): Promise<IUnsignedUser> {
     const user = await this.usersService.findOneByUsername(username);
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
     const passwordValid = await bcrypt.compare(pass, user.password);
     if (!passwordValid) {
       throw new UnauthorizedException('Invalid password');
     }
+
+    console.log(JSON.stringify(user, null, 2));
     return {
       id: user.id,
       username: user.username,
@@ -79,7 +78,7 @@ export class AuthService {
       firstName: user.firstName,
       firstLastName: user.firstLastName,
       roles: user.roles.map(role => role.role),
-    };
+    } as IUnsignedUser;
   }
 
   async generateTokens(
@@ -141,39 +140,57 @@ export class AuthService {
     }
   }
 
-  async login(payload: LoginPayloadDto): Promise<ITokens> {
-    const user: IUnsignedUser = await this.validateUser(
-      payload.username,
-      payload.password,
-    );
+  async login(user: IUnsignedUser): Promise<ITokens> {
     const tokens: ITokens = await this.generateTokens(user);
-    await this.updateRefreshTokenHash(user.id, tokens.refresh_token);
-    return tokens;
-  }
-
-  async generateIntegrationToken(
-    payload: GenerateIntegrationTokenPayloadDto,
-  ): Promise<ITokens> {
-    const user = await this.usersService.createUserIntegration(payload);
-
-    const userToSign: IUnsignedUserIntegration = {
-      id: user.id,
-      name: user.name,
-      roles: [Role.System.Integration],
-    };
-
-    const tokens: ITokens = await this.generateTokens(userToSign);
     const refreshToken = await this.hashData(tokens.refresh_token);
-    await this.refreshTokenUserIntegrationRepository.save({
-      user: user,
-      refreshToken: refreshToken,
-      isActive: true,
-    });
+    await this.refreshToken(user, refreshToken);
     return tokens;
   }
 
   async logout(user: LogoutPayloadDto) {
-    return user;
+    const { id } = user;
+    const response = await this.refreshTokenUserRepository.update(id, {
+      isActive: false,
+    });
+    if (!response.affected) {
+      throw new UnauthorizedException('User not found');
+    }
+  }
+
+  async createTokenIntegration(
+    payload: CreateTokenIntegrationPayloadDto,
+  ): Promise<ITokens> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const user = await this.usersService.createUserIntegration(
+        payload,
+        queryRunner,
+      );
+
+      const userToSign: IUnsignedUserIntegration = {
+        id: user.id,
+        name: user.name,
+        roles: [Role.System.Integration],
+      };
+
+      const tokens: ITokens = await this.generateTokens(userToSign);
+      const refreshToken = await this.hashData(tokens.refresh_token);
+      await queryRunner.manager.save(RefreshTokenUserIntegrationEntity, {
+        user: user,
+        refreshToken: refreshToken,
+        isActive: true,
+      });
+      await queryRunner.commitTransaction();
+      return tokens;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async refresh() {

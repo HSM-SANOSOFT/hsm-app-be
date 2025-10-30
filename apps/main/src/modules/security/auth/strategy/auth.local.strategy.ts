@@ -1,4 +1,4 @@
-import { UserEntity } from '@hsm-lib/database/entities';
+import { IUnsignedUser } from '@hsm-lib/definitions/interfaces';
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-local';
@@ -10,11 +10,7 @@ export class AuthLocalStrategy extends PassportStrategy(Strategy) {
     super();
   }
 
-  async validate(
-    username: string,
-    password: string,
-  ): Promise<Omit<UserEntity, 'password'>> {
-    const user = await this.authService.validateUser(username, password);
-    return user;
+  async validate(username: string, password: string): Promise<IUnsignedUser> {
+    return await this.authService.validateUser(username, password);
   }
 }
