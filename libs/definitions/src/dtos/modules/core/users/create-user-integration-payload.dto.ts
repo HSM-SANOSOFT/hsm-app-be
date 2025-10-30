@@ -1,16 +1,20 @@
+import { FunctionalityRole } from '@hsm-lib/definitions/enums';
+import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
-import { FunctionalityRole } from '../../../../enums/modules/security/roles/roles.functionality.enum';
 
 export class CreateUserIntegrationPayloadDto {
   @IsString()
   @IsNotEmpty()
+  @ApiProperty({ required: true })
   name: string;
 
   @IsString()
   @IsNotEmpty()
+  @ApiProperty({ required: true })
   description: string;
 
   @IsEnum(FunctionalityRole)
   @IsNotEmpty()
+  @ApiProperty({ required: true })
   functionality: FunctionalityRole;
 }

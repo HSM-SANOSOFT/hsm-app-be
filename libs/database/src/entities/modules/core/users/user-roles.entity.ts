@@ -14,7 +14,7 @@ import {
 } from 'typeorm';
 
 @Entity({ name: 'user_roles', schema: 'users' })
-@Unique(['domain', 'role'])
+@Unique(['user', 'domain', 'role'])
 export class UserRoleEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -31,7 +31,6 @@ export class UserRoleEntity {
   domain!: RoleDomains;
 
   @Column({ type: 'varchar' })
-  @Index()
   role!: Roles;
 
   @CreateDateColumn()

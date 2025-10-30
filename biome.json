@@ -63,7 +63,18 @@
         "noUnsafeOptionalChaining": "error",
         "noUnusedLabels": "warn",
         "noUnusedPrivateClassMembers": "warn",
-        "noUnusedVariables": "warn",
+        "noUnusedVariables": {
+          "level": "warn",
+          "options": {
+            "ignoreRestSiblings": true
+          }
+        },
+        "noUnusedFunctionParameters": {
+          "level": "warn",
+          "options": {
+            "ignoreRestSiblings": true
+          }
+        },
         "useIsNan": "error",
         "useValidForDirection": "error",
         "useValidTypeof": "error",

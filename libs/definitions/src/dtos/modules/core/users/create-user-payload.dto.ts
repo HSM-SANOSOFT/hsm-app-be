@@ -61,6 +61,9 @@ export class CreateUserPayloadDto {
   @IsIn(Object.values(Role).flatMap(Object.values) as readonly string[], {
     each: true,
   })
-  @ApiProperty({ required: true })
+  @ApiProperty({
+    required: true,
+    enum: [Object.values(Role).flatMap(Object.values)],
+  })
   roles!: Roles[];
 }

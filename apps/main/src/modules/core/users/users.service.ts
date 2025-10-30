@@ -12,6 +12,7 @@ import {
 } from '@hsm-lib/definitions/dtos';
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import type { QueryRunner } from 'typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { RolesService } from '../../security/roles/roles.service';
 
@@ -33,32 +34,23 @@ export class UsersService {
     return await this.UserRepository.findOne({ where: { username } });
   }
 
-  async createUser(user: CreateUserPayloadDto): Promise<UserEntity> {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
-      const { roles, ...userData } = user;
-      const roleDomains = this.rolesService.findRoleDomains(roles);
-      const newUser = await queryRunner.manager.save(UserEntity, userData);
-      await Promise.all(
-        roleDomains.map(({ role, domain }) =>
-          queryRunner.manager.save(UserRoleEntity, {
-            user: newUser,
-            role,
-            domain,
-          }),
-        ),
-      );
-      await queryRunner.commitTransaction();
-      return newUser;
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
-    }
+  async createUser(
+    user: CreateUserPayloadDto,
+    queryRunner: QueryRunner,
+  ): Promise<UserEntity> {
+    const { roles, ...userData } = user;
+    const roleDomains = this.rolesService.findRoleDomains(roles);
+    const newUser = await queryRunner.manager.save(UserEntity, userData);
+    await Promise.all(
+      roleDomains.map(({ role, domain }) =>
+        queryRunner.manager.save(UserRoleEntity, {
+          user: newUser,
+          role,
+          domain,
+        }),
+      ),
+    );
+    return newUser;
   }
 
   async createUserIntegration(

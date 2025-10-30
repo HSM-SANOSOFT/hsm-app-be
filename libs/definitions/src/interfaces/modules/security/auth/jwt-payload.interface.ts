@@ -1,15 +1,13 @@
-import { UserEntity, UserIntegrationEntity } from '@hsm-lib/database/entities';
-import type { Roles } from '@hsm-lib/definitions/types';
-export interface IJwtPayloadUser
-  extends Pick<UserEntity, 'username' | 'email' | 'roles'> {
-  sub: UserEntity['id'];
+import type {
+  IUnsignedUser,
+  IUnsignedUserIntegration,
+} from '@hsm-lib/definitions/interfaces';
+
+export interface IJwtPayloadUser extends Omit<IUnsignedUser, 'id'> {
+  sub: IUnsignedUser['id'];
 }
 
 export interface IJwtPayloadUserIntegration
-  extends Pick<
-    UserIntegrationEntity,
-    'name' | 'description' | 'functionality'
-  > {
-  sub: UserIntegrationEntity['id'];
-  roles: Roles[];
+  extends Omit<IUnsignedUserIntegration, 'id'> {
+  sub: IUnsignedUserIntegration['id'];
 }

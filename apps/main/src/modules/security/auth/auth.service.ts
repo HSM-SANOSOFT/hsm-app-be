@@ -1,3 +1,4 @@
+import { envs } from '@hsm-lib/config';
 import {
   RefreshTokenUserEntity,
   RefreshTokenUserIntegrationEntity,
@@ -19,8 +20,9 @@ import type {
 } from '@hsm-lib/definitions/interfaces';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
+import { DataSource } from 'typeorm';
 import { Repository } from 'typeorm/repository/Repository.js';
 import { UsersService } from '../../core/users/users.service';
 
@@ -36,6 +38,8 @@ export class AuthService {
     )
     private refreshTokenUserIntegrationRepository: Repository<RefreshTokenUserIntegrationEntity>,
     private jwtService: JwtService,
+    @InjectDataSource(Databases.HsmDbPostgres)
+    private readonly dataSource: DataSource,
   ) {}
 
   async hashData(data: string): Promise<string> {
@@ -64,54 +68,77 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
-
     const passwordValid = await bcrypt.compare(pass, user.password);
     if (!passwordValid) {
       throw new UnauthorizedException('Invalid password');
     }
-
-    const { password, ...result } = user;
-
-    return result;
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      firstName: user.firstName,
+      firstLastName: user.firstLastName,
+      roles: user.roles.map(role => role.role),
+    };
   }
 
   async generateTokens(
     user: IUnsignedUser | IUnsignedUserIntegration,
-    integration: boolean = false,
   ): Promise<ITokens> {
-    let payload: IJwtPayloadUser | IJwtPayloadUserIntegration;
-    if (integration) {
-      payload = {
-        sub: user.id,
-        ...user,
-        roles: [Role.System.Integration],
-      } as IJwtPayloadUserIntegration;
-    } else {
-      payload = { sub: user.id, ...user } as IJwtPayloadUser;
-    }
+    const integration: boolean = user.roles.includes(Role.System.Integration);
+    const payload: IJwtPayloadUser | IJwtPayloadUserIntegration = {
+      sub: user.id,
+      ...user,
+    };
     const [access_token, refresh_token] = await Promise.all([
-      this.jwtService.signAsync(payload, { expiresIn: '15m' }),
       this.jwtService.signAsync(payload, {
-        expiresIn: integration ? '7d' : '30d',
+        expiresIn: '15m',
+        secret: envs.JWT_AT_SECRET,
+      }),
+      this.jwtService.signAsync(payload, {
+        expiresIn: integration ? '30d' : '7d',
+        secret: envs.JWT_RT_SECRET,
       }),
     ]);
     return { access_token, refresh_token };
   }
 
   async signup(newUser: SignupPayloadDto): Promise<ITokens> {
-    const hashedPassword = await this.hashData(newUser.password);
-    const user = await this.usersService.createUser({
-      ...newUser,
-      password: hashedPassword,
-    });
-    const tokens: ITokens = await this.generateTokens(user);
-    const refreshToken = this.hashData(tokens.refresh_token);
-    await this.refreshTokenUserRepository.save({
-      user: user,
-      refreshToken: await refreshToken,
-      isActive: true,
-    });
-    return tokens;
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      const hashedPassword = await this.hashData(newUser.password);
+      const user = await this.usersService.createUser(
+        {
+          ...newUser,
+          password: hashedPassword,
+        },
+        queryRunner,
+      );
+      const userToSign: IUnsignedUser = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        firstLastName: user.firstLastName,
+        roles: newUser.roles,
+      };
+      const tokens: ITokens = await this.generateTokens(userToSign);
+      const refreshToken = await this.hashData(tokens.refresh_token);
+      await queryRunner.manager.save(RefreshTokenUserEntity, {
+        user: user,
+        refreshToken: refreshToken,
+        isActive: true,
+      });
+      await queryRunner.commitTransaction();
+      return tokens;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async login(payload: LoginPayloadDto): Promise<ITokens> {
@@ -129,14 +156,17 @@ export class AuthService {
   ): Promise<ITokens> {
     const user = await this.usersService.createUserIntegration(payload);
 
-    const tokens: ITokens = await this.generateTokens(
-      payload as IUnsignedUserIntegration,
-      true,
-    );
-    const refreshToken = this.hashData(tokens.refresh_token);
+    const userToSign: IUnsignedUserIntegration = {
+      id: user.id,
+      name: user.name,
+      roles: [Role.System.Integration],
+    };
+
+    const tokens: ITokens = await this.generateTokens(userToSign);
+    const refreshToken = await this.hashData(tokens.refresh_token);
     await this.refreshTokenUserIntegrationRepository.save({
       user: user,
-      refreshToken: await refreshToken,
+      refreshToken: refreshToken,
       isActive: true,
     });
     return tokens;

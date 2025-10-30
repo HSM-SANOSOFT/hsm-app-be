@@ -1,0 +1,15 @@
+### Signup
+POST http://localhost:3000/v1/auth/signup
+Content-Type: application/json
+
+{
+  "username": "rsantamaria1",
+  "password": "RSFutbol2001@",
+  "firstName": "Raul",
+  "firstLastName": "Santamaria",
+  "email": "rsantamaria1o@hospitalsantamaria.com.ec",
+  "phoneNumber": "0969883869",
+  "gender": "male",
+  "roles": ["admin"]
+}
+

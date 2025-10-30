@@ -16,6 +16,7 @@ import {
   Post,
   Req,
   UseGuards,
+  Version,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request } from 'express';
@@ -30,8 +31,7 @@ export class AuthController {
   @Public()
   @Post('signup')
   async signup(@Body() payload: SignupPayloadDto): Promise<ITokens> {
-    const newUser = await this.authService.signup(payload);
-    return newUser;
+    return await this.authService.signup(payload);
   }
 
   @Public()
