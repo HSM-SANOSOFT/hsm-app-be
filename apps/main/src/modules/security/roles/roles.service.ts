@@ -1,8 +1,6 @@
-import { UserEntity } from '@hsm-lib/database/entities';
 import { Role } from '@hsm-lib/definitions/enums';
 import type { RoleDomains, Roles } from '@hsm-lib/definitions/types';
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 @Injectable()
 export class RolesService {
   findRoleDomains(roles: Roles[]): { role: Roles; domain: RoleDomains }[] {

@@ -5,14 +5,17 @@ import {
   SignupPayloadDto,
 } from '@hsm-lib/definitions/dtos';
 import { Role } from '@hsm-lib/definitions/enums';
-import type { ITokens, IUnsignedUser } from '@hsm-lib/definitions/interfaces';
+import type {
+  IRefreshUser,
+  ISignedUser,
+  ISignedUserIntegration,
+  ITokens,
+} from '@hsm-lib/definitions/interfaces';
 import {
   Body,
   Controller,
-  Delete,
   Get,
-  Param,
-  Patch,
+  Logger,
   Post,
   Req,
   UseGuards,
@@ -25,6 +28,7 @@ import { AuthService } from './auth.service';
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
   constructor(private authService: AuthService) {}
 
   @Public()
@@ -36,47 +40,41 @@ export class AuthController {
   @Public()
   @UseGuards(AuthGuard('local'))
   @Post('login')
-  async login(@Req() req: Request): Promise<ITokens> {
-    const user = req.user as IUnsignedUser;
-    return await this.authService.login(user);
+  async login(@Req() req: Request, @Body() _payload: LoginPayloadDto) {
+    const tokens = await this.authService.login(req.user as ISignedUser);
+    return tokens;
   }
 
   @Public()
   @Get('logout')
   async logout(@Req() req: Request) {
-    const user = req.user;
-    const logoutDto: LogoutPayloadDto = { id: user.sub };
+    const user = req.user as ISignedUser | ISignedUserIntegration;
+    const logoutDto: LogoutPayloadDto = { id: user.id };
     return await this.authService.logout(logoutDto);
   }
 
-  @UseGuards(AuthGuard('jwt-refresh'))
+  @UseGuards(AuthGuard('jwt-rt'))
   @Get('refresh')
-  async refresh() {
-    return await this.authService.refresh();
+  async refresh(@Req() req: Request) {
+    const user = req.user as IRefreshUser;
+    this.logger.debug('refresh controller', user);
+    return await this.authService.refresh(user);
   }
 
-  @Post('token/integration')
+  @Post('signup/integration')
   @Roles(Role.System.Admin)
-  async createTokenIntegration(
-    @Body() payload: CreateTokenIntegrationPayloadDto,
-  ) {
-    return await this.authService.createTokenIntegration(payload);
-  }
-
-  @Patch('token/integration/:id')
-  @Roles(Role.System.Admin)
-  async deactivateIntegrationToken(@Param('id') id: string) {
-    // return await this.authService.deactivateIntegrationToken(id);
-  }
-
-  @Delete('token/integration/:id')
-  @Roles(Role.System.Admin)
-  async deleteIntegrationToken(@Param('id') id: string) {
-    //return await this.authService.deleteIntegrationToken(id);
+  async signupIntegration(@Body() payload: CreateTokenIntegrationPayloadDto) {
+    return await this.authService.signupIntegration(payload);
   }
 
   @Get('profile')
   profile(@Req() req: Request) {
     return req.user;
+  }
+
+  @Public()
+  @Get('test')
+  async test() {
+    return await this.authService.test();
   }
 }

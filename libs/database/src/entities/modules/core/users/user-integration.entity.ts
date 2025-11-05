@@ -5,7 +5,7 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
-  OneToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -21,11 +21,11 @@ export class UserIntegrationEntity {
   @Column({ type: 'citext' })
   description!: string;
 
-  @OneToOne(
+  @OneToMany(
     () => RefreshTokenUserIntegrationEntity,
     refreshToken => refreshToken.user,
   )
-  refreshToken!: RefreshTokenUserIntegrationEntity;
+  refreshToken!: RefreshTokenUserIntegrationEntity[];
 
   @Column({ type: 'enum', enum: FunctionalityRole })
   functionality!: FunctionalityRole;

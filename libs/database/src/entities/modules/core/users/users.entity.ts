@@ -9,7 +9,6 @@ import {
   Entity,
   Index,
   OneToMany,
-  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -57,11 +56,11 @@ export class UserEntity {
   )
   roles!: UserRoleEntity[];
 
-  @OneToOne(
+  @OneToMany(
     () => RefreshTokenUserEntity,
     refreshToken => refreshToken.user,
   )
-  refreshToken!: RefreshTokenUserEntity;
+  refreshToken!: RefreshTokenUserEntity[];
 
   @Column({ type: 'timestamptz', nullable: true })
   lastLoginAt?: Date;

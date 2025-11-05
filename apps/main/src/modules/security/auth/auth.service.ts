@@ -6,19 +6,19 @@ import {
 import { Databases } from '@hsm-lib/database/sources';
 import {
   CreateTokenIntegrationPayloadDto,
-  LoginPayloadDto,
   LogoutPayloadDto,
   SignupPayloadDto,
 } from '@hsm-lib/definitions/dtos';
 import { Role } from '@hsm-lib/definitions/enums';
-import type {
+import {
   IJwtPayloadUser,
   IJwtPayloadUserIntegration,
+  IRefreshUser,
   ITokens,
   IUnsignedUser,
   IUnsignedUserIntegration,
 } from '@hsm-lib/definitions/interfaces';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
@@ -28,6 +28,7 @@ import { UsersService } from '../../core/users/users.service';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   constructor(
     private usersService: UsersService,
     @InjectRepository(RefreshTokenUserEntity, Databases.HsmDbPostgres)
@@ -52,33 +53,109 @@ export class AuthService {
   ): Promise<void> {
     const integration: boolean = user.roles.includes(Role.System.Integration);
     const userId: string = user.id;
-    if (integration) {
-      await this.refreshTokenUserRepository.update(userId, {
-        refreshToken: refreshToken,
-      });
-    } else {
-      await this.refreshTokenUserIntegrationRepository.update(userId, {
-        refreshToken: refreshToken,
-      });
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      if (integration) {
+        await queryRunner.manager.update(
+          RefreshTokenUserEntity,
+          { user: { id: userId }, isActive: true },
+          {
+            isActive: false,
+          },
+        );
+        await queryRunner.manager.save(RefreshTokenUserIntegrationEntity, {
+          user: { id: userId },
+          refreshToken: refreshToken,
+          isActive: true,
+        });
+      } else {
+        await queryRunner.manager.update(
+          RefreshTokenUserIntegrationEntity,
+          { user: { id: userId }, isActive: true },
+          {
+            isActive: false,
+          },
+        );
+        await queryRunner.manager.save(RefreshTokenUserEntity, {
+          user: { id: userId },
+          refreshToken: refreshToken,
+          isActive: true,
+        });
+      }
+
+      await queryRunner.commitTransaction();
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
     }
   }
 
+  async test() {
+    return await this.usersService.findOneByUsername('rsantamaria1');
+  }
   async validateUser(username: string, pass: string): Promise<IUnsignedUser> {
     const user = await this.usersService.findOneByUsername(username);
     const passwordValid = await bcrypt.compare(pass, user.password);
     if (!passwordValid) {
       throw new UnauthorizedException('Invalid password');
     }
-
-    console.log(JSON.stringify(user, null, 2));
-    return {
+    const userRoles = user.roles.map(role => role.role);
+    const unsignedUser: IUnsignedUser = {
       id: user.id,
       username: user.username,
       email: user.email,
       firstName: user.firstName,
       firstLastName: user.firstLastName,
-      roles: user.roles.map(role => role.role),
-    } as IUnsignedUser;
+      roles: userRoles,
+    };
+    this.logger.debug('Validate User', unsignedUser);
+    return unsignedUser;
+  }
+
+  async validateRefreshToken(
+    user: IRefreshUser,
+  ): Promise<IUnsignedUser | IUnsignedUserIntegration> {
+    const { refreshToken, iat: _iat, exp: _exp, ...userData } = user;
+    const integration: boolean = user.roles.includes(Role.System.Integration);
+    const userId: string = user.id;
+    let refreshTokenInDb:
+      | RefreshTokenUserEntity
+      | RefreshTokenUserIntegrationEntity
+      | null;
+    if (integration) {
+      this.logger.debug('Refresh Token User Repository Integration:');
+      refreshTokenInDb =
+        await this.refreshTokenUserIntegrationRepository.findOne({
+          where: { user: { id: userId } },
+        });
+    } else {
+      this.logger.debug('Refresh Token User Repository:');
+      refreshTokenInDb = await this.refreshTokenUserRepository.findOne({
+        where: { user: { id: userId } },
+      });
+    }
+    if (!refreshTokenInDb) {
+      throw new UnauthorizedException('Refresh token not found');
+    }
+
+    if (!refreshTokenInDb.isActive) {
+      throw new UnauthorizedException('Refresh token is not active');
+    }
+
+    const refreshTokenValid = await bcrypt.compare(
+      refreshToken,
+      refreshTokenInDb.refreshToken,
+    );
+
+    if (!refreshTokenValid) {
+      throw new UnauthorizedException('Refresh token is not valid');
+    }
+    return userData;
   }
 
   async generateTokens(
@@ -89,9 +166,10 @@ export class AuthService {
       sub: user.id,
       ...user,
     };
+    this.logger.debug('generate token Payload', payload);
     const [access_token, refresh_token] = await Promise.all([
       this.jwtService.signAsync(payload, {
-        expiresIn: '15m',
+        expiresIn: '1m',
         secret: envs.JWT_AT_SECRET,
       }),
       this.jwtService.signAsync(payload, {
@@ -157,7 +235,7 @@ export class AuthService {
     }
   }
 
-  async createTokenIntegration(
+  async signupIntegration(
     payload: CreateTokenIntegrationPayloadDto,
   ): Promise<ITokens> {
     const queryRunner = this.dataSource.createQueryRunner();
@@ -193,7 +271,12 @@ export class AuthService {
     }
   }
 
-  async refresh() {
-    return 'hello';
+  async refresh(user: IRefreshUser): Promise<ITokens> {
+    const userToSign = await this.validateRefreshToken(user);
+    this.logger.debug('Service', userToSign);
+    const tokens: ITokens = await this.generateTokens(userToSign);
+    const newRefreshToken = await this.hashData(tokens.refresh_token);
+    await this.refreshToken(user, newRefreshToken);
+    return tokens;
   }
 }

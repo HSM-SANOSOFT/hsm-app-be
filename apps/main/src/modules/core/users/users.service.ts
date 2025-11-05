@@ -10,14 +10,15 @@ import {
   DeleteUserPayloadDto,
   UpdateUserPayloadDto,
 } from '@hsm-lib/definitions/dtos';
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 import type { QueryRunner } from 'typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { RolesService } from '../../security/roles/roles.service';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
   constructor(
     @InjectRepository(UserEntity, Databases.HsmDbPostgres)
     private UserRepository: Repository<UserEntity>,
@@ -26,8 +27,6 @@ export class UsersService {
     @InjectRepository(UserRoleEntity, Databases.HsmDbPostgres)
     private UserRoleRepository: Repository<UserRoleEntity>,
     private readonly rolesService: RolesService,
-    @InjectDataSource(Databases.HsmDbPostgres)
-    private readonly dataSource: DataSource,
   ) {}
 
   async findOneByUsername(username: string): Promise<UserEntity> {
@@ -36,10 +35,28 @@ export class UsersService {
       throw new NotFoundException(`User with username ${username} not found`);
     }
     const userRoles = await this.UserRoleRepository.find({
-      where: { user: user },
+      where: { user: { username: user.username } },
     });
 
-    user.roles = userRoles;
+    Object.assign(user, { roles: userRoles });
+    return user;
+  }
+
+  async findOneById(
+    id: string,
+    integration: boolean,
+  ): Promise<UserEntity | UserIntegrationEntity> {
+    let user: UserEntity | UserIntegrationEntity | null;
+    if (integration) {
+      user = await this.UserIntegrationRepository.findOne({ where: { id } });
+    } else {
+      user = await this.UserRepository.findOne({ where: { id } });
+    }
+
+    if (!user) {
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
+    this.logger.debug(user);
     return user;
   }
 

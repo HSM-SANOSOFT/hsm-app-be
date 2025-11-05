@@ -6,7 +6,7 @@ import {
   Entity,
   Index,
   JoinColumn,
-  OneToOne,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -16,7 +16,7 @@ export class RefreshTokenUserEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @OneToOne(
+  @ManyToOne(
     () => UserEntity,
     user => user.refreshToken,
     { onDelete: 'CASCADE' },

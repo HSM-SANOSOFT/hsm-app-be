@@ -2,14 +2,16 @@ import { envs } from '@hsm-lib/config';
 import type {
   IJwtPayloadUser,
   IJwtPayloadUserIntegration,
+  IRefreshUser,
 } from '@hsm-lib/definitions/interfaces';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Request } from 'express';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
 @Injectable()
-export class AuthJwtRTStrategy extends PassportStrategy(Strategy) {
+export class AuthJwtRTStrategy extends PassportStrategy(Strategy, 'jwt-rt') {
+  private readonly logger = new Logger(AuthJwtRTStrategy.name);
   constructor() {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -28,7 +30,8 @@ export class AuthJwtRTStrategy extends PassportStrategy(Strategy) {
       ?.replace('Bearer ', '')
       .trim();
     const { sub, ...rest } = payload;
-    const user = { id: sub, ...rest };
-    return { user, refresh_token: refreshToken };
+    const refreshUser = { id: sub, ...rest, refreshToken } as IRefreshUser;
+    this.logger.debug('jwt-rt strategy validate user:', refreshUser);
+    return refreshUser;
   }
 }

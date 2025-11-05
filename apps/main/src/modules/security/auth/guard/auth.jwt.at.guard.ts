@@ -1,13 +1,35 @@
-import { type ExecutionContext, Injectable } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
-import { AuthGuard } from '@nestjs/passport';
+// noinspection JSUnusedGlobalSymbols
 
+import {
+  type ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { JsonWebTokenError, TokenExpiredError } from '@nestjs/jwt';
+import { AuthGuard } from '@nestjs/passport';
 import { IS_PUBLIC_KEY } from '../auth.decorator';
 
 @Injectable()
-export class AuthJwtAtGuard extends AuthGuard('jwt') {
+export class AuthJwtAtGuard extends AuthGuard('jwt-at') {
   constructor(private reflector: Reflector) {
     super();
+  }
+
+  handleRequest(err, user, info) {
+    if (info instanceof TokenExpiredError) {
+      throw new UnauthorizedException('token expired', 'TOKEN_EXPIRED');
+    }
+
+    if (info instanceof JsonWebTokenError) {
+      throw new UnauthorizedException('Invalid token', 'INVALID_TOKEN');
+    }
+
+    if (err || !user) {
+      throw err || new UnauthorizedException();
+    }
+
+    return user;
   }
 
   canActivate(context: ExecutionContext) {

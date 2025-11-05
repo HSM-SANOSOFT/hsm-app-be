@@ -2,13 +2,15 @@ import { envs } from '@hsm-lib/config';
 import type {
   IJwtPayloadUser,
   IJwtPayloadUserIntegration,
+  ISignedUser,
+  ISignedUserIntegration,
 } from '@hsm-lib/definitions/interfaces';
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
 @Injectable()
-export class AuthJwtATStrategy extends PassportStrategy(Strategy) {
+export class AuthJwtATStrategy extends PassportStrategy(Strategy, 'jwt-at') {
   constructor() {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -20,6 +22,6 @@ export class AuthJwtATStrategy extends PassportStrategy(Strategy) {
 
   validate(payload: IJwtPayloadUser | IJwtPayloadUserIntegration) {
     const { sub, ...rest } = payload;
-    return { id: sub, ...rest };
+    return { id: sub, ...rest } as ISignedUser | ISignedUserIntegration;
   }
 }
