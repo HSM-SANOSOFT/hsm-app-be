@@ -1,9 +1,23 @@
 import { Module } from '@nestjs/common';
-import { SchedulingController } from './scheduling.controller';
-import { SchedulingService } from './scheduling.service';
+import { AvailabilityModule } from './availability/availability.module';
+import { ExceptionsModule } from './exceptions/exceptions.module';
+import { ReservationsModule } from './reservations/reservations.module';
+import { ResourcesModule } from './resources/resources.module';
+import { ServicesModule } from './services/services.module';
+import { SlotsModule } from './slots/slots.module';
+import { TemplatesModule } from './templates/templates.module';
 
 @Module({
-  controllers: [SchedulingController],
-  providers: [SchedulingService],
+  controllers: [],
+  providers: [],
+  imports: [
+    ServicesModule,
+    ResourcesModule,
+    TemplatesModule,
+    ExceptionsModule,
+    SlotsModule,
+    AvailabilityModule,
+    ReservationsModule,
+  ],
 })
 export class SchedulingModule {}

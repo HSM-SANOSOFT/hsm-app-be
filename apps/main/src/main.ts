@@ -2,7 +2,8 @@ import { envs } from '@hsm-lib/config';
 import { ConsoleLogger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-
+import { ResponseFilter } from './common/filters';
+import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { MainModule } from './main.module';
 
 async function bootstrap() {
@@ -10,6 +11,10 @@ async function bootstrap() {
     logger: new ConsoleLogger({
       prefix: 'hsm-app-be-main',
       json: envs.ENVIRONMENT !== 'dev',
+      logLevels:
+        envs.ENVIRONMENT === 'dev'
+          ? ['log', 'error', 'warn', 'debug', 'verbose']
+          : ['log', 'error', 'warn'],
     }),
   });
   const config = new DocumentBuilder()
@@ -22,7 +27,8 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, docs);
 
   app.useGlobalGuards();
-  app.useGlobalFilters();
+  app.useGlobalFilters(new ResponseFilter());
+  app.useGlobalInterceptors(new ResponseInterceptor());
 
   app.enableShutdownHooks();
   app.useGlobalPipes(

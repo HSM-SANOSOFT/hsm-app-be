@@ -1,4 +1,5 @@
 import { envs } from '@hsm-lib/config';
+import { IUnsuccessResponse } from '@hsm-lib/definitions/interfaces';
 import {
   ArgumentsHost,
   Catch,
@@ -64,10 +65,18 @@ export class TypeOrmExceptionFilter implements ExceptionFilter {
     };
     this.logger.error(`${message}: ${JSON.stringify(errorInfo)}`);
 
+    const error: IUnsuccessResponse = {
+      error: {
+        detail: errorInfo.detail || errorInfo.err,
+        code: errorInfo.code,
+        message,
+        field: `${errorInfo.table}: ${errorInfo.schema}`,
+      },
+    };
+
     response.status(statusCode).json({
       statusCode,
-      message,
-      error: errorInfo.detail || errorInfo.err,
+      error,
     });
   }
 }

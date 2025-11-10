@@ -1,4 +1,7 @@
-import { UserEntity } from '@hsm-lib/database/entities';
+import {
+  ISignedUser,
+  ISignedUserIntegration,
+} from '@hsm-lib/definitions/interfaces';
 import type { Roles } from '@hsm-lib/definitions/types';
 import {
   CanActivate,
@@ -37,11 +40,11 @@ export class RolesGuard implements CanActivate {
       });
     }
 
-    const { user }: { user: Omit<UserEntity, 'password'> } = context
+    const { user }: { user: ISignedUser | ISignedUserIntegration } = context
       .switchToHttp()
       .getRequest();
     return requiredRoles.some(role =>
-      user.roles?.some(userRole => userRole.role === role),
+      user.roles.some(userRole => userRole === role),
     );
   }
 }

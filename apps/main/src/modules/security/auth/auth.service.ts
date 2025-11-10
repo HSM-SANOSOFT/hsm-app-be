@@ -5,8 +5,7 @@ import {
 } from '@hsm-lib/database/entities';
 import { Databases } from '@hsm-lib/database/sources';
 import {
-  CreateTokenIntegrationPayloadDto,
-  LogoutPayloadDto,
+  SignupIntegrationTokenPayloadDto,
   SignupPayloadDto,
 } from '@hsm-lib/definitions/dtos';
 import { Role } from '@hsm-lib/definitions/enums';
@@ -14,15 +13,22 @@ import {
   IJwtPayloadUser,
   IJwtPayloadUserIntegration,
   IRefreshUser,
+  ISignedUser,
+  ISignedUserIntegration,
   ITokens,
   IUnsignedUser,
   IUnsignedUserIntegration,
 } from '@hsm-lib/definitions/interfaces';
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { DataSource } from 'typeorm';
+import { DataSource, UpdateResult } from 'typeorm';
 import { Repository } from 'typeorm/repository/Repository.js';
 import { UsersService } from '../../core/users/users.service';
 
@@ -60,7 +66,7 @@ export class AuthService {
     try {
       if (integration) {
         await queryRunner.manager.update(
-          RefreshTokenUserEntity,
+          RefreshTokenUserIntegrationEntity,
           { user: { id: userId }, isActive: true },
           {
             isActive: false,
@@ -73,7 +79,7 @@ export class AuthService {
         });
       } else {
         await queryRunner.manager.update(
-          RefreshTokenUserIntegrationEntity,
+          RefreshTokenUserEntity,
           { user: { id: userId }, isActive: true },
           {
             isActive: false,
@@ -95,9 +101,6 @@ export class AuthService {
     }
   }
 
-  async test() {
-    return await this.usersService.findOneByUsername('rsantamaria1');
-  }
   async validateUser(username: string, pass: string): Promise<IUnsignedUser> {
     const user = await this.usersService.findOneByUsername(username);
     const passwordValid = await bcrypt.compare(pass, user.password);
@@ -105,7 +108,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid password');
     }
     const userRoles = user.roles.map(role => role.role);
-    const unsignedUser: IUnsignedUser = {
+    return {
       id: user.id,
       username: user.username,
       email: user.email,
@@ -113,8 +116,6 @@ export class AuthService {
       firstLastName: user.firstLastName,
       roles: userRoles,
     };
-    this.logger.debug('Validate User', unsignedUser);
-    return unsignedUser;
   }
 
   async validateRefreshToken(
@@ -128,23 +129,18 @@ export class AuthService {
       | RefreshTokenUserIntegrationEntity
       | null;
     if (integration) {
-      this.logger.debug('Refresh Token User Repository Integration:');
       refreshTokenInDb =
         await this.refreshTokenUserIntegrationRepository.findOne({
-          where: { user: { id: userId } },
+          where: { user: { id: userId }, isActive: true },
         });
     } else {
-      this.logger.debug('Refresh Token User Repository:');
       refreshTokenInDb = await this.refreshTokenUserRepository.findOne({
-        where: { user: { id: userId } },
+        where: { user: { id: userId }, isActive: true },
       });
     }
+    this.logger.debug('Validate Refresh Token', refreshTokenInDb);
     if (!refreshTokenInDb) {
-      throw new UnauthorizedException('Refresh token not found');
-    }
-
-    if (!refreshTokenInDb.isActive) {
-      throw new UnauthorizedException('Refresh token is not active');
+      throw new UnauthorizedException('Active Refresh token not found');
     }
 
     const refreshTokenValid = await bcrypt.compare(
@@ -166,14 +162,13 @@ export class AuthService {
       sub: user.id,
       ...user,
     };
-    this.logger.debug('generate token Payload', payload);
     const [access_token, refresh_token] = await Promise.all([
       this.jwtService.signAsync(payload, {
-        expiresIn: '1m',
+        expiresIn: integration ? '1d' : '15m',
         secret: envs.JWT_AT_SECRET,
       }),
       this.jwtService.signAsync(payload, {
-        expiresIn: integration ? '30d' : '7d',
+        expiresIn: integration ? '30d' : '1d',
         secret: envs.JWT_RT_SECRET,
       }),
     ]);
@@ -225,18 +220,48 @@ export class AuthService {
     return tokens;
   }
 
-  async logout(user: LogoutPayloadDto) {
-    const { id } = user;
-    const response = await this.refreshTokenUserRepository.update(id, {
-      isActive: false,
-    });
-    if (!response.affected) {
-      throw new UnauthorizedException('User not found');
+  async logout(token: string | undefined) {
+    if (!token) {
+      throw new BadRequestException('Token not found');
     }
+
+    let decoded: ISignedUser;
+    try {
+      decoded = await this.jwtService.verifyAsync<ISignedUser>(token, {
+        secret: envs.JWT_AT_SECRET,
+        ignoreExpiration: true,
+      });
+    } catch {
+      try {
+        decoded = await this.jwtService.verifyAsync<ISignedUser>(token, {
+          secret: envs.JWT_RT_SECRET,
+          ignoreExpiration: true,
+        });
+      } catch {
+        throw new UnauthorizedException('Invalid token');
+      }
+    }
+    const responseDb: UpdateResult =
+      await this.refreshTokenUserRepository.update(
+        {
+          user: { id: decoded.id },
+          isActive: true,
+        },
+        {
+          isActive: false,
+        },
+      );
+    if (!responseDb.affected) {
+      return {
+        success: false,
+        message: 'already logged out',
+      };
+    }
+    return { success: true, message: 'logged out' };
   }
 
   async signupIntegration(
-    payload: CreateTokenIntegrationPayloadDto,
+    payload: SignupIntegrationTokenPayloadDto,
   ): Promise<ITokens> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -271,9 +296,57 @@ export class AuthService {
     }
   }
 
+  async logoutIntegration(token: string) {
+    let decoded: ISignedUserIntegration;
+    try {
+      decoded = await this.jwtService.verifyAsync<ISignedUserIntegration>(
+        token,
+        {
+          secret: envs.JWT_AT_SECRET,
+          ignoreExpiration: true,
+        },
+      );
+    } catch {
+      try {
+        decoded = await this.jwtService.verifyAsync<ISignedUserIntegration>(
+          token,
+          {
+            secret: envs.JWT_RT_SECRET,
+            ignoreExpiration: true,
+          },
+        );
+      } catch {
+        throw new UnauthorizedException('Invalid token');
+      }
+    }
+    const integration: boolean = decoded.roles.includes(
+      Role.System.Integration,
+    );
+
+    if (!integration) {
+      throw new UnauthorizedException('Not an integration token');
+    }
+    const responseDb: UpdateResult =
+      await this.refreshTokenUserIntegrationRepository.update(
+        {
+          user: { id: decoded.id },
+          isActive: true,
+        },
+        {
+          isActive: false,
+        },
+      );
+    if (!responseDb.affected) {
+      return {
+        success: false,
+        message: 'already logged out',
+      };
+    }
+    return { success: true, message: 'logged out' };
+  }
+
   async refresh(user: IRefreshUser): Promise<ITokens> {
     const userToSign = await this.validateRefreshToken(user);
-    this.logger.debug('Service', userToSign);
     const tokens: ITokens = await this.generateTokens(userToSign);
     const newRefreshToken = await this.hashData(tokens.refresh_token);
     await this.refreshToken(user, newRefreshToken);
