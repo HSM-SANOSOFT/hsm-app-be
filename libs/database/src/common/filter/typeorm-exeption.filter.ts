@@ -65,8 +65,8 @@ export class TypeOrmExceptionFilter implements ExceptionFilter {
     };
     this.logger.error(`${message}: ${JSON.stringify(errorInfo)}`);
 
-    const error: IUnsuccessResponse = {
-      error: {
+    const issue: IUnsuccessResponse = {
+      issue: {
         detail: errorInfo.detail || errorInfo.err,
         code: errorInfo.code,
         message,
@@ -76,7 +76,7 @@ export class TypeOrmExceptionFilter implements ExceptionFilter {
 
     response.status(statusCode).json({
       statusCode,
-      error,
+      error: issue,
     });
   }
 }

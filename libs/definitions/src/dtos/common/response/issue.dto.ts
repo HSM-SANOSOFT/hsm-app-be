@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsArray, IsOptional, IsString, ValidateIf } from 'class-validator';
 
-export class ErrorDto {
+export class IssueDto {
   @ApiProperty({
     description: 'Short, human-readable description of the error(s)',
     examples: [
@@ -22,6 +22,13 @@ export class ErrorDto {
   @ValidateIf(o => Array.isArray(o.message))
   @IsArray()
   message!: string | string[];
+
+  @ApiPropertyOptional({
+    description: 'Human-readable error message',
+    example: 'Invalid credentials provided.',
+  })
+  @IsString()
+  error?: string;
 
   @ApiPropertyOptional({
     description: 'Optional machine-readable error code or identifier',
@@ -45,6 +52,9 @@ export class ErrorDto {
     example: 'email',
   })
   @IsOptional()
+  @ValidateIf(o => typeof o.message === 'string')
   @IsString()
-  field?: string;
+  @ValidateIf(o => Array.isArray(o.message))
+  @IsArray()
+  field?: string | string[];
 }

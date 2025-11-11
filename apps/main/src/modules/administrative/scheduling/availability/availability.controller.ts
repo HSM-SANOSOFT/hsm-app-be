@@ -1,42 +1,38 @@
-import { LoginPayloadDto, PaginationDto } from '@hsm-lib/definitions/dtos';
-import {
-  ISuccessResponse,
-  IUnsuccessResponse,
-} from '@hsm-lib/definitions/interfaces';
-import { BadRequestException, Body, Controller, Get } from '@nestjs/common';
+import { LoginPayloadDto } from '@hsm-lib/definitions/dtos';
+import { ISuccessResponse } from '@hsm-lib/definitions/interfaces';
+import { Body, Controller, Get } from '@nestjs/common';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsString } from 'class-validator';
+import { ApiDocumentation } from '../../../../common/decorator';
 import { Public } from '../../../security/auth/auth.decorator';
+
+class AvailabilityDto {
+  @ApiProperty({
+    description: 'Name of the availability',
+    example: 'test',
+  })
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+}
 
 @Controller('scheduling/availability')
 export class AvailabilityController {
   @Public()
   @Get()
+  @ApiDocumentation(AvailabilityDto)
   availability(@Body() _body: LoginPayloadDto) {
     const data = [
       {
         name: 'test',
       },
     ];
-    const pagination: PaginationDto = {
-      page: 1,
-      pageSize: 10,
-      totalItems: 10,
-      totalPages: 1,
-    };
     const successResponse: ISuccessResponse<typeof data> = {
       data,
       metadata: {
-        pagination,
+        extra: {},
       },
     };
-
-    const unsuccessResponse: IUnsuccessResponse = {
-      error: {
-        message: 'Invalid payload',
-      },
-    };
-
-    throw new BadRequestException(unsuccessResponse);
-
     return successResponse;
   }
 }

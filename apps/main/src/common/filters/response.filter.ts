@@ -1,7 +1,4 @@
-import {
-  BaseResponseDto,
-  UnsuccessResponseDto,
-} from '@hsm-lib/definitions/dtos';
+import { MetadataDto, UnsuccessResponseDto } from '@hsm-lib/definitions/dtos';
 import { IUnsuccessResponse } from '@hsm-lib/definitions/interfaces';
 import {
   ArgumentsHost,
@@ -12,56 +9,92 @@ import {
 import { Request, Response } from 'express';
 import { extractApiVersion } from '../services';
 
-const isPlainObject = (v: unknown): v is Record<string, unknown> => {
-  if (v === null || typeof v !== 'object') return false;
-  const p = Object.getPrototypeOf(v);
-  return p === Object.prototype || p === null;
-};
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null;
+}
+function isStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every(x => typeof x === 'string');
+}
 
 @Catch(HttpException)
 export class ResponseFilter implements ExceptionFilter {
   catch(exception: HttpException, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
-    const response: Response = ctx.getResponse<Response>();
-    const request: Request = ctx.getRequest<Request>();
-    const status = exception.getStatus();
+    const res = ctx.getResponse<Response>();
+    const req = ctx.getRequest<Request>();
 
+    const status = exception.getStatus();
     const payload = exception.getResponse();
-    let errorObj: IUnsuccessResponse['error'] = { message: exception.message };
+
+    let issue: IUnsuccessResponse['issue'] = { message: exception.message };
 
     if (typeof payload === 'string') {
-      errorObj = { message: payload };
-    } else if (payload && typeof payload === 'object') {
-      if (Object.hasOwn(payload, 'error')) {
-        const e = (payload as any).error;
-        if (isPlainObject(e)) errorObj = e;
-        else if (Array.isArray(e)) errorObj = { message: e };
-        else if (typeof e === 'string') errorObj = { message: e };
-        else errorObj = { message: exception.message };
+      issue = { message: payload };
+    } else if (isRecord(payload)) {
+      const msg = payload['message'];
+      const err = payload['error'];
+      const code =
+        (typeof payload['code'] === 'string' && payload['code']) ||
+        (typeof payload['errorCode'] === 'string' && payload['errorCode']) ||
+        (typeof payload['error_code'] === 'string' && payload['error_code']) ||
+        undefined;
+      const detail =
+        (typeof payload['detail'] === 'string' && payload['detail']) ||
+        (typeof payload['cause'] === 'string' && payload['cause']) ||
+        (typeof payload['stack'] === 'string' && payload['stack']) ||
+        undefined;
+
+      if (typeof msg === 'string') {
+        issue.message = msg;
+      } else if (isStringArray(msg)) {
+        issue.message = msg;
       }
-      if (Object.hasOwn(payload, 'message')) {
-        const m = (payload as any).message;
-        errorObj = {
-          ...(isPlainObject(errorObj) ? errorObj : {}),
-          message: Array.isArray(m) ? m : m,
-        };
+
+      if (typeof err === 'string') {
+        issue.error = err;
+      }
+
+      if (code) issue.code = code;
+      if (detail) issue.detail = detail;
+
+      const errors = payload['errors'];
+      if (Array.isArray(errors)) {
+        const props = errors
+          .filter(
+            e =>
+              isRecord(e) &&
+              typeof e['property'] === 'string' &&
+              e['property'].length > 0,
+          )
+          .map(e => String(e['property']));
+        if (props.length === 1) {
+          issue.field = props[0];
+        } else if (props.length > 1) {
+          issue.field = Array.from(new Set(props));
+        }
+      } else if (isStringArray(msg)) {
+        const inferred = msg
+          .map(s => s.split(' ')[0])
+          .filter(t => /^[a-zA-Z0-9_.-]+$/.test(t));
+
+        if (inferred.length === 1) {
+          issue.field = inferred[0];
+        } else if (inferred.length > 1) {
+          issue.field = Array.from(new Set(inferred));
+        }
       }
     }
 
-    const baseResponse: BaseResponseDto = {
+    const metadata: MetadataDto = {
       success: false,
       statusCode: status,
       timestamp: new Date().toISOString(),
-      path: request.url,
+      path: req.url,
       message: 'Request processed unsuccessfully.',
-      apiVersion: extractApiVersion(request),
+      apiVersion: extractApiVersion(req),
     };
 
-    const formatted: UnsuccessResponseDto = {
-      ...baseResponse,
-      error: errorObj,
-    };
-
-    response.status(status).json(formatted);
+    const body: UnsuccessResponseDto = { metadata, issue };
+    res.status(status).json(body);
   }
 }

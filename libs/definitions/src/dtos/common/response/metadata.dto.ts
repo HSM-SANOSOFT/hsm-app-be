@@ -1,35 +1,59 @@
-import { FilterDto, PaginationDto, SortDto } from '@hsm-lib/definitions/dtos';
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsArray, IsOptional, ValidateNested } from 'class-validator';
+import { MetadataExtraDto } from '@hsm-lib/definitions/dtos';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsBoolean,
+  IsInt,
+  IsISO8601,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class MetadataDto {
-  @ApiPropertyOptional({
-    description: 'Pagination information',
-    type: () => PaginationDto,
+  @ApiProperty({ description: 'Whether the request was successful' })
+  @IsBoolean()
+  success!: boolean;
+
+  @ApiProperty({ description: 'HTTP status code', minimum: 100, maximum: 599 })
+  @IsInt()
+  @Min(100)
+  @Max(599)
+  statusCode!: number;
+
+  @ApiProperty({
+    description: 'UTC timestamp (ISO 8601)',
+    example: '2025-11-10T16:32:00.000Z',
   })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => PaginationDto)
-  pagination?: PaginationDto;
+  @IsISO8601()
+  timestamp!: string;
+
+  @ApiProperty({
+    description: 'Original request path',
+    example: '/v1/example/resource',
+  })
+  @IsString()
+  path!: string;
+
+  @ApiProperty({
+    description: 'Human-readable short message',
+    example: 'Request processed successfully.',
+  })
+  @IsString()
+  message!: string;
 
   @ApiPropertyOptional({
-    description: 'Sorting information for the response data',
-    type: () => SortDto,
+    description: 'API version of the response contract',
+    example: 'v1',
   })
   @IsOptional()
-  @ValidateNested()
-  @Type(() => SortDto)
-  sort?: SortDto;
+  @IsString()
+  apiVersion?: string;
 
   @ApiPropertyOptional({
-    description: 'Filters applied to the data query',
-    type: () => FilterDto,
-    isArray: true,
+    description:
+      'Extra metadata for the response like pagination, sorting, etc.',
+    type: () => MetadataExtraDto,
   })
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => FilterDto)
-  filters?: FilterDto[];
+  extra?: MetadataExtraDto;
 }

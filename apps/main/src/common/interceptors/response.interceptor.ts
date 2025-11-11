@@ -1,4 +1,8 @@
-import { BaseResponseDto, SuccessResponseDto } from '@hsm-lib/definitions/dtos';
+import {
+  MetadataDto,
+  MetadataExtraDto,
+  SuccessResponseDto,
+} from '@hsm-lib/definitions/dtos';
 import { ISuccessResponse } from '@hsm-lib/definitions/interfaces';
 import {
   CallHandler,
@@ -9,6 +13,7 @@ import {
 import { Request, Response } from 'express';
 import { map, Observable } from 'rxjs';
 import { extractApiVersion } from '../services';
+
 @Injectable()
 export class ResponseInterceptor<T>
   implements NestInterceptor<T, SuccessResponseDto<T>>
@@ -18,54 +23,51 @@ export class ResponseInterceptor<T>
     next: CallHandler,
   ): Observable<SuccessResponseDto<T>> {
     const http = ctx.switchToHttp();
-    const request: Request = http.getRequest<Request>();
-    const response: Response = http.getResponse<Response>();
-    const statusCode = response.statusCode;
+    const req: Request = http.getRequest();
+    const res: Response = http.getResponse();
+    const statusCode = res.statusCode;
 
-    const baseResponse: BaseResponseDto = {
-      success: statusCode >= 200 && statusCode < 300,
-      statusCode,
-      timestamp: new Date().toISOString(),
-      path: request.url,
-      message: 'Request processed successfully.',
-      apiVersion: extractApiVersion(request),
-    };
     return next.handle().pipe(
-      map((payload: T | ISuccessResponse<T>) => {
-        const hasData =
-          payload instanceof Object && Object.hasOwn(payload, 'data');
-        const hasMetadata =
-          payload instanceof Object &&
-          Object.hasOwn(payload, 'metadata') &&
-          Object.keys(payload.metadata as Record<string, unknown>).length > 0;
-        const data: T = hasData
+      map((payload: T | ISuccessResponse<T>): SuccessResponseDto<T> => {
+        const baseMeta: MetadataDto = {
+          success: statusCode >= 200 && statusCode < 300,
+          statusCode,
+          timestamp: new Date().toISOString(),
+          path: req.url,
+          message: 'Request processed successfully.',
+          apiVersion: extractApiVersion(req),
+        };
+
+        const isSlim =
+          typeof payload === 'object' && payload !== null && 'data' in payload;
+
+        const data: T = isSlim
           ? (payload as ISuccessResponse<T>).data
           : (payload as T);
-        let metadata: ISuccessResponse<T>['metadata'] | undefined = hasMetadata
-          ? (payload as ISuccessResponse<T>).metadata
+
+        let extra: MetadataExtraDto | undefined = isSlim
+          ? (payload as ISuccessResponse<T>).metadata?.extra
           : undefined;
 
-        if (
-          Array.isArray(data) &&
-          (metadata?.pagination == undefined ||
-            Object.keys(metadata?.pagination).length === 0)
-        ) {
-          metadata = {
-            ...metadata,
-            pagination: {
-              page: 1,
-              pageSize: data.length,
-              totalItems: data.length,
-              totalPages: 1,
-            },
-          };
+        if (Array.isArray(data)) {
+          const hasPagination = extra?.pagination;
+
+          if (!hasPagination) {
+            extra = {
+              ...extra,
+              pagination: {
+                page: 1,
+                pageSize: data.length,
+                totalItems: data.length,
+                totalPages: 1,
+              },
+            };
+          }
         }
-        const formatedResponse: SuccessResponseDto<typeof data> = {
-          ...baseResponse,
-          data,
-          metadata: metadata || undefined,
-        };
-        return formatedResponse;
+
+        const metadata: MetadataDto = extra ? { ...baseMeta, extra } : baseMeta;
+
+        return { metadata, data };
       }),
     );
   }

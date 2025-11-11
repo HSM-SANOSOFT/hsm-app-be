@@ -1,15 +1,22 @@
-import { ErrorDto } from '@hsm-lib/definitions/dtos';
-import { ApiProperty } from '@nestjs/swagger';
+import { IssueDto, MetadataDto } from '@hsm-lib/definitions/dtos';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { ValidateNested } from 'class-validator';
-import { BaseResponseDto } from './base.dto';
 
-export class UnsuccessResponseDto extends BaseResponseDto {
-  @ApiProperty({
-    description: 'Error details describing why the request failed',
-    type: () => ErrorDto,
+export class UnsuccessResponseDto {
+  @ApiPropertyOptional({
+    description:
+      'Metadata of the response (pagination, sorting, filters, etc.)',
+    type: () => MetadataDto,
   })
   @ValidateNested()
-  @Type(() => ErrorDto)
-  error!: ErrorDto;
+  @Type(() => MetadataDto)
+  metadata: MetadataDto;
+  @ApiProperty({
+    description: 'Error details describing why the request failed',
+    type: () => IssueDto,
+  })
+  @ValidateNested()
+  @Type(() => IssueDto)
+  issue!: IssueDto;
 }
