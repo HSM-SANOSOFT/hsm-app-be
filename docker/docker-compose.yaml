@@ -15,7 +15,7 @@ services:
       dockerfile: ./docker/dockerFile.dev
     container_name: hsm-app-be-main
     ports:
-      - 3000:3000
+      - "3000:3000"
     networks:
       - hsm-network
     env_file:
@@ -57,7 +57,7 @@ services:
     image: postgres:17-bookworm
     container_name: hsm-app-db-postgres
     ports:
-      - 5432:5432
+      - "5432:5432"
     tmpfs:
       - /var/lib/postgresql/data
     networks:
@@ -84,7 +84,7 @@ services:
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
       - ./redis/users.acl:/usr/local/etc/redis/users.acl:ro
     ports:
-      - 6379:6379
+      - "6379:6379"
     networks:
       - hsm-network
     restart: unless-stopped

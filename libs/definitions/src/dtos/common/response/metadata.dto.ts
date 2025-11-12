@@ -1,5 +1,5 @@
 import { MetadataExtraDto } from '@hsm-lib/definitions/dtos';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsInt,
@@ -11,11 +11,31 @@ import {
 } from 'class-validator';
 
 export class MetadataDto {
-  @ApiProperty({ description: 'Whether the request was successful' })
+  @ApiProperty({
+    description: 'Whether the request was successful',
+    examples: {
+      success: true,
+      unauthorized: false,
+      forbidden: false,
+      notFound: false,
+      internalError: false,
+    },
+  })
   @IsBoolean()
   success!: boolean;
 
-  @ApiProperty({ description: 'HTTP status code', minimum: 100, maximum: 599 })
+  @ApiProperty({
+    description: 'HTTP status code',
+    examples: {
+      success: 200,
+      unauthorized: 401,
+      forbidden: 403,
+      notFound: 404,
+      internalError: 500,
+    },
+    minimum: 100,
+    maximum: 599,
+  })
   @IsInt()
   @Min(100)
   @Max(599)
@@ -37,7 +57,13 @@ export class MetadataDto {
 
   @ApiProperty({
     description: 'Human-readable short message',
-    example: 'Request processed successfully.',
+    examples: {
+      success: 'Request processed successfully.',
+      unauthorized: 'You are not authorized to perform this action.',
+      forbidden: 'Access denied. You do not have sufficient permissions.',
+      notFound: 'The requested resource was not found.',
+      internalError: 'An unexpected server error occurred.',
+    },
   })
   @IsString()
   message!: string;
@@ -57,3 +83,7 @@ export class MetadataDto {
   })
   extra?: MetadataExtraDto;
 }
+
+export class MetadataWithoutExtra extends OmitType(MetadataDto, [
+  'extra',
+] as const) {}

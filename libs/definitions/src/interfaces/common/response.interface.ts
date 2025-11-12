@@ -8,4 +8,6 @@ type MetadataOf<T> = NonNullable<SuccessResponseDto<T>['metadata']>;
 export type ISuccessResponse<T> = Pick<SuccessResponseDto<T>, 'data'> & {
   metadata?: Pick<MetadataOf<T>, 'extra'>;
 };
-export type IUnsuccessResponse = Pick<UnsuccessResponseDto, 'issue'>;
+
+type Issue = Pick<UnsuccessResponseDto, 'issue'>;
+export type IUnsuccessResponse = Issue;

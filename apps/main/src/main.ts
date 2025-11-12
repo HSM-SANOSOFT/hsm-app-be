@@ -20,6 +20,7 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('HSM App Backend')
     .setVersion('1.0')
+    .addBearerAuth()
     .build();
 
   const docs = () => SwaggerModule.createDocument(app, config);

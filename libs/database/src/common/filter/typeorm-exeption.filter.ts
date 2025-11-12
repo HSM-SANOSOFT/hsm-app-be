@@ -4,6 +4,7 @@ import {
   ArgumentsHost,
   Catch,
   ExceptionFilter,
+  HttpException,
   HttpStatus,
   Logger,
 } from '@nestjs/common';
@@ -18,9 +19,9 @@ import { QueryFailedError } from 'typeorm';
 export class TypeOrmExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger('DatabaseExceptionFilter');
 
-  catch(exception: QueryFailedError, host: ArgumentsHost) {
-    const ctx = host.switchToHttp();
-    const response: Response = ctx.getResponse();
+  catch(exception: QueryFailedError, _host: ArgumentsHost) {
+    // const ctx = host.switchToHttp();
+    // const response: Response = ctx.getResponse();
 
     const statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
     const message = 'Database query failed';
@@ -70,13 +71,16 @@ export class TypeOrmExceptionFilter implements ExceptionFilter {
         detail: errorInfo.detail || errorInfo.err,
         code: errorInfo.code,
         message,
-        field: `${errorInfo.table}: ${errorInfo.schema}`,
+        field: `Schema: ${errorInfo.schema}, Table: ${errorInfo.table}`,
       },
     };
 
-    response.status(statusCode).json({
+    throw new HttpException(
+      {
+        statusCode,
+        issue,
+      },
       statusCode,
-      error: issue,
-    });
+    );
   }
 }
