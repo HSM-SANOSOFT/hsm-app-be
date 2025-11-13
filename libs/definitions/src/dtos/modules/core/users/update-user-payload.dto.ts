@@ -1,7 +1,8 @@
 import type { Roles } from '@hsm-lib/definitions/types';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiSchema } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
+@ApiSchema({ name: 'Update User Payload' })
 export class UpdateUserPayloadDto {
   @IsNotEmpty()
   @IsString()

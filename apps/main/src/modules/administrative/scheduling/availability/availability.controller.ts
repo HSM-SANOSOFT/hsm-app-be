@@ -1,9 +1,8 @@
+import { ApiDocumentation, Public } from '@hsm-lib/common/decorator';
 import { ISuccessResponse } from '@hsm-lib/definitions/interfaces';
 import { Controller, Get } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString } from 'class-validator';
-import { ApiDocumentation } from '../../../../common/decorator';
-import { Public } from '../../../security/auth/auth.decorator';
 
 class AvailabilityDto {
   @ApiProperty({
@@ -17,9 +16,9 @@ class AvailabilityDto {
 
 @Controller('scheduling/availability')
 export class AvailabilityController {
+  @ApiDocumentation(AvailabilityDto)
   @Public()
   @Get()
-  @ApiDocumentation(AvailabilityDto)
   availability() {
     const successResponse: ISuccessResponse<AvailabilityDto> = {
       data: {

@@ -1,6 +1,6 @@
 import { Role } from '@hsm-lib/definitions/enums';
 import type { Roles } from '@hsm-lib/definitions/types';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiSchema } from '@nestjs/swagger';
 import {
   ArrayMinSize,
   IsArray,
@@ -10,6 +10,7 @@ import {
   IsString,
 } from 'class-validator';
 
+@ApiSchema({ name: 'Create User Payload' })
 export class CreateUserPayloadDto {
   @IsNotEmpty()
   @IsString()

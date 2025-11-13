@@ -1,7 +1,8 @@
 import { SortEnum } from '@hsm-lib/definitions/enums';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiSchema } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
 
+@ApiSchema({ name: 'Metadata.Extra.Sort' })
 export class SortDto {
   @ApiProperty({
     description: 'Field by which the data is sorted',

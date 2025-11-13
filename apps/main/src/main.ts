@@ -2,8 +2,6 @@ import { envs } from '@hsm-lib/config';
 import { ConsoleLogger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { ResponseFilter } from './common/filters';
-import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { MainModule } from './main.module';
 
 async function bootstrap() {
@@ -20,16 +18,20 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('HSM App Backend')
     .setVersion('1.0')
-    .addBearerAuth()
+    .addBearerAuth(undefined, 'access_token')
+    .addBearerAuth(undefined, 'refresh_token')
     .build();
 
   const docs = () => SwaggerModule.createDocument(app, config);
 
-  SwaggerModule.setup('api', app, docs);
+  SwaggerModule.setup('api', app, docs, {
+    customSiteTitle: envs.SWAGGER_SITE_TITLE,
+    customfavIcon: envs.SWAGGER_FAVICON,
+  });
 
   app.useGlobalGuards();
-  app.useGlobalFilters(new ResponseFilter());
-  app.useGlobalInterceptors(new ResponseInterceptor());
+  app.useGlobalFilters();
+  app.useGlobalInterceptors();
 
   app.enableShutdownHooks();
   app.useGlobalPipes(

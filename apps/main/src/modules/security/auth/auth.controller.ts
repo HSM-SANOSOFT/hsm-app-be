@@ -1,77 +1,84 @@
+import { ApiDocumentation, Public } from '@hsm-lib/common/decorator';
 import {
   LoginPayloadDto,
   LogoutIntegrationTokenPayloadDto,
   SignupIntegrationTokenPayloadDto,
   SignupPayloadDto,
 } from '@hsm-lib/definitions/dtos';
+import {
+  SignedIntegrationProfileDto,
+  SignedUserProfileDto,
+} from '@hsm-lib/definitions/dtos/modules/security/auth/profile-response.dto';
+import { TokensDto } from '@hsm-lib/definitions/dtos/modules/security/auth/tokens.dto';
 import { Role } from '@hsm-lib/definitions/enums';
 import type {
   IRefreshUser,
   ISignedUser,
-  ITokens,
 } from '@hsm-lib/definitions/interfaces';
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
-import { ApiBearerAuth } from '@nestjs/swagger';
 import type { Request } from 'express';
-import { ApiDocumentation } from '../../../common/decorator';
 import { Roles } from '../roles/roles.decorator';
-import { Public } from './auth.decorator';
 import { AuthService } from './auth.service';
+import { AuthLocalGuard } from './guard';
+import { AuthJwtRtGuard } from './guard/auth.jwt.rt.guard';
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
-  @Post('signup')
+  @ApiDocumentation(TokensDto)
   @Public()
-  @ApiDocumentation()
-  async signup(@Body() payload: SignupPayloadDto): Promise<ITokens> {
+  @Post('signup')
+  async signup(@Body() payload: SignupPayloadDto): Promise<TokensDto> {
     return await this.authService.signup(payload);
   }
 
+  @ApiDocumentation(TokensDto)
+  @UseGuards(AuthLocalGuard)
   @Public()
-  @UseGuards(AuthGuard('local'))
-  @ApiDocumentation()
   @Post('login')
-  async login(@Req() req: Request, @Body() _payload: LoginPayloadDto) {
+  async login(
+    @Req() req: Request,
+    @Body() _payload: LoginPayloadDto,
+  ): Promise<TokensDto> {
     return await this.authService.login(req.user as ISignedUser);
   }
 
-  @Get('logout')
-  @Public()
   @ApiDocumentation()
-  async logout(@Req() req: Request) {
+  @Public()
+  @Get('logout')
+  async logout(@Req() req: Request): Promise<void> {
     const token = req.headers.authorization?.split(' ')[1];
     return await this.authService.logout(token);
   }
 
+  @ApiDocumentation(TokensDto)
+  @UseGuards(AuthJwtRtGuard)
   @Get('refresh')
-  @UseGuards(AuthGuard('jwt-rt'))
-  @ApiDocumentation()
-  async refresh(@Req() req: Request) {
+  async refresh(@Req() req: Request): Promise<TokensDto> {
     const user = req.user as IRefreshUser;
     return await this.authService.refresh(user);
   }
 
-  @Post('signup/integration')
+  @ApiDocumentation(TokensDto)
   @Roles(Role.System.Admin)
-  @ApiDocumentation()
-  async signupIntegration(@Body() payload: SignupIntegrationTokenPayloadDto) {
+  @Post('signup/integration')
+  async signupIntegration(
+    @Body() payload: SignupIntegrationTokenPayloadDto,
+  ): Promise<TokensDto> {
     return await this.authService.signupIntegration(payload);
   }
 
-  @Post('logout/integration')
-  @Roles(Role.System.Admin)
-  @ApiBearerAuth()
   @ApiDocumentation()
+  @Roles(Role.System.Admin)
+  @Post('logout/integration')
   async logoutIntegration(@Body() payload: LogoutIntegrationTokenPayloadDto) {
     const token = payload.token;
     return await this.authService.logoutIntegration(token);
   }
 
+  @ApiDocumentation([SignedUserProfileDto, SignedIntegrationProfileDto])
   @Get('profile')
-  @ApiDocumentation()
   profile(@Req() req: Request) {
     return req.user;
   }

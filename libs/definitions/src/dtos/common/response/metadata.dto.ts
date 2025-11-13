@@ -1,5 +1,10 @@
 import { MetadataExtraDto } from '@hsm-lib/definitions/dtos';
-import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  ApiSchema,
+  OmitType,
+} from '@nestjs/swagger';
 import {
   IsBoolean,
   IsInt,
@@ -10,6 +15,7 @@ import {
   Min,
 } from 'class-validator';
 
+@ApiSchema({ name: 'Metadata' })
 export class MetadataDto {
   @ApiProperty({
     description: 'Whether the request was successful',
@@ -84,6 +90,7 @@ export class MetadataDto {
   extra?: MetadataExtraDto;
 }
 
+@ApiSchema({ name: 'Metadata without extra information' })
 export class MetadataWithoutExtra extends OmitType(MetadataDto, [
   'extra',
 ] as const) {}

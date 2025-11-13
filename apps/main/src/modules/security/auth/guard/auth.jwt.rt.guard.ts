@@ -1,5 +1,6 @@
 // noinspection JSUnusedGlobalSymbols
 
+import { IS_PUBLIC_KEY } from '@hsm-lib/common/decorator';
 import {
   type ExecutionContext,
   Injectable,
@@ -8,7 +9,6 @@ import {
 import { Reflector } from '@nestjs/core';
 import { JsonWebTokenError, TokenExpiredError } from '@nestjs/jwt';
 import { AuthGuard } from '@nestjs/passport';
-import { IS_PUBLIC_KEY } from '../auth.decorator';
 
 @Injectable()
 export class AuthJwtRtGuard extends AuthGuard('jwt-rt') {

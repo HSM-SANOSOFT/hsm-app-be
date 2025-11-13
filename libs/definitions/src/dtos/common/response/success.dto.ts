@@ -1,8 +1,9 @@
 import { MetadataDto } from '@hsm-lib/definitions/dtos';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiSchema } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { ValidateNested } from 'class-validator';
 
+@ApiSchema({ name: 'Success Response' })
 export class SuccessResponseDto<T> {
   @ApiProperty({
     description:

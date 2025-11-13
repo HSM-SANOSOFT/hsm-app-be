@@ -1,7 +1,8 @@
 import { FunctionalityRole } from '@hsm-lib/definitions/enums';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiSchema } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
 
+@ApiSchema({ name: 'Create User Integration Payload' })
 export class CreateUserIntegrationPayloadDto {
   @IsString()
   @IsNotEmpty()

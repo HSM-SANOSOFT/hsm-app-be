@@ -109,17 +109,27 @@
     "typescript-eslint": "^8.44.0"
   },
   "jest": {
-    "moduleFileExtensions": ["js", "json", "ts"],
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
     "rootDir": ".",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
-    "collectCoverageFrom": ["**/*.(t|j)s"],
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
     "coverageDirectory": "./coverage",
     "testEnvironment": "node",
-    "roots": ["<rootDir>/apps/", "<rootDir>/libs/"],
+    "roots": [
+      "<rootDir>/apps/",
+      "<rootDir>/libs/"
+    ],
     "moduleNameMapper": {
+      "^@hsm-lib/common(|/.*)$": "<rootDir>/libs/common/src/$1",
       "^@hsm-lib/config(|/.*)$": "<rootDir>/libs/config/src/$1",
       "^@hsm-lib/database(|/.*)$": "<rootDir>/libs/database/src/$1",
       "^@hsm-lib/definitions(|/.*)$": "<rootDir>/libs/definitions/src/$1",

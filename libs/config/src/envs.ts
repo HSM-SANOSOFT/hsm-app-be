@@ -7,6 +7,9 @@ import * as joi from 'joi';
 interface EnvVars {
   ENVIRONMENT: string;
 
+  SWAGGER_FAVICON: string;
+  SWAGGER_SITE_TITLE: string;
+
   JWT_AT_SECRET: string;
   JWT_RT_SECRET: string;
 
@@ -31,6 +34,9 @@ interface EnvVars {
 const EnvSchema = joi
   .object({
     ENVIRONMENT: joi.string().required(),
+
+    SWAGGER_FAVICON: joi.string().required(),
+    SWAGGER_SITE_TITLE: joi.string().required(),
 
     JWT_AT_SECRET: joi.string().required(),
     JWT_RT_SECRET: joi.string().required(),
@@ -65,6 +71,9 @@ const envVars: EnvVars = validation.value as EnvVars;
 
 export const envs = Object.freeze({
   ENVIRONMENT: envVars.ENVIRONMENT,
+
+  SWAGGER_FAVICON: envVars.SWAGGER_FAVICON,
+  SWAGGER_SITE_TITLE: envVars.SWAGGER_SITE_TITLE,
 
   JWT_AT_SECRET: envVars.JWT_AT_SECRET,
   JWT_RT_SECRET: envVars.JWT_RT_SECRET,

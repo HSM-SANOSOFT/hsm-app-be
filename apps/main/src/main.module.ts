@@ -1,9 +1,10 @@
-import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-
+import { ResponseFilter } from '@hsm-lib/common/filters';
+import { ResponseInterceptor } from '@hsm-lib/common/interceptors';
 import { DatabaseModule } from '@hsm-lib/database';
 import { QueueModule } from '@hsm-lib/queue';
+import { Module } from '@nestjs/common';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { MainController } from './main.controller';
 import { MainService } from './main.service';
@@ -46,6 +47,14 @@ import { SecurityModule } from './modules/security/security.module';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: ResponseFilter,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: ResponseInterceptor,
     },
   ],
 })

@@ -1,6 +1,7 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, ApiSchema } from '@nestjs/swagger';
 import { IsArray, IsOptional, IsString, ValidateIf } from 'class-validator';
 
+@ApiSchema({ name: 'Unsuccess Response.Issue' })
 export class IssueDto {
   @ApiProperty({
     description: 'Short, human-readable description of the error(s)',

@@ -1,7 +1,8 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiSchema } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsNotEmpty, Min } from 'class-validator';
 
+@ApiSchema({ name: 'Metadata.Extra.Pagination' })
 export class PaginationDto {
   @ApiProperty({ description: 'Page number', example: 1 })
   @IsInt()

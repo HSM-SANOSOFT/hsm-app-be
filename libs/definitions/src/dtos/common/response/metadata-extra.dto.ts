@@ -1,8 +1,9 @@
 import { FilterDto, PaginationDto, SortDto } from '@hsm-lib/definitions/dtos';
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional, ApiSchema } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsArray, IsOptional, ValidateNested } from 'class-validator';
 
+@ApiSchema({ name: 'Metadata.Extra' })
 export class MetadataExtraDto {
   @ApiPropertyOptional({
     description: 'Pagination information',

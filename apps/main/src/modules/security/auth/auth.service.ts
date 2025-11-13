@@ -220,9 +220,9 @@ export class AuthService {
     return tokens;
   }
 
-  async logout(token: string | undefined) {
+  async logout(token: string | undefined): Promise<void> {
     if (!token) {
-      throw new BadRequestException('Token not found');
+      throw new UnauthorizedException('Token not found');
     }
 
     let decoded: ISignedUser;
@@ -252,12 +252,8 @@ export class AuthService {
         },
       );
     if (!responseDb.affected) {
-      return {
-        success: false,
-        message: 'already logged out',
-      };
+      throw new BadRequestException('already logged out');
     }
-    return { success: true, message: 'logged out' };
   }
 
   async signupIntegration(
@@ -296,7 +292,7 @@ export class AuthService {
     }
   }
 
-  async logoutIntegration(token: string) {
+  async logoutIntegration(token: string): Promise<void> {
     let decoded: ISignedUserIntegration;
     try {
       decoded = await this.jwtService.verifyAsync<ISignedUserIntegration>(
@@ -337,12 +333,8 @@ export class AuthService {
         },
       );
     if (!responseDb.affected) {
-      return {
-        success: false,
-        message: 'already logged out',
-      };
+      throw new BadRequestException('already logged out');
     }
-    return { success: true, message: 'logged out' };
   }
 
   async refresh(user: IRefreshUser): Promise<ITokens> {

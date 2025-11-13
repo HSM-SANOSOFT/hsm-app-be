@@ -1,7 +1,8 @@
 import { FilterEnum } from '@hsm-lib/definitions/enums';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiSchema } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
 
+@ApiSchema({ name: 'Metadata.Extra.Filter' })
 export class FilterDto {
   @ApiProperty({
     description: 'Field name on which the filter is applied',

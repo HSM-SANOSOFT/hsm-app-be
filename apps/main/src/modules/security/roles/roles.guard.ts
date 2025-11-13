@@ -1,3 +1,4 @@
+import { IS_PUBLIC_KEY } from '@hsm-lib/common/decorator';
 import {
   ISignedUser,
   ISignedUserIntegration,
@@ -11,7 +12,6 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { IS_PUBLIC_KEY } from '../auth/auth.decorator';
 import { ROLES_KEY } from './roles.decorator';
 
 @Injectable()
