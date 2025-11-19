@@ -36,10 +36,11 @@ it('should be defined', () => {
   }
   )
 
-  it('should call signup method', async () => {
+  it('should call signup method', async () =>
+  {
     const signupDto: SignupPayloadDto = {
       username: 'test',
-      password: 'test',
+      pass: 'test',
       email: 'test@example.com',
       firstName: 'Test',
       firstLastName: 'User',
@@ -50,5 +51,6 @@ it('should be defined', () => {
       roles: [Role.System.Admin],
     };
     expect(await controller.signup(signupDto)).toBeDefined();
-  });
+  }
+  )
 });
