@@ -1,4 +1,4 @@
-import { OracleColumnsQuery} from '@hsm-lib/database/generator/definitions';
+import { OracleColumnsQuery } from '@hsm-lib/database/generator/definitions';
 
 export interface OracleColumns
   extends Pick<
