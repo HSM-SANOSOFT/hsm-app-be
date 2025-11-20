@@ -28,7 +28,8 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./apps/main/test/jest-e2e.json",
     "prepare": "husky",
-    "generator:entity:oracle": "ts-node -r tsconfig-paths/register libs/database/src/generator/generators/oracle.entity.generator.ts"
+    "generator:entity:oracle": "ts-node -r tsconfig-paths/register libs/database/src/generator/generators/oracle.entity.generator.ts",
+    "generator:schema:oracle": "ts-node -r tsconfig-paths/register libs/database/src/generator/generators/oracle.schema.generator.ts"
   },
   "dependencies": {
     "@keyv/redis": "^5.1.2",

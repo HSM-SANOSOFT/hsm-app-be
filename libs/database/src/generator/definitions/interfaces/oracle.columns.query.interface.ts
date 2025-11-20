@@ -1,0 +1,35 @@
+export interface OracleColumnsQuery {
+  OWNER: string | null;
+  TABLE_NAME: string | null;
+  COLUMN_NAME: string | null;
+  DATA_TYPE: string | null;
+  DATA_TYPE_MOD: unknown | null;
+  DATA_TYPE_OWNER: unknown | null;
+  DATA_LENGTH: number | null;
+  DATA_PRECISION: number | null;
+  DATA_SCALE: number | null;
+  NULLABLE: string | null;
+  COLUMN_ID: number | null;
+  DEFAULT_LENGTH: unknown | null;
+  DATA_DEFAULT: string | null;
+  NUM_DISTINCT: number | null;
+  DENSITY: number | null;
+  NUM_NULLS: number | null;
+  NUM_BUCKETS: number | null;
+  LAST_ANALYZED: string | null;
+  SAMPLE_SIZE: number | null;
+  CHARACTER_SET_NAME: string | null;
+  CHAR_COL_DECL_LENGTH: number | null;
+  GLOBAL_STATS: string | null;
+  USER_STATS: string | null;
+  AVG_COL_LEN: number | null;
+  CHAR_LENGTH: number | null;
+  CHAR_USED: string | null;
+  V80_FMT_IMAGE: string | null;
+  DATA_UPGRADED: string | null;
+  HISTOGRAM: string | null;
+  OWNER_1: string | null;
+  TABLE_NAME_1: string | null;
+  COLUMN_NAME_1: string | null;
+  COMMENTS: string | null;
+}
