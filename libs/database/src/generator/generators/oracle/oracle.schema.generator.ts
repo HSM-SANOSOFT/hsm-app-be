@@ -1,4 +1,3 @@
-import { getArgs } from '@hsm-lib/database/generator/common';
 import { getOracleConnection } from '@hsm-lib/database/generator/datasources';
 import { OracleEntityTables } from '@hsm-lib/database/generator/tables';
 import {
@@ -13,17 +12,17 @@ import { Logger } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 
-export async function oracleSchemaGenerator() {
+export async function oracleSchemaGenerator(args: {
+  user: string;
+  pass: string;
+  host: string;
+  port: string;
+  db: string;
+  table: string;
+  schema: string;
+  log?: boolean;
+}) {
   const logger = new Logger('OracleSchemaGenerator');
-  const args = getArgs({
-    user: { type: 'string' },
-    pass: { type: 'string' },
-    host: { type: 'string' },
-    port: { type: 'string' },
-    db: { type: 'string' },
-    table: { type: 'string' },
-    schema: { type: 'string' },
-  });
   const connection = await getOracleConnection(
     args.user,
     args.pass,
@@ -127,8 +126,11 @@ export async function oracleSchemaGenerator() {
         `\n)\n` +
         (commentLines ? '\n' + '/\n' + commentLines + '\n' : '') +
         '\n---  DDL END  ---\n';
-      logger.log(ddl);
-      const outputDir = path.join(__dirname, '../schemas');
+      if (args.log) {
+        logger.log(ddl);
+      }
+
+      const outputDir = path.join(__dirname, '../schemas/oracle');
 
       if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
@@ -153,5 +155,3 @@ export async function oracleSchemaGenerator() {
     }
   }
 }
-
-oracleSchemaGenerator().then();

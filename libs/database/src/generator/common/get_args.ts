@@ -6,10 +6,10 @@ import {
 import { Logger } from '@nestjs/common';
 
 type RequiredOptionDescriptor = ParseArgsOptionDescriptor & {
-  required?: boolean;
+  optional?: boolean;
 };
 
-type ArgOptionsMap = Record<string, RequiredOptionDescriptor>;
+export type ArgOptionsMap = Record<string, RequiredOptionDescriptor>;
 
 type InferArgs<T extends ArgOptionsMap> = {
   [K in keyof T]: T[K]['multiple'] extends true
@@ -36,9 +36,9 @@ export function getArgs<T extends ArgOptionsMap>(options: T): InferArgs<T> {
 
   for (const key of Object.keys(options) as (keyof T)[]) {
     const def = options[key];
-    const required = def.required !== false;
+    const isOptional = def.optional === true;
 
-    if (required && values[key as string] === undefined) {
+    if (!isOptional && values[key as string] === undefined) {
       missing.push(String(key));
     }
   }
