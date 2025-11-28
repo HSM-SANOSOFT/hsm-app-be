@@ -1,6 +1,38 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import {
+Entity,
+Column,
+ManyToOne,
+OneToOne,
+JoinColumn,
+Index,
+Unique,
+} from 'typeorm';
 {{#if importsTS}}
   import { {{join importsTS ", "}} } from './index';
+{{/if}}
+
+{{!-- UNIQUE CONSTRAINTS (from constraints.unique) --}}
+{{#if constraints.unique}}
+  {{#each constraints.unique}}
+    @Unique('{{constraintName}}', [
+    {{#each columnNames}}
+      '{{this}}'{{#unless @last}}, {{/unless}}
+    {{/each}}
+    ])
+  {{/each}}
+{{/if}}
+
+{{!-- NORMAL INDEXES (non-unique) --}}
+{{#if indexes}}
+  {{#each indexes}}
+    {{#unless isUnique}}
+      @Index('{{indexName}}', [
+      {{#each columnNames}}
+        '{{this}}'{{#unless @last}}, {{/unless}}
+      {{/each}}
+      ])
+    {{/unless}}
+  {{/each}}
 {{/if}}
 
 @Entity({ name: '{{tableName}}', schema: '{{owner}}' })
@@ -36,10 +68,12 @@ export class {{tableNameTS}}Entity {
 
 {{/each}}
 
-{{!-- RELATIONS (ManyToOne for now) --}}
+{{!-- RELATIONS --}}
 {{#if constraints.foreign}}
   {{#each constraints.foreign}}
-    @ManyToOne(() => {{columns.[0].referencedTableNameTS}}Entity)
+    @{{#if (equal relationTypeTS "one-to-one")}}OneToOne{{else}}ManyToOne{{/if}}(
+    () => {{columns.[0].referencedTableNameTS}}Entity
+    )
     @JoinColumn([
     {{#each columns}}
       { name: '{{columnName}}', referencedColumnName: '{{referencedColumnName}}' }{{#unless @last}},{{/unless}}

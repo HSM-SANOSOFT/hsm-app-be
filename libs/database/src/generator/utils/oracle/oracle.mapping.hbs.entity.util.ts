@@ -13,6 +13,15 @@ import { Logger } from '@nestjs/common';
 
 const logger = new Logger('oracleEntityMapping');
 
+function sameSet(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const sa = new Set(a);
+  for (const x of b) {
+    if (!sa.has(x)) return false;
+  }
+  return true;
+}
+
 function oracleDataTypeMapping(column: OracleColumns): string | undefined {
   const dataType = normalize(column.DATA_TYPE)?.toUpperCase();
   if (!dataType) return undefined;
@@ -202,6 +211,21 @@ export function oracleEntityHbsMapping(
         ([constraintName, rows]) => {
           const refTableName = normalize(rows[0].TABLE_NAME_2);
           const refTableNameTS = toPascalCase(refTableName);
+          const fkColumnNames = rows.map(r => normalize(r.COLUMN_NAME));
+          const pkColumns =
+            response.constraints?.primary?.columns.map(c => c.columnName) ?? [];
+
+          const isPkBased = pkColumns.length
+            ? sameSet(fkColumnNames, pkColumns)
+            : false;
+
+          const uniqueConstraints = response.constraints?.unique ?? [];
+          const isUniquelyConstrained = uniqueConstraints.some(u =>
+            sameSet(fkColumnNames, u.columnNames),
+          );
+
+          const relationTypeTS: 'many-to-one' | 'one-to-many' | 'one-to-one' =
+            isPkBased || isUniquelyConstrained ? 'one-to-one' : 'many-to-one';
 
           const columnsFk = rows.map(row => {
             const localColName = normalize(row.COLUMN_NAME);
@@ -224,7 +248,7 @@ export function oracleEntityHbsMapping(
           return {
             constraintName,
             relationNameTS: toCamelCase(refTableName),
-            relationTypeTS: 'many-to-one' as const,
+            relationTypeTS,
             columns: columnsFk,
           };
         },
