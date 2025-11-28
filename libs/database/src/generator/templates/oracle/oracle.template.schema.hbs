@@ -1,0 +1,24 @@
+--- DDL START ---
+
+create table {{tableName}}
+(
+{{#each columns}}
+  {{COLUMN_NAME}} {{oracleDataType this}}{{#if (hasDefault this)}} default {{{DATA_DEFAULT}}}{{/if}}{{#if (isNotNull this)}} not null{{/if}}{{#if @last}}{{#if (hasConstraints ../constrains)}},{{/if}}{{else}},{{/if}}
+{{/each}}
+
+{{#each constrains}}
+  constraint {{name}}
+    {{#if (equal kind "pk")}}primary key ({{join columns ", "}}){{/if}}{{#if (equal kind "uk")}}unique ({{join columns ", "}}){{/if}}{{#if (equal kind "fk")}}foreign key ({{join columns ", "}}) references {{#if referencedTable}}{{referencedTable}}{{else}}/* UNKNOWN_TABLE */{{/if}}{{/if}}{{#unless @last}},{{/unless}}
+{{/each}}
+)
+
+{{#if (hasComment columns)}}
+  /
+{{/if}}
+{{#each columns}}
+  {{#if COMMENTS}}
+    comment on column {{../tableName}}.{{COLUMN_NAME}} is '{{{escapeComment this}}}';
+  {{/if}}
+{{/each}}
+
+--- DDL END ---

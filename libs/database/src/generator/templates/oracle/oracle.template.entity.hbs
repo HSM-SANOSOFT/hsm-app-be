@@ -1,0 +1,53 @@
+import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+{{#if importsTS}}
+  import { {{join importsTS ", "}} } from './index';
+{{/if}}
+
+@Entity({ name: '{{tableName}}', schema: '{{owner}}' })
+export class {{tableNameTS}}Entity {
+
+{{!-- COLUMNS --}}
+{{#each columns}}
+  @Column({
+  name: '{{columnName}}',
+  {{#if dataType}}
+    type: '{{dataType}}',
+  {{/if}}
+  {{#if dataLength}}
+    length: {{dataLength}},
+  {{/if}}
+  {{#if dataPrecision}}
+    precision: {{dataPrecision}},
+  {{/if}}
+  {{#if dataScale}}
+    scale: {{dataScale}},
+  {{/if}}
+  {{#if dataDefault}}
+    default: {{{dataDefault}}},
+  {{/if}}
+  {{#if comment}}
+    comment: "{{comment}}",
+  {{/if}}
+  {{#if nullable}}
+    nullable: true,
+  {{/if}}
+  })
+  {{columnNameTS}}: {{dataTypeTS}}{{#if nullable}} | null{{/if}};
+
+{{/each}}
+
+{{!-- RELATIONS (ManyToOne for now) --}}
+{{#if constraints.foreign}}
+  {{#each constraints.foreign}}
+    @ManyToOne(() => {{columns.[0].referencedTableNameTS}}Entity)
+    @JoinColumn([
+    {{#each columns}}
+      { name: '{{columnName}}', referencedColumnName: '{{referencedColumnName}}' }{{#unless @last}},{{/unless}}
+    {{/each}}
+    ])
+    {{relationNameTS}}: {{columns.[0].referencedTableNameTS}}Entity;
+
+  {{/each}}
+{{/if}}
+
+}

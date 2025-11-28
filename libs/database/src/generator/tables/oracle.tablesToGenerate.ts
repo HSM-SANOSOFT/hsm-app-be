@@ -1,4 +1,4 @@
-export const OracleEntityTables = [
+export const OracleTablesToGenerate = [
   'PERSONAL',
   'ESPECIALIDAD_PERSONAL',
   'AREAS',

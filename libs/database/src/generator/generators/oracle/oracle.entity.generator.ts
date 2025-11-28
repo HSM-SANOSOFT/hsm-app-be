@@ -1,13 +1,27 @@
 import { getOracleConnection } from '@hsm-lib/database/generator/datasources';
-import { OracleEntityTables } from '@hsm-lib/database/generator/tables';
+import { OracleTablesToGenerate } from '@hsm-lib/database/generator/tables';
 import {
+  indexTemplate,
+  oracleEntityTemplate,
+} from '@hsm-lib/database/generator/templates';
+import { oracleTemplatesHelpers } from '@hsm-lib/database/generator/templates/oracle/oracle.templates.helpers';
+import {
+  normalize,
   oracleColumnsMapping,
   oracleColumnsQuery,
-  oracleConstrainsKeyMapping,
   oracleConstrainsMapping,
   oracleConstrainsQuery,
+  toCamelCase,
+  toPascalCase,
 } from '@hsm-lib/database/generator/utils';
+import { oracleEntityHbsMapping } from '@hsm-lib/database/generator/utils/oracle/oracle.mapping.hbs.entity.util';
+import { oracleIndexMapping } from '@hsm-lib/database/generator/utils/oracle/oracle.mapping.indexes.util';
+import { oracleIndexQuery } from '@hsm-lib/database/generator/utils/oracle/oracle.query.indexes.util';
 import { Logger } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
+
+oracleTemplatesHelpers();
 
 export async function oracleEntityGenerator(args: {
   user: string;
@@ -18,6 +32,7 @@ export async function oracleEntityGenerator(args: {
   table: string;
   schema: string;
   log?: boolean;
+  save?: boolean;
 }) {
   const logger = new Logger('OracleEntityGenerator');
   const connection = await getOracleConnection(
@@ -31,14 +46,16 @@ export async function oracleEntityGenerator(args: {
     let tablesToGenerate: string[];
 
     if (args.table === 'all') {
-      tablesToGenerate = OracleEntityTables;
+      tablesToGenerate = OracleTablesToGenerate;
     } else {
       tablesToGenerate = [args.table.toUpperCase()];
     }
     const schema = args.schema.toUpperCase();
 
+    const files = tablesToGenerate.map(table => `${toCamelCase(table)}.entity`);
+
     for (const tableName of tablesToGenerate) {
-      logger.log(`Fetching DDL for ${schema}.${tableName}...`);
+      logger.log(`Fetching info for ${schema}.${tableName}...`);
 
       const columnsResult = await oracleColumnsQuery(
         connection,
@@ -48,6 +65,7 @@ export async function oracleEntityGenerator(args: {
       // logger.debug(columnsResult);
 
       const columnsMapping = oracleColumnsMapping(columnsResult);
+      // logger.debug(columnsMapping);
 
       const constrainsResult = await oracleConstrainsQuery(
         connection,
@@ -59,11 +77,52 @@ export async function oracleEntityGenerator(args: {
       const constrainsMapping = oracleConstrainsMapping(constrainsResult);
       // logger.debug(constrainsMapping);
 
-      const [pkConstraints, fkConstraints, ukConstraints] =
-        oracleConstrainsKeyMapping(constrainsMapping);
+      const indexesResult = await oracleIndexQuery(
+        connection,
+        schema,
+        tableName,
+      );
+      // logger.debug(indexesResult);
+
+      const indexesMapping = oracleIndexMapping(indexesResult);
+      // logger.debug(indexesMapping);
+
+      const data = oracleEntityHbsMapping(
+        columnsMapping,
+        constrainsMapping,
+        indexesMapping,
+      );
+
+      logger.debug(data);
+
+      const entity = oracleEntityTemplate(data);
+      const index = indexTemplate({ files });
+
+      if (args.log) {
+        logger.log(`\n${entity}`);
+      }
+
+      if (args.save) {
+        const outputDir = path.join(__dirname, '../../entities/oracle');
+
+        if (!fs.existsSync(outputDir)) {
+          fs.mkdirSync(outputDir, { recursive: true });
+        }
+
+        const filePathEntity = path.join(
+          outputDir,
+          `${toCamelCase(tableName)}.entity.ts`,
+        );
+        fs.writeFileSync(filePathEntity, entity, 'utf8');
+
+        const filePathIndex = path.join(outputDir, `index.ts`);
+        fs.writeFileSync(filePathIndex, index, 'utf8');
+
+        logger.log(`Saved → ${filePathEntity}`);
+      }
     }
   } catch (error) {
-    logger.error('DDL extraction failed');
+    logger.error('Entity Generation failed');
     logger.error(error);
     process.exit(1);
   } finally {

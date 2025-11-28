@@ -1,5 +1,5 @@
-import { getArgs } from '@hsm-lib/database/generator/common';
 import { DriversEnum } from '@hsm-lib/database/generator/definitions';
+import { getArgs } from '@hsm-lib/database/generator/utils';
 import { oracleEntityGenerator } from './oracle';
 
 async function entityGenerator() {
@@ -13,6 +13,7 @@ async function entityGenerator() {
     table: { type: 'string' },
     schema: { type: 'string' },
     log: { type: 'boolean', optional: true },
+    save: { type: 'boolean', optional: true },
   });
 
   switch (args.driver) {

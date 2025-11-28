@@ -1,12 +1,12 @@
 import { getOracleConnection } from '@hsm-lib/database/generator/datasources';
-import { OracleEntityTables } from '@hsm-lib/database/generator/tables';
+import { OracleTablesToGenerate } from '@hsm-lib/database/generator/tables';
+import { oracleSchemaTemplate } from '@hsm-lib/database/generator/templates';
+import { oracleTemplatesHelpers } from '@hsm-lib/database/generator/templates/oracle/oracle.templates.helpers';
 import {
   oracleColumnsMapping,
   oracleColumnsQuery,
-  oracleConstrainsKeyMapping,
   oracleConstrainsMapping,
   oracleConstrainsQuery,
-  oracleDataTypeSchemaMapping,
 } from '@hsm-lib/database/generator/utils';
 import { Logger } from '@nestjs/common';
 import * as fs from 'fs';
@@ -21,8 +21,10 @@ export async function oracleSchemaGenerator(args: {
   table: string;
   schema: string;
   log?: boolean;
+  save?: boolean;
 }) {
   const logger = new Logger('OracleSchemaGenerator');
+  oracleTemplatesHelpers(true);
   const connection = await getOracleConnection(
     args.user,
     args.pass,
@@ -34,7 +36,7 @@ export async function oracleSchemaGenerator(args: {
     let tablesToGenerate: string[];
 
     if (args.table === 'all') {
-      tablesToGenerate = OracleEntityTables;
+      tablesToGenerate = OracleTablesToGenerate;
     } else {
       tablesToGenerate = [args.table.toUpperCase()];
     }
@@ -59,87 +61,32 @@ export async function oracleSchemaGenerator(args: {
       );
       // logger.debug(constrainsResult);
 
-      const constrainsMapping = oracleConstrainsMapping(constrainsResult);
+      const [pkConstraints, fkConstraints, ukConstraints] =
+        oracleConstrainsMapping(constrainsResult);
       // logger.debug(constrainsMapping);
 
-      const [pkConstraints, fkConstraints, ukConstraints] =
-        oracleConstrainsKeyMapping(constrainsMapping);
+      const data = {
+        tableName,
+      };
 
-      const columnLines = columnsMapping
-        .map(column => {
-          const type = oracleDataTypeSchemaMapping(column);
+      const ddl = oracleSchemaTemplate(data);
 
-          const defaultValue = column.DATA_DEFAULT
-            ? ` default ${column.DATA_DEFAULT.trim()}`
-            : '';
-
-          const notNull = column.NULLABLE === 'N' ? ' not null' : '';
-
-          return `${column.COLUMN_NAME}    ${type}${defaultValue}${notNull}`;
-        })
-        .join(',\n');
-
-      const pkLines = Array.from(pkConstraints.entries())
-        .map(
-          ([name, cols]) =>
-            `constraint ${name}\n        primary key (${cols.join(', ')})`,
-        )
-        .join(',\n');
-
-      const ukLines = Array.from(ukConstraints.entries())
-        .map(
-          ([name, cols]) =>
-            `constraint ${name}\n        unique (${cols.join(', ')})`,
-        )
-        .join(',\n');
-
-      const fkLines = Array.from(fkConstraints.entries())
-        .map(([name, def]) => {
-          const colsList = def.columns.join(', ');
-          const refTable = def.referencedTable ?? '/* UNKNOWN_TABLE */';
-          return `constraint ${name}\n        foreign key (${colsList}) references ${refTable}`;
-        })
-        .join(',\n');
-
-      const commentLines = columnsMapping
-        .map(col =>
-          col.COMMENTS
-            ? `comment on column ${tableName}.${col.COLUMN_NAME} is '${col.COMMENTS.replace(/'/g, "''")}';`
-            : '',
-        )
-        .filter(line => line !== '')
-        .join('\n');
-
-      // logger.debug(commentLines);
-
-      const constraintBlocks = [pkLines, ukLines, fkLines].filter(
-        b => b.length > 0,
-      );
-      const constraintsSection = constraintBlocks.join(',\n');
-
-      const ddl =
-        '\n--- DDL START ---\n' +
-        `\ncreate table ${tableName}\n` +
-        `\n(\n` +
-        columnLines +
-        (constraintsSection ? ',\n' + constraintsSection : '') +
-        `\n)\n` +
-        (commentLines ? '\n' + '/\n' + commentLines + '\n' : '') +
-        '\n---  DDL END  ---\n';
       if (args.log) {
-        logger.log(ddl);
+        logger.log(`\n${ddl}`);
       }
 
-      const outputDir = path.join(__dirname, '../schemas/oracle');
+      if (args.save) {
+        const outputDir = path.join(__dirname, '../../schemas/oracle');
 
-      if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, { recursive: true });
+        if (!fs.existsSync(outputDir)) {
+          fs.mkdirSync(outputDir, { recursive: true });
+        }
+
+        const filePath = path.join(outputDir, `${tableName.toLowerCase()}.sql`);
+        fs.writeFileSync(filePath, ddl, 'utf8');
+
+        logger.log(`Saved → ${filePath}`);
       }
-
-      const filePath = path.join(outputDir, `${tableName.toLowerCase()}.sql`);
-      fs.writeFileSync(filePath, ddl, 'utf8');
-
-      logger.log(`Saved → ${filePath}`);
     }
   } catch (error) {
     logger.error('DDL extraction failed');

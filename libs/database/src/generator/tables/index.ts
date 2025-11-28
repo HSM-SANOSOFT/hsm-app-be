@@ -1,1 +1,1 @@
-export * from './oracle.entity.tables';
+export * from './oracle.tablesToGenerate';
