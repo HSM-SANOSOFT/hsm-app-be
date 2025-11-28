@@ -1,89 +1,77 @@
 import {
-Entity,
-Column,
-ManyToOne,
-OneToOne,
-JoinColumn,
-Index,
-Unique,
+  Entity,
+  Column,
+  ManyToOne,
+  OneToOne,
+  JoinColumn,
+  Index,
+  Unique,
 } from 'typeorm';
-  import { NomOrgDireccionEntity } from './index';
+import { NomOrgDireccionEntity } from './index';
 
-    @Unique('UK_COORDINA', [
-      'DIRECCION', 
-      'COORDINACION'
-    ])
-
+@Unique('UK_COORDINA', ['DIRECCION', 'COORDINACION'])
 
 @Entity({ name: 'NOM_ORG_COORDINACION', schema: 'SIS' })
 export class NomOrgCoordinacionEntity {
-
   @Column({
-  name: 'ID',
+    name: 'ID',
     type: 'number',
     length: 22,
   })
   id: number;
 
   @Column({
-  name: 'DIRECCION',
+    name: 'DIRECCION',
     type: 'number',
     length: 22,
-    comment: "La direccion a la que pertenece",
+    comment: 'La direccion a la que pertenece',
     nullable: true,
   })
   direccion: number | null;
 
   @Column({
-  name: 'COORDINACION',
+    name: 'COORDINACION',
     type: 'number',
     length: 22,
-    comment: "El código de la empresa de la que es el plan de cuentas",
+    comment: 'El código de la empresa de la que es el plan de cuentas',
   })
   coordinacion: number;
 
   @Column({
-  name: 'DESCRIPCION_PUESTO',
+    name: 'DESCRIPCION_PUESTO',
     type: 'varchar',
     length: 100,
-    comment: "Descripción del Cargo",
+    comment: 'Descripción del Cargo',
   })
   descripcionPuesto: string;
 
   @Column({
-  name: 'NOMCOR',
+    name: 'NOMCOR',
     type: 'varchar',
     length: 15,
-    comment: "Si esta disponible, fuera de servicio, etc",
+    comment: 'Si esta disponible, fuera de servicio, etc',
   })
   nomcor: string;
 
   @Column({
-  name: 'ESTADO_DE_DISPONIBILIDAD',
+    name: 'ESTADO_DE_DISPONIBILIDAD',
     type: 'char',
     length: 1,
     default: 'D',
-    comment: "Si esta disponible, fuera de servicio, etc",
+    comment: 'Si esta disponible, fuera de servicio, etc',
   })
   estadoDeDisponibilidad: string;
 
   @Column({
-  name: 'DESCRIPCION_CARGO',
+    name: 'DESCRIPCION_CARGO',
     type: 'varchar',
     length: 100,
-    comment: "Descripción del Cargo",
+    comment: 'Descripción del Cargo',
     nullable: true,
   })
   descripcionCargo: string | null;
 
-
-    @ManyToOne(
-    () => NomOrgDireccionEntity
-    )
-    @JoinColumn([
-      { name: 'DIRECCION', referencedColumnName: 'DIRECCION' }
-    ])
-    nomOrgDireccion: NomOrgDireccionEntity;
-
-
+  @ManyToOne(() => NomOrgDireccionEntity)
+  @JoinColumn([{ name: 'DIRECCION', referencedColumnName: 'DIRECCION' }])
+  nomOrgDireccion: NomOrgDireccionEntity;
 }
