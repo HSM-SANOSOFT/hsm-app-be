@@ -28,8 +28,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { DataSource, UpdateResult } from 'typeorm';
-import { Repository } from 'typeorm/repository/Repository.js';
+import { DataSource, Repository, UpdateResult } from 'typeorm';
 import { UsersService } from '../../core/users/users.service';
 
 @Injectable()

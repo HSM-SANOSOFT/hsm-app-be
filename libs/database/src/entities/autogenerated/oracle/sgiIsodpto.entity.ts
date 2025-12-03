@@ -1,25 +1,28 @@
 import {
-  Entity,
-  Column,
-  PrimaryColumn,
-  ManyToOne,
-  OneToOne,
-  JoinColumn,
-  Index,
-  Unique,
+Entity,
+Column,
+PrimaryColumn,
+ManyToOne,
+OneToOne,
+JoinColumn,
+Index,
+Unique,
 } from 'typeorm';
+
+
 
 @Entity({ name: 'SGI_ISODPTO', schema: 'SIS' })
 export class SgiIsodptoEntity {
+
   @PrimaryColumn({
-    name: 'ISDPID',
+  name: 'ISDPID',
     type: 'number',
     precision: 4,
   })
   isdpid: number;
 
   @Column({
-    name: 'ISDPDETA',
+  name: 'ISDPDETA',
     type: 'char',
     length: 50,
     nullable: true,
@@ -27,7 +30,7 @@ export class SgiIsodptoEntity {
   isdpdeta: string | null;
 
   @Column({
-    name: 'ISDPSIGLAS',
+  name: 'ISDPSIGLAS',
     type: 'char',
     length: 3,
     nullable: true,
@@ -35,10 +38,13 @@ export class SgiIsodptoEntity {
   isdpsiglas: string | null;
 
   @Column({
-    name: 'STATUS',
+  name: 'STATUS',
     type: 'char',
     length: 1,
     nullable: true,
   })
   status: string | null;
+
+
+
 }

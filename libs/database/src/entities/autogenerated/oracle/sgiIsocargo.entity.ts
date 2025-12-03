@@ -1,26 +1,29 @@
 import {
-  Entity,
-  Column,
-  PrimaryColumn,
-  ManyToOne,
-  OneToOne,
-  JoinColumn,
-  Index,
-  Unique,
+Entity,
+Column,
+PrimaryColumn,
+ManyToOne,
+OneToOne,
+JoinColumn,
+Index,
+Unique,
 } from 'typeorm';
-import { PersonalEntity } from './index';
+  import { PersonalEntity } from './index';
+
+
 
 @Entity({ name: 'SGI_ISOCARGO', schema: 'SIS' })
 export class SgiIsocargoEntity {
+
   @PrimaryColumn({
-    name: 'ISCAID',
+  name: 'ISCAID',
     type: 'number',
     precision: 4,
   })
   iscaid: number;
 
   @Column({
-    name: 'ISCADETA',
+  name: 'ISCADETA',
     type: 'varchar',
     length: 100,
     nullable: true,
@@ -28,7 +31,7 @@ export class SgiIsocargoEntity {
   iscadeta: string | null;
 
   @Column({
-    name: 'ISCARESPONSABE',
+  name: 'ISCARESPONSABE',
     type: 'varchar',
     length: 100,
     nullable: true,
@@ -36,23 +39,30 @@ export class SgiIsocargoEntity {
   iscaresponsabe: string | null;
 
   @Column({
-    name: 'ISCACODIGO',
+  name: 'ISCACODIGO',
     type: 'varchar',
     length: 4,
-    comment: 'CODIGO PERSONAL RRESPONSABLE ACTUAL DEL CARGO',
+    comment: "CODIGO PERSONAL RRESPONSABLE ACTUAL DEL CARGO",
     nullable: true,
   })
   iscacodigo: string | null;
 
   @Column({
-    name: 'ISCARGO_PRS',
+  name: 'ISCARGO_PRS',
     type: 'varchar',
     length: 5,
     nullable: true,
   })
   iscargoPrs: string | null;
 
-  @ManyToOne(() => PersonalEntity)
-  @JoinColumn([{ name: 'ISCACODIGO', referencedColumnName: 'codigo' }])
-  personal: PersonalEntity;
+
+    @ManyToOne(
+    () => PersonalEntity
+    )
+    @JoinColumn([
+      { name: 'ISCACODIGO', referencedColumnName: 'codigo' }
+    ])
+    personal: PersonalEntity;
+
+
 }

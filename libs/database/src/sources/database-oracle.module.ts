@@ -16,6 +16,8 @@ try {
   Logger.error('Error initializing Oracle client', err);
 }
 
+const entities = Object.values(oracleAutogen);
+
 @Module({
   imports: [
     TypeOrmModule.forRoot({
@@ -27,9 +29,10 @@ try {
       password: envs.HSM_DB_ORACLE_PASSWORD,
       connectString: `${envs.HSM_DB_ORACLE_HOST}:${envs.HSM_DB_ORACLE_PORT}/${envs.HSM_DB_ORACLE_DB}`,
       synchronize: false,
-      entities: Object.values(oracleAutogen),
+      entities,
       ...DatabaseSourceOptions,
     }),
+    TypeOrmModule.forFeature(entities, Databases.HsmDbOracle),
   ],
   controllers: [],
   providers: [],

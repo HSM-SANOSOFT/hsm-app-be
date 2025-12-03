@@ -12,6 +12,14 @@ import {
 import { Databases } from './database-source.enum';
 import { DatabaseSourceOptions } from './database-source-options';
 
+const entities = [
+  UserEntity,
+  UserRoleEntity,
+  UserIntegrationEntity,
+  RefreshTokenUserEntity,
+  RefreshTokenUserIntegrationEntity,
+];
+
 @Module({
   imports: [
     TypeOrmModule.forRoot({
@@ -23,15 +31,10 @@ import { DatabaseSourceOptions } from './database-source-options';
       password: envs.HSM_DB_POSTGRES_PASSWORD,
       database: envs.HSM_DB_POSTGRES_DB,
       synchronize: envs.ENVIRONMENT === 'dev',
-      entities: [
-        UserEntity,
-        UserRoleEntity,
-        UserIntegrationEntity,
-        RefreshTokenUserEntity,
-        RefreshTokenUserIntegrationEntity,
-      ],
+      entities,
       ...DatabaseSourceOptions,
     }),
+    TypeOrmModule.forFeature(entities, Databases.HsmDbPostgres),
   ],
   controllers: [],
   providers: [],
