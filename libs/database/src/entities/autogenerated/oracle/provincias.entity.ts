@@ -1,35 +1,29 @@
 import {
-Entity,
-Column,
-PrimaryColumn,
-ManyToOne,
-OneToOne,
-JoinColumn,
-Index,
-Unique,
+  Entity,
+  Column,
+  PrimaryColumn,
+  ManyToOne,
+  OneToOne,
+  JoinColumn,
+  Index,
+  Unique,
 } from 'typeorm';
-
-
 
 @Entity({ name: 'PROVINCIAS', schema: 'SIS' })
 export class ProvinciasEntity {
-
   @PrimaryColumn({
-  name: 'CODIGO',
+    name: 'CODIGO',
     type: 'varchar',
     length: 2,
-    comment: "Código de la provincia",
+    comment: 'Código de la provincia',
   })
   codigo: string;
 
   @Column({
-  name: 'PROVINCIA',
+    name: 'PROVINCIA',
     type: 'varchar',
     length: 40,
-    comment: "Nombre de la provincia",
+    comment: 'Nombre de la provincia',
   })
   provincia: string;
-
-
-
 }

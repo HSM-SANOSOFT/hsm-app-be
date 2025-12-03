@@ -1,33 +1,28 @@
 import {
-Entity,
-Column,
-PrimaryColumn,
-ManyToOne,
-OneToOne,
-JoinColumn,
-Index,
-Unique,
+  Entity,
+  Column,
+  PrimaryColumn,
+  ManyToOne,
+  OneToOne,
+  JoinColumn,
+  Index,
+  Unique,
 } from 'typeorm';
-  import { SgiIsonodoOrgEntity } from './index';
+import { SgiIsonodoOrgEntity } from './index';
 
-    @Unique('UK_ORGRA', [
-      'empresa', 
-      'cargoOrg'
-    ])
-
+@Unique('UK_ORGRA', ['empresa', 'cargoOrg'])
 
 @Entity({ name: 'SGI_ISOORGANIGRAMA', schema: 'SIS' })
 export class SgiIsoorganigramaEntity {
-
   @PrimaryColumn({
-  name: 'ID_NODO',
+    name: 'ID_NODO',
     type: 'number',
     precision: 10,
   })
   idNodo: number;
 
   @Column({
-  name: 'EMPRESA',
+    name: 'EMPRESA',
     type: 'varchar',
     length: 3,
     nullable: true,
@@ -35,31 +30,32 @@ export class SgiIsoorganigramaEntity {
   empresa: string | null;
 
   @Column({
-  name: 'CARGO_ORG',
+    name: 'CARGO_ORG',
     type: 'varchar',
     length: 13,
-    comment: "CARGO DEL ORGANIGRAMA ESTRUCTURAL, TIENE QUE VER CON LA FORMA DE GRAFICAR",
+    comment:
+      'CARGO DEL ORGANIGRAMA ESTRUCTURAL, TIENE QUE VER CON LA FORMA DE GRAFICAR',
   })
   cargoOrg: string;
 
   @Column({
-  name: 'NOMBRE',
+    name: 'NOMBRE',
     type: 'varchar',
     length: 200,
   })
   nombre: string;
 
   @Column({
-  name: 'CODIGO_ORG_PADRE',
+    name: 'CODIGO_ORG_PADRE',
     type: 'varchar',
     length: 10,
-    comment: "A QUIE ESE REPORTA",
+    comment: 'A QUIE ESE REPORTA',
     nullable: true,
   })
   codigoOrgPadre: string | null;
 
   @Column({
-  name: 'DESCRIPCION_FUNCIONES',
+    name: 'DESCRIPCION_FUNCIONES',
     type: 'varchar',
     length: 1000,
     nullable: true,
@@ -67,16 +63,17 @@ export class SgiIsoorganigramaEntity {
   descripcionFunciones: string | null;
 
   @Column({
-  name: 'TIPO_NODO',
+    name: 'TIPO_NODO',
     type: 'number',
     precision: 4,
-    comment: "PARA DIBUJAR EL NODO O CUADRO DEBE SER DIFERENTE EN ADA TIPO DE NODO AL QUE PERTENECE",
+    comment:
+      'PARA DIBUJAR EL NODO O CUADRO DEBE SER DIFERENTE EN ADA TIPO DE NODO AL QUE PERTENECE',
     nullable: true,
   })
   tipoNodo: number | null;
 
   @Column({
-  name: 'ESTADO',
+    name: 'ESTADO',
     type: 'varchar',
     length: 1,
     default: 'A',
@@ -84,14 +81,7 @@ export class SgiIsoorganigramaEntity {
   })
   estado: string | null;
 
-
-    @ManyToOne(
-    () => SgiIsonodoOrgEntity
-    )
-    @JoinColumn([
-      { name: 'TIPO_NODO', referencedColumnName: 'isnodoid' }
-    ])
-    sgiIsonodoOrg: SgiIsonodoOrgEntity;
-
-
+  @ManyToOne(() => SgiIsonodoOrgEntity)
+  @JoinColumn([{ name: 'TIPO_NODO', referencedColumnName: 'isnodoid' }])
+  sgiIsonodoOrg: SgiIsonodoOrgEntity;
 }

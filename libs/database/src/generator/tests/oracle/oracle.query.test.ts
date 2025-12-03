@@ -27,7 +27,6 @@ export async function oracleQueryTest(args: {
   const tableName = args.table.toUpperCase();
 
   try {
-
     switch (args.type) {
       case 'columns': {
         const columnsResult = await oracleColumnsQuery(

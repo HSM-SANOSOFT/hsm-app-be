@@ -17,11 +17,10 @@ async function entityGenerator() {
 
   switch (args.driver) {
     case DriversEnum.ORACLE: {
-          await oracleQueryTest(args);
-          break;
-        }
+      await oracleQueryTest(args);
+      break;
     }
   }
-
+}
 
 entityGenerator().then();

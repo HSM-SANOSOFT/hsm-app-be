@@ -1,28 +1,25 @@
 import {
-Entity,
-Column,
-ManyToOne,
-OneToOne,
-JoinColumn,
-Index,
-Unique,
+  Entity,
+  Column,
+  ManyToOne,
+  OneToOne,
+  JoinColumn,
+  Index,
+  Unique,
 } from 'typeorm';
-
-
 
 @Entity({ name: 'SSA_CLASIFICACION_OCUPACIONES', schema: 'SIS' })
 export class SsaClasificacionOcupacionesEntity {
-
   @Column({
-  name: 'CODIGO',
+    name: 'CODIGO',
     type: 'varchar',
     length: 20,
-    comment: "Codigo de cargoSEGUN CIUO en formato completo",
+    comment: 'Codigo de cargoSEGUN CIUO en formato completo',
   })
   codigo: string;
 
   @Column({
-  name: 'DESCRIPCION',
+    name: 'DESCRIPCION',
     type: 'varchar',
     length: 300,
     nullable: true,
@@ -30,7 +27,7 @@ export class SsaClasificacionOcupacionesEntity {
   descripcion: string | null;
 
   @Column({
-  name: 'NIVEL',
+    name: 'NIVEL',
     type: 'varchar',
     length: 1,
     nullable: true,
@@ -38,14 +35,11 @@ export class SsaClasificacionOcupacionesEntity {
   nivel: string | null;
 
   @Column({
-  name: 'CIUO_SUP',
+    name: 'CIUO_SUP',
     type: 'varchar',
     length: 20,
-    comment: "para sut",
+    comment: 'para sut',
     nullable: true,
   })
   ciuoSup: string | null;
-
-
-
 }

@@ -1,9 +1,7 @@
 import { normalize } from '@hsm-lib/database/generator/utils/normalize.util';
 
 export function toCamelCase(v: string | null | undefined): string;
-export function toCamelCase(
-  v: string | null | undefined,
-): string | undefined {
+export function toCamelCase(v: string | null | undefined): string | undefined {
   const value = normalize(v);
   if (value === undefined) return undefined;
 

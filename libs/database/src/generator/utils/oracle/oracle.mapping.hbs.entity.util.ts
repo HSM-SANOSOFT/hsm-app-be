@@ -156,7 +156,6 @@ function getTypeCapabilities(type: string | undefined) {
   }
 }
 
-
 export function oracleEntityHbsMapping(
   columns: OracleColumns[],
   constrains: OracleConstrains[],
@@ -231,7 +230,6 @@ export function oracleEntityHbsMapping(
           col.isPrimary = true;
         }
       }
-
     }
     const uniqueRows = tableConstraints.filter(
       c => normalize(c.CONSTRAINT_TYPE) === 'U',

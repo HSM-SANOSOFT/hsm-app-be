@@ -4,8 +4,6 @@ import { AvailabilityModule } from './availability/availability.module';
 @Module({
   controllers: [],
   providers: [],
-  imports: [
-    AvailabilityModule,
-  ],
+  imports: [AvailabilityModule],
 })
 export class SchedulingModule {}
