@@ -1,120 +1,120 @@
 import {
-  Entity,
-  Column,
-  ManyToOne,
-  OneToOne,
-  JoinColumn,
-  Index,
-  Unique,
+Entity,
+Column,
+PrimaryColumn,
+ManyToOne,
+OneToOne,
+JoinColumn,
+Index,
+Unique,
 } from 'typeorm';
-import {
-  DepartamentosEntity,
-  SsaPuestosTrabajoEntity,
-  AreasEntity,
-  EspecialidadPersonalEntity,
-} from './index';
+  import { DepartamentosEntity, SsaPuestosTrabajoEntity, AreasEntity, EspecialidadPersonalEntity } from './index';
 
-@Unique('PRS_UK', ['USUARIO'])
+    @Unique('PRS_UK', [
+      'usuario'
+    ])
 
-@Index('PRS_ESPPRS_FK_I', ['ESPPRS_CODIGO'])
+      @Index('PRS_ESPPRS_FK_I', [
+        'espprsCodigo'
+      ])
 
 @Entity({ name: 'PERSONAL', schema: 'SIS' })
 export class PersonalEntity {
-  @Column({
-    name: 'CODIGO',
+
+  @PrimaryColumn({
+  name: 'CODIGO',
     type: 'varchar',
     length: 4,
-    comment: 'Código del personal',
+    comment: "Código del personal",
   })
   codigo: string;
 
   @Column({
-    name: 'ESPPRS_CODIGO',
+  name: 'ESPPRS_CODIGO',
     type: 'varchar',
     length: 3,
-    comment: 'Código del cargo',
+    comment: "Código del cargo",
   })
   espprsCodigo: string;
 
   @Column({
-    name: 'APELLIDOS',
+  name: 'APELLIDOS',
     type: 'varchar',
     length: 30,
-    comment: 'Apellidos',
+    comment: "Apellidos",
   })
   apellidos: string;
 
   @Column({
-    name: 'NOMBRES',
+  name: 'NOMBRES',
     type: 'varchar',
     length: 25,
-    comment: 'Nombres',
+    comment: "Nombres",
   })
   nombres: string;
 
   @Column({
-    name: 'ESTADO_DE_DISPONIBILIDAD',
+  name: 'ESTADO_DE_DISPONIBILIDAD',
     type: 'char',
     length: 1,
     default: 'D',
-    comment: 'Si esta disponible, fuera de servicio, etc',
+    comment: "Si esta disponible, fuera de servicio, etc",
   })
   estadoDeDisponibilidad: string;
 
   @Column({
-    name: 'CEDULA',
+  name: 'CEDULA',
     type: 'varchar',
     length: 10,
-    comment: 'Cédula de identidad',
+    comment: "Cédula de identidad",
   })
   cedula: string;
 
   @Column({
-    name: 'CARGO',
+  name: 'CARGO',
     type: 'varchar',
     length: 3,
-    comment:
-      'Cárgo del personal EN CG_REF_CODES C WHERE C.RV_DOMAIN&#x3D;CARGO',
+    comment: "Cárgo del personal EN CG_REF_CODES C WHERE C.RV_DOMAIN&#x3D;CARGO",
   })
   cargo: string;
 
   @Column({
-    name: 'TELEFONO',
+  name: 'TELEFONO',
     type: 'varchar',
     length: 24,
-    comment: 'Teléfonos del médico',
+    comment: "Teléfonos del médico",
     nullable: true,
   })
   telefono: string | null;
 
   @Column({
-    name: 'DIRECCION',
+  name: 'DIRECCION',
     type: 'varchar',
     length: 200,
-    comment: 'Dirección domiciliaria',
+    comment: "Dirección domiciliaria",
     nullable: true,
   })
   direccion: string | null;
 
   @Column({
-    name: 'NUMERO_CMA',
+  name: 'NUMERO_CMA',
     type: 'varchar',
     length: 5,
-    comment: 'Núm. Afil. Colegio Médico',
+    comment: "Núm. Afil. Colegio Médico",
     nullable: true,
   })
   numeroCma: string | null;
 
   @Column({
-    name: 'USUARIO',
+  name: 'USUARIO',
     type: 'varchar',
     length: 30,
-    comment: 'Nombre de usuario de la BD',
+    comment: "Nombre de usuario de la BD",
   })
   usuario: string;
 
   @Column({
-    name: 'PERMITIR_TURNO',
+  name: 'PERMITIR_TURNO',
     type: 'varchar',
     length: 1,
     default: 'F',
@@ -122,7 +122,7 @@ export class PersonalEntity {
   permitirTurno: string;
 
   @Column({
-    name: 'PERSONAL_CIRUGIA',
+  name: 'PERSONAL_CIRUGIA',
     type: 'char',
     length: 1,
     default: 'F',
@@ -130,7 +130,7 @@ export class PersonalEntity {
   personalCirugia: string;
 
   @Column({
-    name: 'BENEFICIARIO',
+  name: 'BENEFICIARIO',
     type: 'char',
     length: 1,
     default: 'F',
@@ -138,105 +138,101 @@ export class PersonalEntity {
   beneficiario: string;
 
   @Column({
-    name: 'LIBRO_MSP',
+  name: 'LIBRO_MSP',
     type: 'varchar',
     length: 20,
-    comment: 'POR ELIMINAR',
+    comment: "POR ELIMINAR",
     nullable: true,
   })
   libroMsp: string | null;
 
   @Column({
-    name: 'FOLIO_MSP',
+  name: 'FOLIO_MSP',
     type: 'varchar',
     length: 20,
-    comment: 'POR ELIMINAR',
+    comment: "POR ELIMINAR",
     nullable: true,
   })
   folioMsp: string | null;
 
   @Column({
-    name: 'NUMERO_MSP',
+  name: 'NUMERO_MSP',
     type: 'varchar',
     length: 20,
-    comment: 'POR ELIMINAR',
+    comment: "POR ELIMINAR",
     nullable: true,
   })
   numeroMsp: string | null;
 
   @Column({
-    name: 'AREA_FISICA_ASIGNADA',
+  name: 'AREA_FISICA_ASIGNADA',
     type: 'varchar',
     length: 1,
-    comment: 'codigo de la tabla AREA',
+    comment: "codigo de la tabla AREA",
   })
   areaFisicaAsignada: string;
 
   @Column({
-    name: 'DEPARTAMENTO_FISICO_ASIGNADO',
+  name: 'DEPARTAMENTO_FISICO_ASIGNADO',
     type: 'varchar',
     length: 2,
-    comment: 'Codigo del Departamento',
+    comment: "Codigo del Departamento",
   })
   departamentoFisicoAsignado: string;
 
   @Column({
-    name: 'EMAIL',
+  name: 'EMAIL',
     type: 'varchar',
     length: 360,
-    comment: 'MAIL DEL MEDICO',
+    comment: "MAIL DEL MEDICO",
   })
   email: string;
 
   @Column({
-    name: 'FIRMA_INICIALES',
+  name: 'FIRMA_INICIALES',
     type: 'blob',
-    length: 4000,
-    comment: 'El visto bueno',
+    comment: "El visto bueno",
     nullable: true,
   })
   firmaIniciales: Buffer | null;
 
   @Column({
-    name: 'FIRMA_RUBRICA',
+  name: 'FIRMA_RUBRICA',
     type: 'long',
     nullable: true,
   })
   firmaRubrica: string | null;
 
   @Column({
-    name: 'SELLO',
+  name: 'SELLO',
     type: 'blob',
-    length: 4000,
     nullable: true,
   })
   sello: Buffer | null;
 
   @Column({
-    name: 'FIRMA_Y_SELLO',
+  name: 'FIRMA_Y_SELLO',
     type: 'blob',
-    length: 4000,
     nullable: true,
   })
   firmaYSello: Buffer | null;
 
   @Column({
-    name: 'FIRMA_Y_SELLO_H',
+  name: 'FIRMA_Y_SELLO_H',
     type: 'blob',
-    length: 4000,
     nullable: true,
   })
   firmaYSelloH: Buffer | null;
 
   @Column({
-    name: 'SEXO',
+  name: 'SEXO',
     type: 'varchar',
     length: 1,
   })
   sexo: string;
 
   @Column({
-    name: 'SENESCYT',
+  name: 'SENESCYT',
     type: 'varchar',
     length: 20,
     nullable: true,
@@ -244,7 +240,7 @@ export class PersonalEntity {
   senescyt: string | null;
 
   @Column({
-    name: 'MIEMBRO_STAFF',
+  name: 'MIEMBRO_STAFF',
     type: 'char',
     length: 1,
     default: 'N',
@@ -252,7 +248,7 @@ export class PersonalEntity {
   miembroStaff: string;
 
   @Column({
-    name: 'PASS_CERT',
+  name: 'PASS_CERT',
     type: 'varchar',
     length: 20,
     nullable: true,
@@ -260,101 +256,99 @@ export class PersonalEntity {
   passCert: string | null;
 
   @Column({
-    name: 'UBICACION',
+  name: 'UBICACION',
     type: 'varchar',
     length: 3,
     default: 'C01',
-    comment: 'Cubiculo de atencion donde atiende',
+    comment: "Cubiculo de atencion donde atiende",
     nullable: true,
   })
   ubicacion: string | null;
 
   @Column({
-    name: 'ATENCION_HOSPITALARIA',
+  name: 'ATENCION_HOSPITALARIA',
     type: 'varchar',
     length: 1,
     default: 'F',
-    comment: 'V DISPONIBLE Y F NO DISPONIBLE',
+    comment: "V DISPONIBLE Y F NO DISPONIBLE",
   })
   atencionHospitalaria: string;
 
   @Column({
-    name: 'PASSWORD_HASH',
+  name: 'PASSWORD_HASH',
     type: 'clob',
-    length: 4000,
-    comment:
-      'hash de contraseña para migracion a postgresql, uso metodo bcrypt, funcion password_hash(pass) php, password_verify($inputPassword, $hashedPassword)',
+    comment: "hash de contraseña para migracion a postgresql, uso metodo bcrypt, funcion password_hash(pass) php, password_verify($inputPassword, $hashedPassword)",
     nullable: true,
   })
   passwordHash: string | null;
 
   @Column({
-    name: 'NOMINA',
+  name: 'NOMINA',
     type: 'varchar',
     length: 1,
     default: 'N',
-    comment:
-      'Si constan en la nomina de las empresas, n si tiene la hc activa o certificados significa que son servicios prestado',
+    comment: "Si constan en la nomina de las empresas, n si tiene la hc activa o certificados significa que son servicios prestado",
   })
   nomina: string;
 
   @Column({
-    name: 'NUMERO_SSA',
+  name: 'NUMERO_SSA',
     type: 'number',
-    length: 22,
     default: 1,
   })
   numeroSsa: number;
 
   @Column({
-    name: 'FECHA',
+  name: 'FECHA',
     type: 'date',
-    length: 7,
-    comment: 'FECHA DE CUANDO SE CREO EL USUARIO',
+    comment: "FECHA DE CUANDO SE CREO EL USUARIO",
     nullable: true,
   })
   fecha: Date | null;
 
   @Column({
-    name: 'CLASE_MEDICO',
+  name: 'CLASE_MEDICO',
     type: 'varchar',
     length: 1,
     default: 'N',
-    comment:
-      'P PODEMOS COMPARTIR HONORARIOS, N NO PODEMOS MEDICO ES INDEPENDIENTE',
+    comment: "P PODEMOS COMPARTIR HONORARIOS, N NO PODEMOS MEDICO ES INDEPENDIENTE",
     nullable: true,
   })
   claseMedico: string | null;
 
-  @ManyToOne(() => DepartamentosEntity)
-  @JoinColumn([
-    {
-      name: 'AREA_FISICA_ASIGNADA',
-      referencedColumnName: 'AREA_FISICA_ASIGNADA',
-    },
-    {
-      name: 'DEPARTAMENTO_FISICO_ASIGNADO',
-      referencedColumnName: 'DEPARTAMENTO_FISICO_ASIGNADO',
-    },
-  ])
-  departamentos: DepartamentosEntity;
 
-  @ManyToOne(() => SsaPuestosTrabajoEntity)
-  @JoinColumn([{ name: 'NUMERO_SSA', referencedColumnName: 'NUMERO_SSA' }])
-  ssaPuestosTrabajo: SsaPuestosTrabajoEntity;
+    @ManyToOne(
+    () => DepartamentosEntity
+    )
+    @JoinColumn([
+      { name: 'AREA_FISICA_ASIGNADA', referencedColumnName: 'araCodigo' },
+      { name: 'DEPARTAMENTO_FISICO_ASIGNADO', referencedColumnName: 'codigo' }
+    ])
+    departamentos: DepartamentosEntity;
 
-  @ManyToOne(() => AreasEntity)
-  @JoinColumn([
-    {
-      name: 'AREA_FISICA_ASIGNADA',
-      referencedColumnName: 'AREA_FISICA_ASIGNADA',
-    },
-  ])
-  areas: AreasEntity;
+    @ManyToOne(
+    () => SsaPuestosTrabajoEntity
+    )
+    @JoinColumn([
+      { name: 'NUMERO_SSA', referencedColumnName: 'numero' }
+    ])
+    ssaPuestosTrabajo: SsaPuestosTrabajoEntity;
 
-  @ManyToOne(() => EspecialidadPersonalEntity)
-  @JoinColumn([
-    { name: 'ESPPRS_CODIGO', referencedColumnName: 'ESPPRS_CODIGO' },
-  ])
-  especialidadPersonal: EspecialidadPersonalEntity;
+    @ManyToOne(
+    () => AreasEntity
+    )
+    @JoinColumn([
+      { name: 'AREA_FISICA_ASIGNADA', referencedColumnName: 'codigo' }
+    ])
+    areas: AreasEntity;
+
+    @ManyToOne(
+    () => EspecialidadPersonalEntity
+    )
+    @JoinColumn([
+      { name: 'ESPPRS_CODIGO', referencedColumnName: 'codigo' }
+    ])
+    especialidadPersonal: EspecialidadPersonalEntity;
+
+
 }

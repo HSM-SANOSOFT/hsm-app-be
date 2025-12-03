@@ -52,6 +52,12 @@ export interface OracleConstrainsQuery {
   INVALID_1: string | null;
   VIEW_RELATED_1: string | null;
   ORIGIN_CON_ID_1: string | null;
+
+  OWNER_3: string;
+  CONSTRAINT_NAME_3: string;
+  TABLE_NAME_3: string;
+  COLUMN_NAME_1: string | null;
+  POSITION_1: number | null;
 }
 
 export interface OracleConstrains
@@ -68,6 +74,7 @@ export interface OracleConstrains
     | 'R_OWNER'
     | 'R_CONSTRAINT_NAME'
     | 'TABLE_NAME_2'
+    | 'COLUMN_NAME_1'
   > {}
 
 export type OraclePkConstrain = Map<string, string[]>;

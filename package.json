@@ -29,7 +29,8 @@
     "test:e2e": "jest --config ./apps/main/test/jest-e2e.json",
     "prepare": "husky",
     "generator:entity": "ts-node -r tsconfig-paths/register libs/database/src/generator/generators/entity.generator.ts",
-    "generator:schema": "ts-node -r tsconfig-paths/register libs/database/src/generator/generators/schema.generator.ts"
+    "generator:schema": "ts-node -r tsconfig-paths/register libs/database/src/generator/generators/schema.generator.ts",
+    "generator:test:query": "ts-node -r tsconfig-paths/register libs/database/src/generator/tests/query.test.ts"
   },
   "dependencies": {
     "@keyv/redis": "^5.1.2",

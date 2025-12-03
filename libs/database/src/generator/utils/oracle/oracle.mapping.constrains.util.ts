@@ -8,7 +8,7 @@ import oracledb from 'oracledb';
 export function oracleConstrainsMapping(
   constrainsResult: oracledb.Result<OracleConstrainsQuery>,
 ): OracleConstrains[] {
-  const constrainsRows: OracleConstrains[] = constrainsResult.rows ?? [];
+  const constrainsRows = constrainsResult.rows ?? [];
 
   return constrainsRows.map(constrain => ({
     OWNER: normalize(constrain.OWNER),
@@ -22,5 +22,6 @@ export function oracleConstrainsMapping(
     TABLE_NAME_2: normalize(constrain.TABLE_NAME_2),
     STATUS: normalize(constrain.STATUS),
     SEARCH_CONDITION: normalize(constrain.SEARCH_CONDITION),
+    COLUMN_NAME_1: normalize(constrain.COLUMN_NAME_1),
   }));
 }

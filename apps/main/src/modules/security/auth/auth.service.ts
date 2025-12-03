@@ -184,7 +184,7 @@ export class AuthService {
       const user = await this.usersService.createUser(
         {
           ...newUser,
-          pass: hashedPassword,
+          password: hashedPassword,
         },
         queryRunner,
       );

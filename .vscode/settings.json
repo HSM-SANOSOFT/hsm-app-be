@@ -2,7 +2,7 @@
   // Disable the default formatter, use eslint instead
   "prettier.enable": false,
   "eslint.enable": false,
-  "editor.formatOnSave": false,
+  "editor.formatOnSave": true,
   "typescript.suggest.paths": false,
   "javascript.suggest.paths": false,
   // Auto fix

@@ -1,2 +1,17 @@
 ### Availability
-GET http://localhost:3000/v1/scheduling/availability
+@host = http://localhost:3000
+@specialtyId = 45
+@providerId = 123
+@date = 2025-12-10
+
+### getSpecialties
+GET {{host}}/v1/scheduling/availability/specialties
+
+### getProvidersBySpecialty
+GET {{host}}/v1/scheduling/availability/specialties/{{specialtyId}}/providers
+
+### getProviderDates
+GET {{host}}/v1/scheduling/availability/providers/{{providerId}}/dates?specialtyId={{specialtyId}}
+
+### getProviderSlots
+GET {{host}}/v1/scheduling/availability/providers/{{providerId}}/dates/{{date}}/slots?specialtyId={{specialtyId}}

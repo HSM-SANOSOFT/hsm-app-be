@@ -1,6 +1,7 @@
 // noinspection JSUnusedGlobalSymbols
 
 import { IS_PUBLIC_KEY } from '@hsm-lib/common/decorator';
+import { envs } from '@hsm-lib/config';
 import {
   type ExecutionContext,
   Injectable,
@@ -37,6 +38,9 @@ export class AuthJwtRtGuard extends AuthGuard('jwt-rt') {
       context.getHandler(),
       context.getClass(),
     ]);
+    if (envs.ENVIRONMENT === 'dev') {
+      return true;
+    }
     if (isPublic) {
       return true;
     }

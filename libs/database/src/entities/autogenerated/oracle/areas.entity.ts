@@ -1,51 +1,61 @@
 import {
-  Entity,
-  Column,
-  ManyToOne,
-  OneToOne,
-  JoinColumn,
-  Index,
-  Unique,
+Entity,
+Column,
+PrimaryColumn,
+ManyToOne,
+OneToOne,
+JoinColumn,
+Index,
+Unique,
 } from 'typeorm';
-import { NomOrgCoordinacionEntity } from './index';
+  import { NomOrgCoordinacionEntity } from './index';
+
+
 
 @Entity({ name: 'AREAS', schema: 'SIS' })
 export class AreasEntity {
-  @Column({
-    name: 'CODIGO',
+
+  @PrimaryColumn({
+  name: 'CODIGO',
     type: 'varchar',
     length: 1,
-    comment: 'Código del área.',
+    comment: "Código del área.",
   })
   codigo: string;
 
   @Column({
-    name: 'NOMBRE',
+  name: 'NOMBRE',
     type: 'varchar',
     length: 30,
-    comment: 'Nombre definido para el área',
+    comment: "Nombre definido para el área",
   })
   nombre: string;
 
   @Column({
-    name: 'ESTADO_DE_DISPONIBILIDAD',
+  name: 'ESTADO_DE_DISPONIBILIDAD',
     type: 'char',
     length: 1,
     default: 'D',
-    comment: 'Si esta disponible, fuera de servicio, etc',
+    comment: "Si esta disponible, fuera de servicio, etc",
   })
   estadoDeDisponibilidad: string;
 
   @Column({
-    name: 'COORDINACION',
+  name: 'COORDINACION',
     type: 'number',
-    length: 22,
     default: 1,
-    comment: 'DE LA TABLA NOM_COORDINACION',
+    comment: "DE LA TABLA NOM_COORDINACION",
   })
   coordinacion: number;
 
-  @ManyToOne(() => NomOrgCoordinacionEntity)
-  @JoinColumn([{ name: 'COORDINACION', referencedColumnName: 'COORDINACION' }])
-  nomOrgCoordinacion: NomOrgCoordinacionEntity;
+
+    @ManyToOne(
+    () => NomOrgCoordinacionEntity
+    )
+    @JoinColumn([
+      { name: 'COORDINACION', referencedColumnName: 'id' }
+    ])
+    nomOrgCoordinacion: NomOrgCoordinacionEntity;
+
+
 }

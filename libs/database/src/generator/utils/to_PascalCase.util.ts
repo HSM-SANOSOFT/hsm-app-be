@@ -1,9 +1,8 @@
 import { normalize } from '@hsm-lib/database/generator/utils/normalize.util';
 
-export function toPascalCase(name: string): string;
-export function toPascalCase(name: null | undefined): undefined;
-export function toPascalCase(name: string | null | undefined) {
-  const value = normalize(name);
+export function toPascalCase(v: string | null | undefined): string;
+export function toPascalCase(v: string | null | undefined): string | undefined {
+  const value = normalize(v);
 
   if (value === undefined) return undefined;
 

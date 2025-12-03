@@ -1,6 +1,7 @@
 import {
 Entity,
 Column,
+PrimaryColumn,
 ManyToOne,
 OneToOne,
 JoinColumn,
@@ -15,7 +16,7 @@ Unique,
 {{#if constraints.unique}}
   {{#each constraints.unique}}
     @Unique('{{constraintName}}', [
-    {{#each columnNames}}
+    {{#each columnNamesTS}}
       '{{this}}'{{#unless @last}}, {{/unless}}
     {{/each}}
     ])
@@ -27,7 +28,7 @@ Unique,
   {{#each indexes}}
     {{#unless isUnique}}
       @Index('{{indexName}}', [
-      {{#each columnNames}}
+      {{#each columnNamesTS}}
         '{{this}}'{{#unless @last}}, {{/unless}}
       {{/each}}
       ])
@@ -40,19 +41,29 @@ export class {{tableNameTS}}Entity {
 
 {{!-- COLUMNS --}}
 {{#each columns}}
+  {{#if isPrimary}}
+  @PrimaryColumn({
+  {{else}}
   @Column({
+  {{/if}}
   name: '{{columnName}}',
   {{#if dataType}}
     type: '{{dataType}}',
   {{/if}}
+  {{#if supportsLength}}
   {{#if dataLength}}
     length: {{dataLength}},
   {{/if}}
+  {{/if}}
+  {{#if supportsPrecision}}
   {{#if dataPrecision}}
     precision: {{dataPrecision}},
   {{/if}}
+  {{/if}}
+ {{#if supportsScale}}
   {{#if dataScale}}
     scale: {{dataScale}},
+  {{/if}}
   {{/if}}
   {{#if dataDefault}}
     default: {{{dataDefault}}},
@@ -76,7 +87,7 @@ export class {{tableNameTS}}Entity {
     )
     @JoinColumn([
     {{#each columns}}
-      { name: '{{columnName}}', referencedColumnName: '{{referencedColumnName}}' }{{#unless @last}},{{/unless}}
+      { name: '{{columnName}}', referencedColumnName: '{{referencedColumnNameTS}}' }{{#unless @last}},{{/unless}}
     {{/each}}
     ])
     {{relationNameTS}}: {{columns.[0].referencedTableNameTS}}Entity;

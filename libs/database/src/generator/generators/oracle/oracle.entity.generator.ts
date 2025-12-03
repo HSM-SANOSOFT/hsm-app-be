@@ -6,13 +6,11 @@ import {
 } from '@hsm-lib/database/generator/templates';
 import { oracleTemplatesHelpers } from '@hsm-lib/database/generator/templates/oracle/oracle.templates.helpers';
 import {
-  normalize,
   oracleColumnsMapping,
   oracleColumnsQuery,
   oracleConstrainsMapping,
   oracleConstrainsQuery,
   toCamelCase,
-  toPascalCase,
 } from '@hsm-lib/database/generator/utils';
 import { oracleEntityHbsMapping } from '@hsm-lib/database/generator/utils/oracle/oracle.mapping.hbs.entity.util';
 import { oracleIndexMapping } from '@hsm-lib/database/generator/utils/oracle/oracle.mapping.indexes.util';
@@ -72,7 +70,7 @@ export async function oracleEntityGenerator(args: {
         schema,
         tableName,
       );
-      // logger.debug(constrainsResult);
+      //logger.debug(constrainsResult);
 
       const constrainsMapping = oracleConstrainsMapping(constrainsResult);
       // logger.debug(constrainsMapping);
@@ -93,7 +91,7 @@ export async function oracleEntityGenerator(args: {
         indexesMapping,
       );
 
-      logger.debug(data);
+      //logger.debug(data);
 
       const entity = oracleEntityTemplate(data);
       const index = indexTemplate({ files });
