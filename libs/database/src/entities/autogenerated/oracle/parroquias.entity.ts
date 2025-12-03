@@ -1,65 +1,55 @@
 import {
-Entity,
-Column,
-PrimaryColumn,
-ManyToOne,
-OneToOne,
-JoinColumn,
-Index,
-Unique,
+  Entity,
+  Column,
+  PrimaryColumn,
+  ManyToOne,
+  OneToOne,
+  JoinColumn,
+  Index,
+  Unique,
 } from 'typeorm';
-  import { CantonesEntity } from './index';
+import { CantonesEntity } from './index';
 
-
-      @Index('PRQ_CNN_FK_I', [
-        'cntPrvCodigo', 
-        'cntCodigo'
-      ])
+@Index('PRQ_CNN_FK_I', ['cntPrvCodigo', 'cntCodigo'])
 
 @Entity({ name: 'PARROQUIAS', schema: 'SIS' })
 export class ParroquiasEntity {
-
   @PrimaryColumn({
-  name: 'CNT_PRV_CODIGO',
+    name: 'CNT_PRV_CODIGO',
     type: 'varchar',
     length: 2,
-    comment: "Código de la provincia",
+    comment: 'Código de la provincia',
   })
   cntPrvCodigo: string;
 
   @PrimaryColumn({
-  name: 'CNT_CODIGO',
+    name: 'CNT_CODIGO',
     type: 'varchar',
     length: 2,
-    comment: "Código del cantón",
+    comment: 'Código del cantón',
   })
   cntCodigo: string;
 
   @PrimaryColumn({
-  name: 'CODIGO',
+    name: 'CODIGO',
     type: 'varchar',
     length: 2,
-    comment: "Código de la parroquia",
+    comment: 'Código de la parroquia',
   })
   codigo: string;
 
   @Column({
-  name: 'PARROQUIA',
+    name: 'PARROQUIA',
     type: 'varchar',
     length: 40,
-    comment: "Nombre de la parroquia",
+    comment: 'Nombre de la parroquia',
   })
   parroquia: string;
 
-
-    @ManyToOne(
-    () => CantonesEntity
-    )
-    @JoinColumn([
-      { name: 'CNT_PRV_CODIGO', referencedColumnName: 'prvCodigo' },
-      { name: 'CNT_CODIGO', referencedColumnName: 'codigo' }
-    ])
-    cantones: CantonesEntity;
-
-
+  @ManyToOne(() => CantonesEntity)
+  @JoinColumn([
+    { name: 'CNT_PRV_CODIGO', referencedColumnName: 'prvCodigo' },
+    { name: 'CNT_CODIGO', referencedColumnName: 'codigo' },
+  ])
+  cantones: CantonesEntity;
 }
