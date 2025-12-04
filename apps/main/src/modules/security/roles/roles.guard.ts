@@ -44,7 +44,6 @@ export class RolesGuard implements CanActivate {
 
     const isAdmin = user.roles.includes(Role.System.Admin);
 
-
     if (isPublic) {
       if (hasRequiredRoles) {
         const message = 'Public route should not have roles defined';
