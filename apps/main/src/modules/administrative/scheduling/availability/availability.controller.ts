@@ -9,6 +9,7 @@ import { AvailabilityService } from './availability.service';
 export class AvailabilityController {
   constructor(private readonly availabilityService: AvailabilityService) {}
   @ApiDocumentation()
+  @Roles(Role.System.Integration)
   @Get('specialties')
   getSpecialties() {
     return this.availabilityService.getSpecialties();
@@ -25,20 +26,10 @@ export class AvailabilityController {
   getProviderDates(
     @Param() params: { providerId: string },
     @Query() query: {
-      specialtyId?: string;
       dateFrom?: string;
       dateTo?: string;
     },
   ) {
     return this.availabilityService.getProviderDates(params, query);
-  }
-
-  @ApiDocumentation()
-  @Get('providers/:providerId/dates/:date/slots')
-  getProviderSlots(
-    @Param() params: { providerId: string; date: string },
-    @Query() query: { specialtyId?: string },
-  ) {
-    return this.availabilityService.getProviderSlots(params, query);
   }
 }
