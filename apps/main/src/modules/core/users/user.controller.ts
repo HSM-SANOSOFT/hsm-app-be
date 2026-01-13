@@ -27,5 +27,4 @@ export class UserController {
   async deleteUser() {
     // Implementation for deleting a user
   }
-
 }

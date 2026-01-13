@@ -362,10 +362,6 @@ export class AuthService {
 
     // Todo: Store the generated PIN with its purpose and target in the database with an expiration time
     // Todo: Send the PIN to the target (e.g., via email or SMS) based on the purpose
-
-
-
-
   }
 
   async validatePin(payload: PinValidationPayloadDto) {

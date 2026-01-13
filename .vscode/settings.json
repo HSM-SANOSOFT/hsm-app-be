@@ -30,10 +30,10 @@
     "editor.defaultFormatter": "biomejs.biome"
   },
   "[typescriptreact]": {
-    "editor.defaultFormatter": "biomejs.biome",
+    "editor.defaultFormatter": "biomejs.biome"
   },
   "[javascriptreact]": {
-    "editor.defaultFormatter": "biomejs.biome",
+    "editor.defaultFormatter": "biomejs.biome"
   },
   "javascript.updateImportsOnFileMove.enabled": "always",
   "javascript.format.insertSpaceAfterOpeningAndBeforeClosingEmptyBraces": false,
@@ -46,10 +46,7 @@
   "inlineFold.unfoldedOpacity": 0.6,
   "inlineFold.maskChar": "…",
   "inlineFold.maskCss": "color:#000;",
-  "inlineFold.supportedLanguages": [
-    "javascriptreact",
-    "typescriptreact"
-  ],
+  "inlineFold.supportedLanguages": ["javascriptreact", "typescriptreact"],
   "inlineFold.unfoldOnLineSelect": true,
   "inlineFold.autoFoldOnOpen": true
 }

@@ -3,10 +3,8 @@ import { Role } from '@hsm-lib/definitions/enums';
 import { Controller, Get, Post } from '@nestjs/common';
 import { Roles } from '../../security/roles/roles.decorator';
 
-
 @Controller('patients')
 export class PatientsController {
-
   // TODO: Add endpoint implementations
 
   @ApiDocumentation()
