@@ -5,10 +5,12 @@ import {
 } from '@hsm-lib/database/entities';
 import { Databases } from '@hsm-lib/database/sources';
 import {
+  PinGenerationPayloadDto,
+  PinValidationPayloadDto,
   SignupIntegrationTokenPayloadDto,
   SignupPayloadDto,
 } from '@hsm-lib/definitions/dtos';
-import { Role } from '@hsm-lib/definitions/enums';
+import { PinPurpose, Role } from '@hsm-lib/definitions/enums';
 import {
   IJwtPayloadUser,
   IJwtPayloadUserIntegration,
@@ -342,5 +344,37 @@ export class AuthService {
     const newRefreshToken = await this.hashData(tokens.refresh_token);
     await this.refreshToken(user, newRefreshToken);
     return tokens;
+  }
+
+  // TODO: Implement PIN generation and validation methods
+
+  async generatePin(payload: PinGenerationPayloadDto, ip: string) {
+    const { purpose: pinPurpose, target: pinTarget } = payload;
+
+    const pinLength = 6;
+    const pinMin = 10 ** (pinLength - 1);
+    const pinMax = 9 * 10 ** (pinLength - 1);
+    const pin = Math.floor(pinMin + Math.random() * pinMax);
+
+    await this.logger.debug(
+      `Generating PIN: ${pin} for target: ${pinTarget}, purpose: ${pinPurpose}, from IP: ${ip}`,
+    );
+
+    // Todo: Store the generated PIN with its purpose and target in the database with an expiration time
+    // Todo: Send the PIN to the target (e.g., via email or SMS) based on the purpose
+
+
+
+
+  }
+
+  async validatePin(payload: PinValidationPayloadDto) {
+    const { purpose: pinPurpose, target: pinTarget, code: pinCode } = payload;
+
+    await this.logger.debug(
+      `Validating PIN code: ${pinCode} for target: ${pinTarget}, purpose: ${pinPurpose}`,
+    );
+    // TODO: Retrieve the PIN from the database and validate it
+    // TODO: If valid, mark the PIN as used or delete it to prevent reuse
   }
 }

@@ -1,13 +1,25 @@
+import { ApiDocumentation, Public } from '@hsm-lib/common/decorator';
 import { Controller, Get } from '@nestjs/common';
-
+import {
+  HealthCheck,
+  HealthCheckService,
+  HttpHealthIndicator,
+} from '@nestjs/terminus';
 import { MainService } from './main.service';
 
-@Controller()
+@Controller('health')
 export class MainController {
-  constructor(private readonly mainService: MainService) {}
+  constructor(
+    private readonly mainService: MainService,
+    private health: HealthCheckService,
+    private http: HttpHealthIndicator,
+  ) {}
 
+  @ApiDocumentation()
+  @Public()
   @Get()
-  getHello(): string {
-    return this.mainService.getHello();
+  @HealthCheck()
+  check() {
+    return this.health.check([]);
   }
 }

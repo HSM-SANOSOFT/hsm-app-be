@@ -45,6 +45,7 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/schedule": "^6.0.1",
     "@nestjs/swagger": "^11.2.0",
+    "@nestjs/terminus": "^11.0.0",
     "@nestjs/throttler": "^6.4.0",
     "@nestjs/typeorm": "^11.0.0",
     "axios": "^1.12.2",
@@ -65,6 +66,9 @@
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
     "pg": "^8.16.3",
+    "puppeteer": "^24.35.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "sqlite3": "^5.1.7",
@@ -83,11 +87,14 @@
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/mssql": "^9.1.8",
+    "@types/multer": "^2.0.0",
     "@types/node": "^22.10.7",
     "@types/oracledb": "^6.9.1",
     "@types/passport-jwt": "^4.0.1",
     "@types/passport-local": "^1.0.38",
     "@types/pg": "^8.15.6",
+    "@types/react": "^19.2.8",
+    "@types/react-dom": "^19.2.3",
     "@types/supertest": "^6.0.2",
     "@typescript-eslint/eslint-plugin": "^8.44.0",
     "@typescript-eslint/parser": "^8.44.0",
@@ -113,16 +120,25 @@
     "typescript-eslint": "^8.44.0"
   },
   "jest": {
-    "moduleFileExtensions": ["js", "json", "ts"],
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
     "rootDir": ".",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
-    "collectCoverageFrom": ["**/*.(t|j)s"],
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
     "coverageDirectory": "./coverage",
     "testEnvironment": "node",
-    "roots": ["<rootDir>/apps/", "<rootDir>/libs/"],
+    "roots": [
+      "<rootDir>/apps/",
+      "<rootDir>/libs/"
+    ],
     "moduleNameMapper": {
       "^@hsm-lib/common(|/.*)$": "<rootDir>/libs/common/src/$1",
       "^@hsm-lib/config(|/.*)$": "<rootDir>/libs/config/src/$1",

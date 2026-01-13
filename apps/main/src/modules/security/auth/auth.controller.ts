@@ -2,6 +2,8 @@ import { ApiDocumentation, Public } from '@hsm-lib/common/decorator';
 import {
   LoginPayloadDto,
   LogoutIntegrationTokenPayloadDto,
+  PinGenerationPayloadDto,
+  PinValidationPayloadDto,
   SignupIntegrationTokenPayloadDto,
   SignupPayloadDto,
 } from '@hsm-lib/definitions/dtos';
@@ -15,7 +17,15 @@ import type {
   IRefreshUser,
   ISignedUser,
 } from '@hsm-lib/definitions/interfaces';
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Ip,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { Roles } from '../roles/roles.decorator';
 import { AuthService } from './auth.service';
@@ -81,5 +91,21 @@ export class AuthController {
   @Get('profile')
   profile(@Req() req: Request) {
     return req.user;
+  }
+
+  @ApiDocumentation()
+  @Post('pin/generate')
+  async generatePin(
+    @Body() payload: PinGenerationPayloadDto,
+    @Ip() ip: string,
+  ) {
+    return await this.authService.generatePin(payload, ip);
+  }
+
+  @ApiDocumentation()
+  @Roles()
+  @Post('pin/validate')
+  async validatePin(@Body() payload: PinValidationPayloadDto) {
+    return await this.authService.validatePin(payload);
   }
 }

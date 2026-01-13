@@ -4,8 +4,8 @@ import { DatabaseModule } from '@hsm-lib/database';
 import { QueueModule } from '@hsm-lib/queue';
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { TerminusModule } from '@nestjs/terminus';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-
 import { MainController } from './main.controller';
 import { MainService } from './main.service';
 import { AdministrativeModule } from './modules/administrative/administrative.module';
@@ -40,6 +40,7 @@ import { SecurityModule } from './modules/security/security.module';
     SecurityModule,
     ClinicalModule,
     AdministrativeModule,
+    TerminusModule,
   ],
   controllers: [MainController],
   providers: [
