@@ -23,7 +23,7 @@ import { EmailService } from './email.service';
         });
 
         await transporter.verify().catch(error => {
-          throw new InternalServerErrorException("Email Module",error);
+          throw new InternalServerErrorException('Email Module', error);
         });
         return transporter;
       },

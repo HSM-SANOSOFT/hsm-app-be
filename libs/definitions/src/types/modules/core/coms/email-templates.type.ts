@@ -7,4 +7,3 @@ export type EmailTemplateName =
   | EmailTemplates.FacEmailTemplate
   | EmailTemplates.HisEmailTemplate
   | EmailTemplates.MktEmailTemplate;
-

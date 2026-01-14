@@ -39,7 +39,7 @@ export class EmailService {
 
       return await this.smtpClient.sendMail(mailOptions);
     } catch (error) {
-      throw new InternalServerErrorException("Email Service",error);
+      throw new InternalServerErrorException('Email Service', error);
     }
   }
 }
