@@ -10,6 +10,14 @@ interface EnvVars {
   SWAGGER_FAVICON: string;
   SWAGGER_SITE_TITLE: string;
 
+  SMTP_ADDRESS: string;
+  SMTP_USERNAME: string;
+  SMTP_PASSWORD: string;
+  SMTP_PORT: number;
+  SMTP_FROM_EMAIL: string;
+  SMTP_FROM_NAME: string;
+  SMTP_SECURE: boolean;
+
   JWT_AT_SECRET: string;
   JWT_RT_SECRET: string;
 
@@ -37,6 +45,14 @@ const EnvSchema = joi
 
     SWAGGER_FAVICON: joi.string().required(),
     SWAGGER_SITE_TITLE: joi.string().required(),
+
+    SMTP_ADDRESS: joi.string().required(),
+    SMTP_USERNAME: joi.string().required(),
+    SMTP_PASSWORD: joi.string().required(),
+    SMTP_PORT: joi.number().default(587),
+    SMTP_FROM_EMAIL: joi.string().required(),
+    SMTP_FROM_NAME: joi.string().required(),
+    SMTP_SECURE: joi.boolean().default(true),
 
     JWT_AT_SECRET: joi.string().required(),
     JWT_RT_SECRET: joi.string().required(),
@@ -74,6 +90,14 @@ export const envs = Object.freeze({
 
   SWAGGER_FAVICON: envVars.SWAGGER_FAVICON,
   SWAGGER_SITE_TITLE: envVars.SWAGGER_SITE_TITLE,
+
+  SMTP_ADDRESS: envVars.SMTP_ADDRESS,
+  SMTP_USERNAME: envVars.SMTP_USERNAME,
+  SMTP_PASSWORD: envVars.SMTP_PASSWORD,
+  SMTP_PORT: envVars.SMTP_PORT,
+  SMTP_FROM_EMAIL: envVars.SMTP_FROM_EMAIL,
+  SMTP_FROM_NAME: envVars.SMTP_FROM_NAME,
+  SMTP_SECURE: envVars.SMTP_SECURE,
 
   JWT_AT_SECRET: envVars.JWT_AT_SECRET,
   JWT_RT_SECRET: envVars.JWT_RT_SECRET,

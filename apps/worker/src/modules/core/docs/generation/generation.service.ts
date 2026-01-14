@@ -8,6 +8,7 @@ export class GenerationService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     this.browser = await puppeteer.launch({
       headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
   }
 

@@ -1,5 +1,5 @@
-import { EmailTemplate } from '@hsm-lib/definitions/enums';
-import type { EmailTemplateType } from '@hsm-lib/definitions/types';
+import { EmailTemplate, EmailTemplateFlat } from '@hsm-lib/definitions/enums';
+import type { EmailTemplateName } from '@hsm-lib/definitions/types';
 import { ApiProperty, ApiSchema } from '@nestjs/swagger';
 import {
   ArrayNotEmpty,
@@ -43,23 +43,23 @@ export class SendEmailPayloadDto {
   toEmails: string[];
 
   @IsNotEmpty()
-  @IsEnum(EmailTemplate)
+  @IsEnum(EmailTemplateFlat)
   @ApiProperty({
     description: 'plantilla de correo electrónico a utilizar',
-    enum: EmailTemplate,
+    enum: EmailTemplateFlat,
     required: true,
     example: EmailTemplate.Auth.PinRestablecerContrasena,
   })
-  emailTemplate: EmailTemplateType;
+  emailTemplate: EmailTemplateName;
 
   @IsOptional()
   @IsObject()
   @ApiProperty({
-    description: 'variables para la plantilla (merge vars)',
+    description: 'data para la plantilla (merge vars)',
     required: false,
     example: { userName: 'Raul', pin: '123456' },
   })
-  variables?: Record<string, unknown>;
+  data?: Record<string, unknown>;
 
   @IsOptional()
   @ApiProperty({

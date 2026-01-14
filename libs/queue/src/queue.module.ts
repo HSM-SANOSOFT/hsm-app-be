@@ -21,7 +21,7 @@ import { envs } from '@hsm-lib/config';
       },
     }),
     BullModule.registerQueue(
-      { name: 'email' },
+      { name: 'coms' },
       { name: 'document' },
       { name: 'notification' },
     ),

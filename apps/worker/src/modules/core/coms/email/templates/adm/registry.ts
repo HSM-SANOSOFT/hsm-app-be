@@ -1,15 +1,5 @@
-import {
-  AutoAdmisionTemplateDto,
-  BienvenidaTemplateDto,
-  CitasTurnoTemplateDto,
-  DocumentoDerivacionAprobadoTemplateDto,
-  DocumentoDerivacionPendienteTemplateDto,
-  DocumentoDerivacionRechazadoTemplateDto,
-  ReagendamientoTemplateDto,
-  RecordatorioCitaTemplateDto,
-} from '@hsm-lib/definitions/dtos';
 import { AdmEmailTemplate } from '@hsm-lib/definitions/enums';
-import { EmailTemplateSelector } from '@hsm-lib/definitions/types';
+import { AdmEmailRegistry } from '@hsm-lib/definitions/types';
 import { AutoAdmisionTemplate } from './auto-admision.template';
 import { BienvenidaTemplate } from './bienvenida.template';
 import { CitasTurnoTemplate } from './citas-turno.template';
@@ -19,51 +9,44 @@ import { DocumentoDerivacionRechazadoTemplate } from './documento-derivacion-rec
 import { ReagendamientoTemplate } from './reagendamiento.template';
 import { RecordatorioCitaTemplate } from './recordatorio-cita.template';
 
-export type AdmTemplateDtoMap = {
-  [AdmEmailTemplate.Bienvenida]: BienvenidaTemplateDto;
-  [AdmEmailTemplate.AutoAdmision]: AutoAdmisionTemplateDto;
-  [AdmEmailTemplate.CitasTurno]: CitasTurnoTemplateDto;
-  [AdmEmailTemplate.DocumentoDerivacionAprobado]: DocumentoDerivacionAprobadoTemplateDto;
-  [AdmEmailTemplate.DocumentoDerivacionPendiente]: DocumentoDerivacionPendienteTemplateDto;
-  [AdmEmailTemplate.DocumentoDerivacionRechazado]: DocumentoDerivacionRechazadoTemplateDto;
-  [AdmEmailTemplate.Reagendamiento]: ReagendamientoTemplateDto;
-  [AdmEmailTemplate.RecordatorioCita]: RecordatorioCitaTemplateDto;
-};
-
-export type AdmEmailRegistry = {
-  [K in AdmEmailTemplate]: EmailTemplateSelector<AdmTemplateDtoMap[K]>;
-};
-
-export const ADM_EMAIL_REGISTRY: AdmEmailRegistry = {
+export const admEmailRegistry: AdmEmailRegistry = {
   [AdmEmailTemplate.Bienvenida]: {
+    title: 'Bienvenido al Hospital',
     subject: 'Bienvenido al Hospital',
     template: BienvenidaTemplate,
   },
   [AdmEmailTemplate.AutoAdmision]: {
+    title: 'Confirmación de Auto Admisión',
     subject: 'Confirmación de Auto Admisión',
     template: AutoAdmisionTemplate,
   },
   [AdmEmailTemplate.CitasTurno]: {
+    title: 'Confirmación de Cita / Turno',
     subject: 'Confirmación de Cita / Turno',
     template: CitasTurnoTemplate,
   },
   [AdmEmailTemplate.DocumentoDerivacionAprobado]: {
+    title: 'Documento de Derivación Aprobado',
     subject: 'Documento de Derivación Aprobado',
     template: DocumentoDerivacionAprobadoTemplate,
   },
   [AdmEmailTemplate.DocumentoDerivacionPendiente]: {
+    title: 'Documento de Derivación Pendiente',
     subject: 'Documento de Derivación Pendiente',
     template: DocumentoDerivacionPendienteTemplate,
   },
   [AdmEmailTemplate.DocumentoDerivacionRechazado]: {
+    title: 'Documento de Derivación Rechazado',
     subject: 'Documento de Derivación Rechazado',
     template: DocumentoDerivacionRechazadoTemplate,
   },
   [AdmEmailTemplate.Reagendamiento]: {
+    title: 'Reagendamiento de Cita / Turno',
     subject: 'Reagendamiento de Cita / Turno',
     template: ReagendamientoTemplate,
   },
   [AdmEmailTemplate.RecordatorioCita]: {
+    title: 'Recordatorio de Cita / Turno',
     subject: 'Recordatorio de Cita / Turno',
     template: RecordatorioCitaTemplate,
   },

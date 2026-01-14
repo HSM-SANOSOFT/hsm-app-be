@@ -3,6 +3,7 @@ FROM ghcr.io/hsm-sanosoft/hsm-app-be-base:latest
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install
+RUN pnpm dlx puppeteer browsers install chrome
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 COPY . .

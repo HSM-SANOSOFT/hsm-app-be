@@ -50,3 +50,12 @@ export const EmailTemplate = {
   Auth: AuthEmailTemplate,
   Mkt: MktEmailTemplate,
 };
+
+export const EmailTemplateFlat = {
+  ...BaseEmailTemplate,
+  ...AdmEmailTemplate,
+  ...AuthEmailTemplate,
+  ...FacEmailTemplate,
+  ...HisEmailTemplate,
+  ...MktEmailTemplate,
+} as const;
