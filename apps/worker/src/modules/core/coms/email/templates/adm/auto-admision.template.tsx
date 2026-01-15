@@ -6,22 +6,26 @@ export function AutoAdmisionTemplate(
     <>
       <p>
         Estimad@ paciente: {data.patientName}
-        <br/>
-        <br/>
+        <br />
+        <br />
         Le saludamos del Hospital Santamaría.
-        <br/>
+        <br />
         Hemos registrado a su historia clínica #{data.documentId}, un acceso con
         fecha {data.date}. Que contiene un código de verificación necesario
         identificarse en nuestro sistema.
-        <br/>
-        <br/>
+        <br />
+        <br />
         Código de verificación: {data.code}
-        <br/>
-        <br/>
-        Gracias por su colaboración.<br/>
-        Atentamente,<br/>
-        Admisiones<br/>
-        Servicio Ambulatorio<br/>
+        <br />
+        <br />
+        Gracias por su colaboración.
+        <br />
+        Atentamente,
+        <br />
+        Admisiones
+        <br />
+        Servicio Ambulatorio
+        <br />
         Celular 0981764904
       </p>
     </>

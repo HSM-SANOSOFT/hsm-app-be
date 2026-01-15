@@ -42,9 +42,7 @@ export class EmailTemplateDataValidator
 
     const dtoName = Dto?.name ?? 'undefined';
     const dtoKeys = Dto ? Object.keys(new Dto()) : [];
-    this.logger.debug(
-      `Raw Dto: ${dtoName} , keys = ${dtoKeys.join(', ')}`,
-    );
+    this.logger.debug(`Raw Dto: ${dtoName} , keys = ${dtoKeys.join(', ')}`);
 
     if (!Dto) return false;
 
@@ -66,9 +64,7 @@ export class EmailTemplateDataValidator
         constraints: err.constraints ?? {},
       }));
 
-      const messages = fieldErrors.flatMap(e =>
-        Object.values(e.constraints),
-      );
+      const messages = fieldErrors.flatMap(e => Object.values(e.constraints));
       this.logger.error(`Field Issues: ${messages.join('; ')}`);
       throw new BadRequestException(messages);
     }
