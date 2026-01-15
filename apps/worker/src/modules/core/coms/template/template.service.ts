@@ -25,13 +25,13 @@ export class TemplateService {
 
   getEmailTemplate<T extends EmailTemplateName>(
     name: T,
-    data?: EmailTemplateDto<T>,
+    data: unknown,
   ): { subject: string; html: string } {
     const bodyEntry = this.getEmailEntry(name);
     const baseEntry = this.getEmailEntry(BaseEmailTemplate.Base);
 
-    const safeData = (data ?? {}) as EmailTemplateDto<T>;
-    const bodyNode = bodyEntry.template(safeData);
+    const safedata = data as EmailTemplateDto<T>;
+    const bodyNode = bodyEntry.template(safedata);
     if (bodyNode == null) {
       throw new InternalServerErrorException('Email body template error');
     }
