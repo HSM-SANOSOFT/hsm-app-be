@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
 
 export class AutoAdmisionTemplateDto {
   @IsNotEmpty()
@@ -14,6 +14,6 @@ export class AutoAdmisionTemplateDto {
   date: string;
 
   @IsNotEmpty()
-  @IsString()
+  @IsNumber()
   code: number;
 }

@@ -4,22 +4,26 @@ export function AutoAdmisionTemplate(
 ): React.ReactNode {
   return (
     <>
-      <p>Estimad@ paciente: {data.patientName}</p>
-      <p>Le saludamos del Hospital Santamaría.</p>
       <p>
+        Estimad@ paciente: {data.patientName}
+        <br/>
+        <br/>
+        Le saludamos del Hospital Santamaría.
+        <br/>
         Hemos registrado a su historia clínica #{data.documentId}, un acceso con
-        fecha {data.date}.
+        fecha {data.date}. Que contiene un código de verificación necesario
+        identificarse en nuestro sistema.
+        <br/>
+        <br/>
+        Código de verificación: {data.code}
+        <br/>
+        <br/>
+        Gracias por su colaboración.<br/>
+        Atentamente,<br/>
+        Admisiones<br/>
+        Servicio Ambulatorio<br/>
+        Celular 0981764904
       </p>
-      <p>
-        Que contiene un código de verificación necesario identificarse en
-        nuestro sistema.{' '}
-      </p>
-      <p>Código de verificación: {data.code}</p>
-      <p>Gracias por su colaboración.</p>
-      <p>Atentamente,</p>
-      <p>Admisiones</p>
-      <p>Servicio Ambulatorio</p>
-      <p>Celular 0981764904</p>
     </>
   );
 }

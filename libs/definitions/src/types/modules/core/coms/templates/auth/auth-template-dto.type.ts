@@ -1,8 +1,14 @@
+import {
+  PinInicioSesionTemplateDto,
+  PinRegistroTemplateDto,
+  PinRestablecimientoContrasenaTemplateDto,
+  PinResultadoExamenTemplateDto,
+} from '@hsm-lib/definitions/dtos';
 import { AuthEmailTemplate } from '@hsm-lib/definitions/enums';
 
 export type AuthTemplateDtoMap = {
-  [AuthEmailTemplate.PinInicioSesion]: Record<never, never>;
-  [AuthEmailTemplate.PinRegistro]: Record<never, never>;
-  [AuthEmailTemplate.PinRestablecerContrasena]: Record<never, never>;
-  [AuthEmailTemplate.PinResultadoExamen]: Record<never, never>;
+  [AuthEmailTemplate.PinInicioSesion]: PinInicioSesionTemplateDto;
+  [AuthEmailTemplate.PinRegistro]: PinRegistroTemplateDto;
+  [AuthEmailTemplate.PinRestablecerContrasena]: PinRestablecimientoContrasenaTemplateDto;
+  [AuthEmailTemplate.PinResultadoExamen]: PinResultadoExamenTemplateDto;
 };

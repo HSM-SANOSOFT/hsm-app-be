@@ -1,6 +1,10 @@
+import {
+  FacturaGeneradaTemplateDto,
+  FacturaListaTemplateDto,
+} from '@hsm-lib/definitions/dtos';
 import { FacEmailTemplate } from '@hsm-lib/definitions/enums';
 
 export type FacTemplateDtoMap = {
-  [FacEmailTemplate.FacturaGenerada]: Record<never, never>;
-  [FacEmailTemplate.FacturaLista]: Record<never, never>;
+  [FacEmailTemplate.FacturaGenerada]: FacturaGeneradaTemplateDto;
+  [FacEmailTemplate.FacturaLista]: FacturaListaTemplateDto;
 };

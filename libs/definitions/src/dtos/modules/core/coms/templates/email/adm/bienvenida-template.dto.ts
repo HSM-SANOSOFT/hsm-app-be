@@ -1,3 +1,3 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsEmpty, IsOptional } from 'class-validator';
 
 export class BienvenidaTemplateDto {}

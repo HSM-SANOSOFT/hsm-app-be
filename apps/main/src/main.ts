@@ -1,3 +1,4 @@
+import { HttpLoggingInterceptor } from '@hsm-lib/common';
 import { envs } from '@hsm-lib/config';
 import { ConsoleLogger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
@@ -31,7 +32,7 @@ async function bootstrap() {
 
   app.useGlobalGuards();
   app.useGlobalFilters();
-  app.useGlobalInterceptors();
+  app.useGlobalInterceptors(new HttpLoggingInterceptor());
 
   app.enableShutdownHooks();
   app.useGlobalPipes(

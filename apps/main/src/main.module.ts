@@ -1,3 +1,4 @@
+import { EmailTemplateDataValidator } from '@hsm-lib/common';
 import { ResponseFilter } from '@hsm-lib/common/filters';
 import { ResponseInterceptor } from '@hsm-lib/common/interceptors';
 import { DatabaseModule } from '@hsm-lib/database';
@@ -57,6 +58,8 @@ import { SecurityModule } from './modules/security/security.module';
       provide: APP_INTERCEPTOR,
       useClass: ResponseInterceptor,
     },
+    EmailTemplateDataValidator,
   ],
+  exports: [EmailTemplateDataValidator],
 })
 export class MainModule {}

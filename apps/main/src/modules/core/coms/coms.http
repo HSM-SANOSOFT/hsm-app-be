@@ -1,0 +1,14 @@
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "adm/auto-admision",
+  "data": {
+    "patientName": "Juan Perez",
+    "documentId": "123456789",
+    "date": "2024-07-15",
+    "code": 123456
+  }
+}

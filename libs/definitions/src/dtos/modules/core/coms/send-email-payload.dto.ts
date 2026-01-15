@@ -1,3 +1,4 @@
+import { ValidateEmailTemplateData } from '@hsm-lib/common/validators';
 import { EmailTemplate, EmailTemplateFlat } from '@hsm-lib/definitions/enums';
 import type { EmailTemplateName } from '@hsm-lib/definitions/types';
 import { ApiProperty, ApiSchema } from '@nestjs/swagger';
@@ -52,14 +53,15 @@ export class SendEmailPayloadDto {
   })
   emailTemplate: EmailTemplateName;
 
-  @IsOptional()
+  //@IsOptional()
   @IsObject()
+  @ValidateEmailTemplateData()
   @ApiProperty({
     description: 'data para la plantilla (merge vars)',
     required: false,
     example: { userName: 'Raul', pin: '123456' },
   })
-  data?: Record<string, unknown>;
+  data: unknown;
 
   @IsOptional()
   @ApiProperty({

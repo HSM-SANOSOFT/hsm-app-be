@@ -1,3 +1,4 @@
+export * from './adm-template-dto.map';
 export * from './auto-admision-template.dto';
 export * from './bienvenida-template.dto';
 export * from './citas-turno-template.dto';

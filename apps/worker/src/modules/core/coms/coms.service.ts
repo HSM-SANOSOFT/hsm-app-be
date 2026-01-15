@@ -1,14 +1,16 @@
 import { SendEmailPayloadDto } from '@hsm-lib/definitions/dtos';
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { QueueWorkerHost } from '@hsm-lib/queue';
+import { Processor } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { EmailService } from './email/email.service';
 
 @Processor('coms')
-export class ComsService extends WorkerHost {
+export class ComsService extends QueueWorkerHost {
   constructor(private readonly emailService: EmailService) {
     super();
   }
-  async process(job: Job<unknown, unknown, string>): Promise<unknown> {
+
+  protected async handle(job: Job) {
     switch (job.name) {
       case 'send-email': {
         const payload = job.data as SendEmailPayloadDto;

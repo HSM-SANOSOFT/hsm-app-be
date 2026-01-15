@@ -1,4 +1,4 @@
-import { ApiDocumentation } from '@hsm-lib/common';
+import { ApiDocumentation, Public } from '@hsm-lib/common';
 import { SendEmailPayloadDto } from '@hsm-lib/definitions/dtos';
 import { Role } from '@hsm-lib/definitions/enums';
 import { Body, Controller, Post } from '@nestjs/common';
@@ -11,7 +11,7 @@ export class ComsController {
   //TODO: Add endpoint implementations
 
   @ApiDocumentation()
-  @Roles()
+  @Public()
   @Post('send/email')
   async sendEmail(@Body() payload: SendEmailPayloadDto) {
     await this.comsService.sendEmail(payload);

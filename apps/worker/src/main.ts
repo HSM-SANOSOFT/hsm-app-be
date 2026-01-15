@@ -10,6 +10,10 @@ async function bootstrap() {
     logger: new ConsoleLogger({
       prefix: 'hsm-app-be-worker',
       json: envs.ENVIRONMENT !== 'dev',
+      logLevels:
+        envs.ENVIRONMENT === 'dev'
+          ? ['log', 'error', 'warn', 'debug', 'verbose']
+          : ['log', 'error', 'warn'],
     }),
   });
   app.enableShutdownHooks();

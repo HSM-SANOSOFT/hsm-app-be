@@ -1,6 +1,10 @@
+import {
+  CampanaPromocionalTemplateDto,
+  CotizacionServicioTemplateDto,
+} from '@hsm-lib/definitions/dtos';
 import { MktEmailTemplate } from '@hsm-lib/definitions/enums';
 
 export type MktTemplateDtoMap = {
-  [MktEmailTemplate.CampanaPromocional]: Record<never, never>;
-  [MktEmailTemplate.CotizacionServicio]: Record<never, never>;
+  [MktEmailTemplate.CampanaPromocional]: CampanaPromocionalTemplateDto;
+  [MktEmailTemplate.CotizacionServicio]: CotizacionServicioTemplateDto;
 };

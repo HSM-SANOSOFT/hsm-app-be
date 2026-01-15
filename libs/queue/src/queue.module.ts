@@ -1,7 +1,7 @@
+import { envs } from '@hsm-lib/config';
 import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
-
-import { envs } from '@hsm-lib/config';
+import { QueueService } from './queue.service';
 
 @Global()
 @Module({
@@ -12,8 +12,8 @@ import { envs } from '@hsm-lib/config';
         port: envs.HSM_DB_REDIS_PORT,
         username: envs.HSM_DB_REDIS_USER,
         password: envs.HSM_DB_REDIS_PASSWORD,
-        keyPrefix: 'hsm-app-be-queue:',
       },
+      prefix: 'hsm-app-be-queue',
       defaultJobOptions: {
         attempts: 3,
         delay: 1000,
@@ -26,7 +26,7 @@ import { envs } from '@hsm-lib/config';
       { name: 'notification' },
     ),
   ],
-  providers: [],
-  exports: [BullModule],
+  providers: [QueueService],
+  exports: [BullModule, QueueService],
 })
 export class QueueModule {}
