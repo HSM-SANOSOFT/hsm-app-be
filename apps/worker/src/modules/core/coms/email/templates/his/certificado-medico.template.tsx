@@ -24,7 +24,7 @@ export function CertificadoMedicoTemplate(
         NOTA:{' '}
         <i>
           Los documentos de este correo deben subirse via web al IESS, si usted{' '}
-         lo imprime pierde validez ya que es un documento electrónico.
+          lo imprime pierde validez ya que es un documento electrónico.
         </i>
       </p>
     </>
