@@ -8,7 +8,9 @@ export function ReagendamientoTemplate(
         Estimad@ paciente: <i>{data.patientName}</i>
         <br />
         <br />
-        Le saludamos del Hospital Santamaría, para notificarle que, debido a un impedimento médico, su cita medica del día <b>{data.scheduledDate}</b> fue reagendada para:
+        Le saludamos del Hospital Santamaría, para notificarle que, debido a un
+        impedimento médico, su cita medica del día <b>{data.scheduledDate}</b>{' '}
+        fue reagendada para:
         <br />
         <br />
         Dia: <b>{data.rescheduledDate}</b>
