@@ -198,6 +198,7 @@ Content-Type: application/json
   "toEmails": ["kijiv85358@eubonus.com"],
   "emailTemplate": "his/certificado-medico",
   "data": {
+    "patientName": "Juan Perez"
   }
 }
 
@@ -209,6 +210,40 @@ Content-Type: application/json
   "toEmails": ["kijiv85358@eubonus.com"],
   "emailTemplate": "his/programacion-quirofano",
   "data": {
+    "cirugias": [
+      {
+        "surgeryId": "SQ-001",
+        "surgeryDate": "2024-08-01",
+        "surgeryTime": "09:00 AM",
+        "surgeryType": "Apendicectomía",
+        "surgeonName": "Dr. Carlos López",
+        "operatingRoomId": "Quirófano 2",
+        "patientName": "Juan Perez",
+        "patientMedicalHistoryId": "HIS-123456",
+        "medicalObservations": "Paciente con alergia a la penicilina."
+      },
+      {
+        "surgeryId": "SQ-002",
+        "surgeryDate": "2024-08-02",
+        "surgeryTime": "11:00 AM",
+        "surgeryType": "Colecistectomía",
+        "surgeonName": "Dra. María Gómez",
+        "operatingRoomId": "Quirófano 1",
+        "patientName": "Ana Martínez",
+        "patientMedicalHistoryId": "HIS-654321"
+      },
+      {
+        "surgeryId": "SQ-003",
+        "surgeryDate": "2024-08-03",
+        "surgeryTime": "02:00 PM",
+        "surgeryType": "Herniorrafia",
+        "surgeonName": "Dr. Luis Fernández",
+        "operatingRoomId": "Quirófano 3",
+        "patientName": "Pedro Sánchez",
+        "patientMedicalHistoryId": "HIS-789012",
+        "medicalObservations": "Revisar historial de hipertensión."
+      }
+    ]
   }
 }
 
@@ -220,6 +255,7 @@ Content-Type: application/json
   "toEmails": ["kijiv85358@eubonus.com"],
   "emailTemplate": "his/receta-medica",
   "data": {
+    "patientName": "Juan Perez"
   }
 }
 
@@ -229,8 +265,10 @@ Content-Type: application/json
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
-  "emailTemplate": "his/resultado-examen-imagen",
+  "emailTemplate": "his/resultado-examenes",
   "data": {
+    "patientName": "Juan Perez",
+    "labType": "Imagenes"
   }
 }
 
@@ -240,52 +278,10 @@ Content-Type: application/json
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
-  "emailTemplate": "his/resultado-examen-laboratorio",
+  "emailTemplate": "his/solicitud-examenes",
   "data": {
-  }
-}
-
-### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
-
-{
-  "toEmails": ["kijiv85358@eubonus.com"],
-  "emailTemplate": "his/resultado-examen-patologia",
-  "data": {
-  }
-}
-
-### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
-
-{
-  "toEmails": ["kijiv85358@eubonus.com"],
-  "emailTemplate": "his/solicitud-examen-imagen",
-  "data": {
-  }
-}
-
-### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
-
-{
-  "toEmails": ["kijiv85358@eubonus.com"],
-  "emailTemplate": "his/solicitud-examen-laboratorio",
-  "data": {
-  }
-}
-
-### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
-
-{
-  "toEmails": ["kijiv85358@eubonus.com"],
-  "emailTemplate": "his/solicitud-examen-patologia",
-  "data": {
+    "patientName": "Juan Perez",
+    "labType": "Imagenes"
   }
 }
 

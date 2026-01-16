@@ -25,12 +25,8 @@ export enum HisEmailTemplate {
   CertificadoMedico = 'his/certificado-medico',
   ProgramacionQuirofano = 'his/programacion-quirofano',
   RecetaMedica = 'his/receta-medica',
-  ResultadoExamenImagen = 'his/resultado-examen-imagen',
-  ResultadoExamenLaboratorio = 'his/resultado-examen-laboratorio',
-  ResultadoExamenPatologia = 'his/resultado-examen-patologia',
-  SolicitudExamenImagen = 'his/solicitud-examen-imagen',
-  SolicitudExamenLaboratorio = 'his/solicitud-examen-laboratorio',
-  SolicitudExamenPatologia = 'his/solicitud-examen-patologia',
+  ResultadoExamenes = 'his/resultado-examenes',
+  SolicitudExamenes = 'his/solicitud-examenes',
 }
 
 export enum MktEmailTemplate {

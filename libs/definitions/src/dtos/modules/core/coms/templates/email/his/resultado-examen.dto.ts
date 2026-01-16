@@ -1,7 +1,11 @@
 import { IsNotEmpty, IsString } from 'class-validator';
 
-export class CertificadoMedicoTemplateDto {
+export class ResultadoExamenesTemplateDto {
   @IsNotEmpty()
   @IsString()
   patientName: string;
+
+  @IsNotEmpty()
+  @IsString()
+  labType: string;
 }
