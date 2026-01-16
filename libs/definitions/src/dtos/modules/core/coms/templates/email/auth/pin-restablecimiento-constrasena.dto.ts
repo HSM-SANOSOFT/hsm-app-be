@@ -1,3 +1,11 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
 
-export class PinRestablecimientoContrasenaTemplateDto {}
+export class PinRestablecimientoContrasenaTemplateDto {
+  @IsNotEmpty()
+  @IsString()
+  date: string;
+
+  @IsNotEmpty()
+  @IsNumber()
+  pin: number;
+}

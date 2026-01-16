@@ -1,3 +1,11 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
 
-export class PinInicioSesionTemplateDto {}
+export class PinInicioSesionTemplateDto {
+  @IsNotEmpty()
+  @IsString()
+  date: string;
+
+  @IsNotEmpty()
+  @IsNumber()
+  pin: number;
+}

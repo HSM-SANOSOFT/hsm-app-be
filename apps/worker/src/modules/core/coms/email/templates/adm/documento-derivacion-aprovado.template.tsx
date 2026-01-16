@@ -5,32 +5,25 @@ export function DocumentoDerivacionAprobadoTemplate(
 ): React.ReactNode {
   return (
     <>
-      <p>Estimad@ paciente {data.patientName},</p>
       <p>
-        {' '}
-        Reciba un cordial saludo de parte del Centro Médico:{' '}
-        <b>{data.medicalUnit}</b>.{' '}
-      </p>
-      <p>
-        {' '}
+        Estimad@ paciente: <i>{data.patientName}</i>
+        <br />
+        Reciba un cordial saludo de parte del Centro Médico: {data.medicalUnit}.
+        <br />
+        <br />
         Le informamos que adjuntamos a este mensaje los documentos de aprobación
-        para su derivación a la unidad asignada por el IESS.{' '}
-      </p>
-      <p>
-        {' '}
+        para su derivación a la unidad asignada por el IESS.
+        <br />
         Para completar el proceso, deberá presentar este documento en formato
         digital al centro que se le ha asignado. No es necesario que se acerque
-        a nuestras instalaciones.{' '}
-      </p>
-      <p>
-        {' '}
-        Agradecemos su confianza y quedamos a su disposición para cualquier
-        consulta adicional, escriba al numero 0980892296 de nuestro asistente
-        virtual SANTI{' '}
-      </p>
-      <p>Atentamente,</p>
-      <p>
-        Servicios al Paciente Centro Médico <b>{data.medicalUnit}</b>
+        a nuestras instalaciones.
+        <br />
+        <br />
+        Atentamente,
+        <br />
+        Servicios al Paciente
+        <br />
+        Centro Médico {data.medicalUnit}
       </p>
     </>
   );

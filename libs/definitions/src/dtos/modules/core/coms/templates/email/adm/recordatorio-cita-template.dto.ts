@@ -12,4 +12,20 @@ export class RecordatorioCitaTemplateDto {
   @IsNotEmpty()
   @IsString()
   appointmentTime: string;
+
+  @IsNotEmpty()
+  @IsString()
+  appointmentDetails: string;
+
+  @IsNotEmpty()
+  @IsString()
+  medicalSpecialty: string;
+
+  @IsNotEmpty()
+  @IsString()
+  appointmentType: string;
+
+  @IsNotEmpty()
+  @IsString()
+  appointmentNote: string;
 }

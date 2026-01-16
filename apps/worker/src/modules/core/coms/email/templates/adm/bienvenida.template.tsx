@@ -1,7 +1,7 @@
 import { BienvenidaTemplateDto } from '@hsm-lib/definitions/dtos';
 
 export function BienvenidaTemplate(
-  data: BienvenidaTemplateDto,
+  _data: BienvenidaTemplateDto,
 ): React.ReactNode {
   return (
     <>

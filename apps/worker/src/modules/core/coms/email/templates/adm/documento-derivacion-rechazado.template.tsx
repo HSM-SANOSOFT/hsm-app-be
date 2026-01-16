@@ -1,7 +1,7 @@
 import { DocumentoDerivacionRechazadoTemplateDto } from '@hsm-lib/definitions/dtos';
 
 export function DocumentoDerivacionRechazadoTemplate(
-  data: DocumentoDerivacionRechazadoTemplateDto,
+  _data: DocumentoDerivacionRechazadoTemplateDto,
 ): React.ReactNode {
   return '';
 }

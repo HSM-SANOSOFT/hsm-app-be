@@ -6,41 +6,30 @@ export function CitasTurnoTemplate(
   return (
     <>
       <p>
-        {' '}
-        Estimad@ paciente: <strong>{data.patientName}</strong>
+        Estimad@ paciente: <i>{data.patientName}</i>
+        <br />
+        Le saludamos del Hospital Santamaria, para recordarle su cita:
+        <br />
+        <br />
+        Dia: <b>{data.appointmentDate}</b>
+        <br />
+        Hora: <b>{data.appointmentTime}</b>
+        <br />
+        Turno: <b>{data.appointmentDetails}</b>
+        <br />
+        Especialidad: <b>{data.medicalSpecialty}</b>
+        <br />
+        Tipo: <b>{data.appointmentType}</b>
+        <br />
+        Nota: <b>{data.appointmentNote}</b>
+        <br />
+        <br />
+        Atentamente,
+        <br />
+        Servicio al Paciente
+        <br />
+        Celular 0981764904
       </p>
-      <p> Le saludamos del Hospital Santamaria, para recordarle su cita: </p>
-      <p>
-        {' '}
-        El dia: <strong>{data.appointmentDate}</strong>{' '}
-      </p>
-      <p>
-        {' '}
-        Hora: <strong>{data.appointmentTime}</strong>{' '}
-      </p>
-      <p>
-        {' '}
-        Turno: <strong>{data.appointmentDetails}</strong>{' '}
-      </p>
-      <p>
-        {' '}
-        Especialidad: <strong>{data.medicalSpecialty}</strong>{' '}
-      </p>
-      <p>
-        {' '}
-        <strong>{data.appointmentType}</strong>.
-      </p>
-      <p>
-        Nota: <strong>{data.appointmentNote}</strong>
-      </p>
-      <p>
-        Agradecemos su confianza y quedamos a su disposición para cualquier
-        consulta adicional, escriba al numero 0980892296 de nuestro asistente
-        virtual SANTI.
-      </p>
-      <p>Atentamente,</p>
-      <p>Servicio al Paciente</p>
-      <p>Celular 0981764904</p>
     </>
   );
 }

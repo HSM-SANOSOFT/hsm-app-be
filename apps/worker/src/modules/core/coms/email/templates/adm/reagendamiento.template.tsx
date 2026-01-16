@@ -5,41 +5,29 @@ export function ReagendamientoTemplate(
   return (
     <>
       <p>
-        {' '}
-        Estimad@ paciente: <b>{data.patientName}</b>{' '}
+        Estimad@ paciente: <i>{data.patientName}</i>
+        <br />
+        <br />
+        Le saludamos del Hospital Santamaría, para notificarle que, debido a un impedimento médico, su cita medica del día <b>{data.scheduledDate}</b> fue reagendada para:
+        <br />
+        <br />
+        Dia: <b>{data.rescheduledDate}</b>
+        <br />
+        Hora: <b>{data.appointmentTime}</b>
+        <br />
+        Turno: <b>{data.appointmentDetails}</b>
+        <br />
+        Especialidad: <b>{data.medicalSpecialty}</b>
+        <br />
+        Tipo: <b>{data.appointmentType}</b>
+        <br />
+        <br />
+        Atentamente,
+        <br />
+        Servicio al Paciente
+        <br />
+        Celular 0981764904
       </p>
-      <p>
-        {' '}
-        Le saludamos del Hospital Santamaría, para notificarle que, debido a un
-        impedimento médico, su cita medica del día <b>{data.scheduledDate}</b>{' '}
-        fue reagendada para:{' '}
-      </p>
-      <p>
-        {' '}
-        El dia: <b>{data.rescheduledDate}</b>{' '}
-      </p>
-      <p>
-        {' '}
-        Hora: <b>{data.appointmentTime}</b>{' '}
-      </p>
-      <p>
-        {' '}
-        Turno: <b>{data.appointmentDetails}</b>{' '}
-      </p>
-      <p>
-        {' '}
-        Especialidad: <b>{data.medicalSpecialty}</b>{' '}
-      </p>
-      <p>{data.appointmentType}.</p>
-      <p>
-        {' '}
-        Agradecemos su comprensión y quedamos a su disposición para cualquier
-        consulta adicional, escriba al numero 0980892296 de nuestro asistente
-        virtual SANTI
-      </p>
-      <p>Atentamente,</p>
-      <p>Servicio al Paciente</p>
-      <p>Celular 0981764904</p>
     </>
   );
 }

@@ -12,3 +12,313 @@ Content-Type: application/json
     "code": 123456
   }
 }
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "adm/bienvenida",
+  "data": {
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "adm/citas-turno",
+  "data": {
+    "patientName": "Juan Perez",
+    "appointmentDate": "2024-07-15",
+    "appointmentTime": "10:00 AM",
+    "appointmentDetails": "Turno 5",
+    "medicalSpecialty": "Cardiología",
+    "appointmentType": "Consulta Inicial",
+    "appointmentNote": "Traer estudios previos"
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "adm/documento-derivacion-aprobado",
+  "data": {
+    "patientName": "Juan Perez",
+    "medicalUnit": "Clínica Central"
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "adm/documento-derivacion-pendiente",
+  "data": {
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "adm/documento-derivacion-rechazado",
+  "data": {
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "adm/reagendamiento",
+  "data": {
+    "patientName": "Juan Perez",
+    "scheduledDate": "2024-07-20",
+    "rescheduledDate": "2024-07-25",
+    "appointmentTime": "11:00 AM",
+    "appointmentDetails": "Turno 10",
+    "medicalSpecialty": "Dermatología",
+    "appointmentType": "Consulta Inicial"
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "adm/recordatorio-cita",
+  "data": {
+    "patientName": "Juan Perez",
+    "appointmentDate": "2024-07-15",
+    "appointmentTime": "10:00 AM",
+    "appointmentDetails": "Turno 5",
+    "medicalSpecialty": "Cardiología",
+    "appointmentType": "Consulta Inicial",
+    "appointmentNote": "Traer estudios previos"
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "auth/pin-inicio-sesion",
+  "data": {
+    "date": "2024-07-10 14:30",
+    "pin": 654321
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "auth/pin-restablecer-contrasena",
+  "data": {
+    "date": "2024-07-10 14:30",
+    "pin": 654321
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "auth/pin-registro",
+  "data": {
+    "date": "2024-07-10 14:30",
+    "pin": 654321
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "auth/pin-resultado-examen",
+  "data": {
+    "patientName": "Juan Perez",
+    "date": "2024-07-10 14:30",
+    "pin": 654321
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "fac/factura-generada",
+  "data": {
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "fac/factura-lista",
+  "data": {
+    "patientName": "Juan Perez",
+    "invoiceNumber": "F001-00012345"
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "his/certificado-medico",
+  "data": {
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "his/programacion-quirofano",
+  "data": {
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "his/receta-medica",
+  "data": {
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "his/resultado-examen-imagen",
+  "data": {
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "his/resultado-examen-laboratorio",
+  "data": {
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "his/resultado-examen-patologia",
+  "data": {
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "his/solicitud-examen-imagen",
+  "data": {
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "his/solicitud-examen-laboratorio",
+  "data": {
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "his/solicitud-examen-patologia",
+  "data": {
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "mkt/campana-promocional",
+  "data": {
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "mkt/cotizacion-servicio",
+  "data": {
+    "serviceName": "Chequeo Médico Completo"
+  }
+}
+
+### send email
+POST http://localhost:3000/v1/coms/send/email
+Content-Type: application/json
+
+{
+  "toEmails": ["kijiv85358@eubonus.com"],
+  "emailTemplate": "",
+  "data": {
+  }
+}
