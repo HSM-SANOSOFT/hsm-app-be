@@ -310,11 +310,29 @@ Content-Type: application/json
 
 ### send email
 POST http://localhost:3000/v1/coms/send/email
+Content-Type: multipart/form-data; boundary=sendEmailBoundary
+
+--sendEmailBoundary
+Content-Disposition: form-data; name="toEmails"
+
+["kijiv85358@eubonus.com", "kijiv85359@eubonus.com"]
+--sendEmailBoundary
+Content-Disposition: form-data; name="emailTemplate"
+
+mkt/cotizacion-servicio
+--sendEmailBoundary
+Content-Disposition: form-data; name="data"
 Content-Type: application/json
 
-{
-  "toEmails": ["kijiv85358@eubonus.com"],
-  "emailTemplate": "",
-  "data": {
-  }
-}
+{"serviceName": "Chequeo Médico Completo"}
+--sendEmailBoundary
+Content-Disposition: form-data; name="files"; filename="diceimbre bsc.jpeg"
+Content-Type: image/jpeg
+
+< C:\Users\rauls\Downloads\diceimbre bsc.jpeg
+--sendEmailBoundary
+Content-Disposition: form-data; name="files"; filename="enero bsc.jpeg"
+Content-Type: image/jpeg
+
+< C:\Users\rauls\Downloads\enero bsc.jpeg
+--sendEmailBoundary--

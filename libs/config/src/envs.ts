@@ -37,6 +37,12 @@ interface EnvVars {
   HSM_DB_REDIS_PORT: number;
   HSM_DB_REDIS_USER: string;
   HSM_DB_REDIS_PASSWORD: string;
+
+  HSM_STORAGE_S3_ACCESS_KEY: string;
+  HSM_STORAGE_S3_FORCE_PATH_STYLE: boolean;
+  HSM_STORAGE_S3_HOST: string;
+  HSM_STORAGE_S3_REGION: string;
+  HSM_STORAGE_S3_SECRET_KEY: string;
 }
 
 const EnvSchema = joi
@@ -73,6 +79,16 @@ const EnvSchema = joi
     HSM_DB_REDIS_PORT: joi.number().default(6379),
     HSM_DB_REDIS_USER: joi.string().required(),
     HSM_DB_REDIS_PASSWORD: joi.string().required(),
+
+    HSM_STORAGE_S3_ACCESS_KEY: joi.string().required(),
+    HSM_STORAGE_S3_FORCE_PATH_STYLE: joi.boolean().default(false),
+    HSM_STORAGE_S3_HOST: joi.when('HSM_STORAGE_S3_FORCE_PATH_STYLE', {
+      is: true,
+      then: joi.string().trim().min(1).required(),
+      otherwise: joi.string().forbidden(),
+    }),
+    HSM_STORAGE_S3_REGION: joi.string().default('us-east-1'),
+    HSM_STORAGE_S3_SECRET_KEY: joi.string().required(),
   })
   .unknown()
   .required();
@@ -118,5 +134,11 @@ export const envs = Object.freeze({
   HSM_DB_REDIS_PORT: envVars.HSM_DB_REDIS_PORT,
   HSM_DB_REDIS_USER: envVars.HSM_DB_REDIS_USER,
   HSM_DB_REDIS_PASSWORD: envVars.HSM_DB_REDIS_PASSWORD,
+
+  HSM_STORAGE_S3_ACCESS_KEY: envVars.HSM_STORAGE_S3_ACCESS_KEY,
+  HSM_STORAGE_S3_FORCE_PATH_STYLE: envVars.HSM_STORAGE_S3_FORCE_PATH_STYLE,
+  HSM_STORAGE_S3_HOST: envVars.HSM_STORAGE_S3_HOST,
+  HSM_STORAGE_S3_REGION: envVars.HSM_STORAGE_S3_REGION,
+  HSM_STORAGE_S3_SECRET_KEY: envVars.HSM_STORAGE_S3_SECRET_KEY,
 } as const);
 export type Envs = Readonly<typeof envs>;

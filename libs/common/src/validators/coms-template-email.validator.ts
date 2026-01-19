@@ -21,10 +21,11 @@ export class EmailTemplateDataValidator
   private readonly logger = new Logger(EmailTemplateDataValidator.name);
   validate(value: unknown, args: ValidationArguments): boolean {
     const obj = args.object as { emailTemplate?: string };
-
     this.logger.debug(
-      `validate() called. template = ${String(obj.emailTemplate)}`,
+      `validate() called with value: ${JSON.stringify(value)} and args: ${JSON.stringify(args)}`,
     );
+
+    this.logger.debug(`template = ${String(obj.emailTemplate)}`);
 
     const template = obj.emailTemplate as EmailTemplateKey | undefined;
 
@@ -72,10 +73,8 @@ export class EmailTemplateDataValidator
     return errors.length === 0;
   }
 
-  defaultMessage(args: ValidationArguments) {
-    this.logger.debug(
-      `defaultMessage() called, Validation arguments: ${JSON.stringify(args)}`,
-    );
+  defaultMessage(_args: ValidationArguments) {
+    this.logger.debug(`defaultMessage() called}`);
     return `data is invalid for email template`;
   }
 }
