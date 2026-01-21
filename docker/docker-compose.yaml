@@ -5,6 +5,14 @@ networks:
     name: hsm-network
     driver: bridge
 
+volumes:
+  pgdata:
+    name: hsm-postgres-data
+  redisdata:
+    name: hsm-redis-data
+  miniodata:
+    name: hsm-minio-data
+
 services:
   hsm-app-be-main:
     image: hsm-app-be-main
@@ -14,21 +22,26 @@ services:
         - APP_TYPE=main
       dockerfile: ./docker/dockerFile.dev
     container_name: hsm-app-be-main
-    ports:
-      - "3000:3000"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.hsm-app-be-main.entrypoints=hsm-app-be-main
+      - traefik.http.routers.hsm-app-be-main.rule=PathPrefix(`/`)
+      - traefik.http.services.hsm-app-be-main.loadbalancer.server.port=3000
     networks:
       - hsm-network
-    env_file:
-      - ../.env
     volumes:
       - ../:/app
       - /app/node_modules
+    env_file:
+      - ../.env
     environment:
       SECRET_PATH: /app/be
     restart: unless-stopped
     depends_on:
+      - hsm-app-traefik
       - hsm-app-db-postgres
       - hsm-app-db-redis
+      - hsm-app-db-minio
       - hsm-app-be-worker
 
   hsm-app-be-worker:
@@ -41,83 +54,107 @@ services:
     container_name: hsm-app-be-worker
     networks:
       - hsm-network
-    env_file:
-      - ../.env
     volumes:
       - ../:/app
       - /app/node_modules
+    env_file:
+      - ../.env
     environment:
       SECRET_PATH: /app/be
     restart: unless-stopped
-    depends_on:
-      - hsm-app-db-postgres
-      - hsm-app-db-redis
 
   hsm-app-db-postgres:
     image: postgres:17-bookworm
     container_name: hsm-app-db-postgres
-    ports:
-      - "5432:5432"
-    tmpfs:
-      - /var/lib/postgresql/data
+    labels:
+      - traefik.enable=true
+      - traefik.tcp.routers.hsm-app-db-postgres.entrypoints=hsm-app-db-postgres
+      - traefik.tcp.routers.hsm-app-db-postgres.rule=HostSNI(`*`)
+      - traefik.tcp.services.hsm-app-db-postgres.loadbalancer.server.port=5432
     networks:
       - hsm-network
+    volumes:
+      - ./postgres/init-schemas.sql:/docker-entrypoint-initdb.d/postgres.schemas.sql:ro
+      - pgdata:/var/lib/postgresql/data
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: hsm
-    volumes:
-      - ./postgres/init-schemas.sql:/docker-entrypoint-initdb.d/postgres.schemas.sql:ro
     restart: unless-stopped
-    healthcheck:
-      test: [CMD-SHELL, pg_isready -U postgres -d hsm]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-    #depends_on:
-    #  - pgadmin
+
   hsm-app-db-redis:
     image: redis:8-bookworm
     container_name: hsm-app-db-redis
-    command: [redis-server, /usr/local/etc/redis/redis.conf]
+    labels:
+      - traefik.enable=true
+      - traefik.tcp.routers.hsm-app-db-redis.entrypoints=hsm-app-db-redis
+      - traefik.tcp.routers.hsm-app-db-redis.rule=HostSNI(`*`)
+      - traefik.tcp.services.hsm-app-db-redis.loadbalancer.server.port=6379
+    networks:
+      - hsm-network
     volumes:
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
       - ./redis/users.acl:/usr/local/etc/redis/users.acl:ro
-    ports:
-      - "6379:6379"
-    networks:
-      - hsm-network
-    restart: unless-stopped
+      - redisdata:/data
     environment:
       REDIS_USER: redis
       REDIS_PASSWORD: redis
-    healthcheck:
-      test: [CMD, redis-cli, -a, redis, ping]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-    #depends_on:
-    #  - redisinsight
+    command: [redis-server, /usr/local/etc/redis/redis.conf]
+    restart: unless-stopped
 
   hsm-app-db-minio:
     image: minio/minio:latest
     container_name: hsm-app-db-minio
-    ports:
-      - "9000:9000"
-      - "9001:9001"
     networks:
       - hsm-network
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: minio_user
+      MINIO_ROOT_PASSWORD: minio_password
+    labels:
+      - traefik.enable=true
+
+      - traefik.http.routers.hsm-app-db-minio-api.entrypoints=hsm-app-db-minio-api
+      - traefik.http.routers.hsm-app-db-minio-api.rule=PathPrefix(`/`)
+      - traefik.http.routers.hsm-app-db-minio-api.service=hsm-app-db-minio-api-svc
+      - traefik.http.services.hsm-app-db-minio-api-svc.loadbalancer.server.port=9000
+
+      - traefik.http.routers.hsm-app-db-minio-console.entrypoints=hsm-app-db-minio-console
+      - traefik.http.routers.hsm-app-db-minio-console.rule=PathPrefix(`/`)
+      - traefik.http.routers.hsm-app-db-minio-console.service=hsm-app-db-minio-console-svc
+      - traefik.http.services.hsm-app-db-minio-console-svc.loadbalancer.server.port=9001
+    volumes:
+      - miniodata:/data
     command: server /data --console-address ":9001"
+    restart: unless-stopped
+
+  hsm-app-traefik:
+    image: traefik:v2.10
+    container_name: hsm-app-traefik
+    ports:
+      - "80:80"
+      - "8080:8080"
+      - "3000:3000"
+      - "5432:5432"
+      - "6379:6379"
+      - "9000:9000"
+      - "9001:9001"
+      - "5050:5050"
+      - "5540:5540"
+    networks:
+      - hsm-network
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yaml:/etc/traefik/traefik.yaml:ro
     restart: unless-stopped
 
   redisinsight:
     image: redis/redisinsight:latest
     container_name: redisinsight
-    ports:
-      - '5540:5540'
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.redisinsight.entrypoints=redisinsight
+      - traefik.http.routers.redisinsight.rule=PathPrefix(`/`)
+      - traefik.http.services.redisinsight.loadbalancer.server.port=5540
     networks:
       - hsm-network
     environment:
@@ -131,10 +168,13 @@ services:
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: pgadmin
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.pgadmin.entrypoints=pgadmin
+      - traefik.http.routers.pgadmin.rule=PathPrefix(`/`)
+      - traefik.http.services.pgadmin.loadbalancer.server.port=80
+    networks:
+      - hsm-network
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@example.com
       PGADMIN_DEFAULT_PASSWORD: secret
-    ports:
-      - '5050:80'
-    networks:
-      - hsm-network

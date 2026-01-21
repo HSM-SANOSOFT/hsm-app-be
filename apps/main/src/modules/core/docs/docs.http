@@ -1,0 +1,15 @@
+## Generate Presign Urls for Documents
+POST http://localhost:3000/v1/docs/url
+Content-Type: application/json
+
+[
+  {
+    "bucket": "test",
+    "files": [
+      {
+        "foldername": "test1",
+        "fileId": "test2"
+      }
+    ]
+  }
+  ]

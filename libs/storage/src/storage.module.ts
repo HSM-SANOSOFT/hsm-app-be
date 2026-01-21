@@ -4,7 +4,7 @@ import { StorageService } from './storage.service';
 
 @Module({
   providers: [StorageService],
-  exports: [StorageService],
+  exports: [StorageService, S3Module],
   imports: [S3Module],
 })
 export class StorageModule {}
