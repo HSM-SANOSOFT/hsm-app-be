@@ -3,6 +3,5 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class DocsService {
-  constructor(private readonly s3Service: S3Service) {
-  }
+  constructor(private readonly s3Service: S3Service) {}
 }
