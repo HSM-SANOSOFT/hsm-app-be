@@ -1,8 +1,5 @@
-import { Logger } from '@nestjs/common';
 import { plainToInstance, Transform, Type } from 'class-transformer';
 import { IsArray, IsNotEmpty, IsString, ValidateNested } from 'class-validator';
-
-const logger = new Logger('UploadDocumentPayloadDto');
 
 export class FilesDto {
   @IsNotEmpty()
