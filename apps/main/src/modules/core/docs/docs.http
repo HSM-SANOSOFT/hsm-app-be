@@ -1,6 +1,9 @@
-## Generate Presign Urls for Documents
-POST http://localhost:3000/v1/docs/url
-Content-Type: application/json
+@host = http://127.0.0.1:3000/v1
+@contentType = application/json
+
+### Generate Presign Urls for Documents
+POST {{host}}/docs/url
+Content-Type: {{contentType}}
 
 [
   {
@@ -8,8 +11,93 @@ Content-Type: application/json
     "files": [
       {
         "foldername": "test1",
-        "fileId": "test2"
+        "fileId": "32e4e180-b307-42c8-8240-096c749a9188"
+      },
+      {
+        "foldername": "test1",
+        "fileId": "19d609dd-b531-4e7d-bfb8-efffc8e817ee"
+      },
+      {
+        "foldername": "test1",
+        "fileId": "9f6fe419-da67-40d2-b55c-5fb6676d984d"
       }
     ]
   }
-  ]
+]
+
+### Upload Documents
+POST {{host}}/docs/upload
+Content-Type: multipart/form-data; boundary=UploadBoundary
+
+--UploadBoundary
+Content-Disposition: form-data; name="payload"
+Content-Type: application/json
+
+[
+  {
+    "bucket": "test",
+    "files": [
+      {
+        "filename": "test2",
+        "foldername": "test1"
+      },
+      {
+        "filename": "test3",
+        "foldername": "test1"
+      },
+      {
+        "filename": "test4",
+        "foldername": "test1"
+      },
+      {
+        "filename": "test5",
+        "foldername": "test1"
+      },
+      {
+        "filename": "test6",
+        "foldername": "test1"
+      },
+      {
+        "filename": "test7",
+        "foldername": "test1"
+      }
+    ]
+  }
+]
+
+--UploadBoundary
+Content-Disposition: form-data; name="files"; filename="test2"
+Content-Type: image/jpeg
+
+< C:\Users\rauls\Downloads\test2.jpeg
+
+--UploadBoundary
+Content-Disposition: form-data; name="files"; filename="test3"
+Content-Type: image/jpeg
+
+< C:\Users\rauls\Downloads\test3.jpeg
+
+--UploadBoundary
+Content-Disposition: form-data; name="files"; filename="test4"
+Content-Type: image/jpeg
+
+< C:\Users\rauls\Downloads\test4.jpeg
+
+--UploadBoundary
+Content-Disposition: form-data; name="files"; filename="test5"
+Content-Type: application/pdf
+
+< C:\Users\rauls\Downloads\test5.pdf
+
+--UploadBoundary
+Content-Disposition: form-data; name="files"; filename="test6"
+Content-Type: application/pdf
+
+< C:\Users\rauls\Downloads\test6.pdf
+
+--UploadBoundary
+Content-Disposition: form-data; name="files"; filename="test7"
+Content-Type: application/pdf
+
+< C:\Users\rauls\Downloads\test7.pdf
+--UploadBoundary--

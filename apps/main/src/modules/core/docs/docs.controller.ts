@@ -1,6 +1,16 @@
 import { ApiDocumentation } from '@hsm-lib/common';
+import { UploadDocumentPayloadDto } from '@hsm-lib/definitions/dtos';
 import { Role } from '@hsm-lib/definitions/enums';
-import { Body, Controller, Delete, Logger, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Logger,
+  Post,
+  UploadedFiles,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { Roles } from '../../security/roles/roles.decorator';
 import { DocsService } from './docs.service';
 
@@ -42,19 +52,17 @@ export class DocsController {
   @ApiDocumentation()
   @Roles()
   @Post('upload')
+  @UseInterceptors(FilesInterceptor('files'))
   async uploadDocuments(
-    @Body() payload: Array<{
-      bucket: string;
-      files: Array<{
-        filename: string;
-        foldername: string;
-        data: Buffer;
-        contentType: string;
-        cacheControl: string;
-      }>;
-    }>,
+    @Body() body: UploadDocumentPayloadDto,
+    @UploadedFiles() files: Array<Express.Multer.File>,
   ) {
-    // Implementation for uploading a document
+    const toLog = {
+      payload: body.payload.map(p => p),
+      files: files.map(f => ({ name: f.originalname, type: f.mimetype })),
+    };
+    this.logger.debug(`Uploading documents ${JSON.stringify(toLog)}`);
+    return await this.docsService.uploadDocuments(body, files);
   }
 
   @ApiDocumentation()

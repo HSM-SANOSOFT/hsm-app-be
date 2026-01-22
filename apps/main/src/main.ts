@@ -37,9 +37,9 @@ async function bootstrap() {
   app.enableShutdownHooks();
   app.useGlobalPipes(
     new ValidationPipe({
+      transform: true,
       whitelist: true,
       forbidNonWhitelisted: true,
-      transform: true,
       disableErrorMessages: false,
       validationError: { target: false, value: false },
     }),

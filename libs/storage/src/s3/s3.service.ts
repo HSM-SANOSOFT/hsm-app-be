@@ -7,15 +7,18 @@ import {
   S3ServiceException,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { UploadToS3Dto } from '@hsm-lib/definitions/dtos';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-
-import { S3_CLIENT } from './s3.symbols';
+import { S3_CLIENT, S3_CLIENT_PRESIGNED } from './s3.symbols';
 
 @Injectable()
 export class S3Service {
   private readonly logger = new Logger(S3Service.name);
-  constructor(@Inject(S3_CLIENT) private readonly s3Client: S3Client) {}
+  constructor(
+    @Inject(S3_CLIENT) private readonly s3Client: S3Client,
+    @Inject(S3_CLIENT_PRESIGNED) private readonly s3ClientPresigned: S3Client,
+  ) {}
 
   private getFileFolder(foldername: string): string {
     return (foldername ?? '')
@@ -30,56 +33,43 @@ export class S3Service {
     return folder ? `${folder}/${fileId}` : fileId;
   }
 
-  async uploadFiles(
-    payload: Array<{
-      bucket: string;
-      files: Array<{
-        filename: string;
-        foldername: string;
-        data: Buffer;
-        contentType: string;
-        cacheControl: string;
-      }>;
-    }>,
-  ) {
+  async uploadFiles(dto: UploadToS3Dto) {
     const results = await Promise.all(
-      payload.map(async item => {
+      dto.payload.map(async item => {
         const { bucket, files } = item;
 
         const uploaded = await Promise.all(
-          files.map(async file => {
+          files.map(async f => {
             const fileId = randomUUID();
-            const key = this.getFileKey(file.foldername, fileId);
+            const key = this.getFileKey(f.foldername, fileId);
 
             try {
               await this.s3Client.send(
                 new PutObjectCommand({
                   Bucket: bucket,
                   Key: key,
-                  Body: file.data,
-                  ContentType: file.contentType,
-                  CacheControl: file.cacheControl,
+                  Body: f.data,
+                  ContentType: f.contentType,
                   Metadata: {
-                    originalFilename: file.filename,
+                    originalFilename: f.filename,
                   },
                 }),
               );
+
               return {
                 fileId,
-                filename: file.filename,
-                key: key,
+                filename: f.filename,
+                key,
               };
             } catch (err: unknown) {
               if (err instanceof S3ServiceException) {
                 const status = err.$metadata?.httpStatusCode;
-                if (status === 400) {
-                  this.logger.error(
-                    `Failed to upload file "${file.filename}" to bucket "${bucket}", key="${key}"-> name: ${err.name} fault ${err.$fault}, message: ${err.message}`,
-                  );
-                }
+                this.logger.error(
+                  `Failed to upload filename="${f.filename}" bucket="${bucket}" key="${key}" status=${status} name=${err.name} fault=${err.$fault} message=${err.message}`,
+                );
               } else {
                 this.logger.error(
-                  `Error uploading file "${file.filename}" to bucket "${bucket}" (key="${key}"): ${
+                  `Error uploading filename="${f.filename}" bucket="${bucket}" key="${key}": ${
                     err instanceof Error ? err.message : String(err)
                   }`,
                 );
@@ -89,10 +79,7 @@ export class S3Service {
           }),
         );
 
-        return {
-          bucket,
-          files: uploaded,
-        };
+        return { bucket, files: uploaded };
       }),
     );
 
@@ -288,7 +275,7 @@ export class S3Service {
                 ResponseContentDisposition: contentDisposition,
               });
 
-              const url = await getSignedUrl(this.s3Client, cmd, {
+              const url = await getSignedUrl(this.s3ClientPresigned, cmd, {
                 expiresIn: opts?.expiresInSeconds,
               });
 

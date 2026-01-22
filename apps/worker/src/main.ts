@@ -1,7 +1,6 @@
+import { envs } from '@hsm-lib/config';
 import { ConsoleLogger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-
-import { envs } from '@hsm-lib/config';
 
 import { WorkerModule } from './worker.module';
 

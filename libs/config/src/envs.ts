@@ -41,6 +41,7 @@ interface EnvVars {
   HSM_STORAGE_S3_ACCESS_KEY: string;
   HSM_STORAGE_S3_FORCE_PATH_STYLE: boolean;
   HSM_STORAGE_S3_HOST: string;
+  HSM_STORAGE_S3_HOST_EXTERNAL: string;
   HSM_STORAGE_S3_REGION: string;
   HSM_STORAGE_S3_SECRET_KEY: string;
 }
@@ -87,6 +88,13 @@ const EnvSchema = joi
       then: joi.string().trim().min(1).required(),
       otherwise: joi.string().forbidden(),
     }),
+    HSM_STORAGE_S3_HOST_EXTERNAL: joi
+      .string()
+      .when('HSM_STORAGE_S3_FORCE_PATH_STYLE', {
+        is: true,
+        then: joi.string().trim().min(1).optional(),
+        otherwise: joi.string().forbidden(),
+      }),
     HSM_STORAGE_S3_REGION: joi.string().default('us-east-1'),
     HSM_STORAGE_S3_SECRET_KEY: joi.string().required(),
   })
@@ -138,6 +146,7 @@ export const envs = Object.freeze({
   HSM_STORAGE_S3_ACCESS_KEY: envVars.HSM_STORAGE_S3_ACCESS_KEY,
   HSM_STORAGE_S3_FORCE_PATH_STYLE: envVars.HSM_STORAGE_S3_FORCE_PATH_STYLE,
   HSM_STORAGE_S3_HOST: envVars.HSM_STORAGE_S3_HOST,
+  HSM_STORAGE_S3_HOST_EXTERNAL: envVars.HSM_STORAGE_S3_HOST_EXTERNAL,
   HSM_STORAGE_S3_REGION: envVars.HSM_STORAGE_S3_REGION,
   HSM_STORAGE_S3_SECRET_KEY: envVars.HSM_STORAGE_S3_SECRET_KEY,
 } as const);

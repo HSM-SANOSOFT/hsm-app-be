@@ -1,6 +1,9 @@
+@host = http://127.0.0.1:3000/v1
+@contentType = application/json
+
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -14,8 +17,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -25,8 +28,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -43,8 +46,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -56,8 +59,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -67,8 +70,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -78,8 +81,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -96,8 +99,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -114,8 +117,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -127,8 +130,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -140,8 +143,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -153,8 +156,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -167,8 +170,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -178,8 +181,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -191,8 +194,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -203,8 +206,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -248,8 +251,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -260,8 +263,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -273,8 +276,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -286,8 +289,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -297,8 +300,8 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
-Content-Type: application/json
+POST {{host}}/coms/send/email
+Content-Type: {{contentType}}
 
 {
   "toEmails": ["kijiv85358@eubonus.com"],
@@ -309,7 +312,7 @@ Content-Type: application/json
 }
 
 ### send email
-POST http://localhost:3000/v1/coms/send/email
+POST {{host}}/coms/send/email
 Content-Type: multipart/form-data; boundary=sendEmailBoundary
 
 --sendEmailBoundary
@@ -322,7 +325,7 @@ Content-Disposition: form-data; name="emailTemplate"
 mkt/cotizacion-servicio
 --sendEmailBoundary
 Content-Disposition: form-data; name="data"
-Content-Type: application/json
+Content-Type: {{contentType}}
 
 {"serviceName": "Chequeo Médico Completo"}
 --sendEmailBoundary
