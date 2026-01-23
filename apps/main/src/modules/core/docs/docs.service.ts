@@ -1,6 +1,7 @@
 import {
+  DocumentsPayloadDto,
+  S3FileUploadPayloadDto,
   UploadDocumentPayloadDto,
-  UploadToS3Dto,
 } from '@hsm-lib/definitions/dtos';
 import { S3Service } from '@hsm-lib/storage/s3/s3.service';
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
@@ -10,17 +11,8 @@ export class DocsService {
   constructor(private readonly s3Service: S3Service) {}
 
   async getDocumentsUrl(
-    payload: Array<{
-      bucket: string;
-      files: Array<{
-        foldername: string;
-        fileId: string;
-      }>;
-    }>,
-    opts?: {
-      expiresInSeconds?: number;
-      download?: boolean;
-    },
+    payload: DocumentsPayloadDto,
+    opts?: { contentDisposition?: string; expiresInSeconds?: number },
   ) {
     return await this.s3Service.generatePresignedUrls(payload, opts);
   }
@@ -28,15 +20,7 @@ export class DocsService {
   async createDocuments() {
     // Implementation for creating documents
   }
-  async deleteDocuments(
-    payload: Array<{
-      bucket: string;
-      files: Array<{
-        foldername: string;
-        fileId: string;
-      }>;
-    }>,
-  ) {
+  async deleteDocuments(payload: DocumentsPayloadDto) {
     return await this.s3Service.deleteFiles(payload);
   }
 
@@ -54,28 +38,30 @@ export class DocsService {
       fileQueues.set(key, fileQueue);
     }
 
-    const data: UploadToS3Dto = {
+    const data: S3FileUploadPayloadDto = {
       payload: payload.payload.map(item => ({
         bucket: item.bucket,
         files: item.files.map(meta => {
-          const queue = fileQueues.get(meta.filename);
+          const queue = fileQueues.get(meta.fileInfo.fileName);
           const match = queue?.shift();
 
           if (!match) {
             throw new InternalServerErrorException(
-              `No uploaded file matched payload filename="${meta.filename}" (bucket="${item.bucket}")`,
+              `No uploaded file matched payload filename="${meta.fileInfo.fileName}" (bucket="${item.bucket}")`,
             );
           }
 
           if (queue && queue.length === 0) {
-            fileQueues.delete(meta.filename);
+            fileQueues.delete(meta.fileInfo.fileName);
           }
 
           return {
-            filename: meta.filename,
-            foldername: meta.foldername,
-            data: match.buffer,
-            contentType: match.mimetype,
+            folderName: meta.folderName,
+            fileInfo: {
+              ...meta.fileInfo,
+              fileBuffer: match.buffer,
+              contentType: match.mimetype,
+            },
           };
         }),
       })),

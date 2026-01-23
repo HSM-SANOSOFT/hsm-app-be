@@ -1,13 +1,10 @@
+import { Readable } from 'node:stream';
 import { envs } from '@hsm-lib/config';
 import { SendEmailPayloadDto } from '@hsm-lib/definitions/dtos';
-import {
-  Inject,
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import nodemailer from 'nodemailer';
 import { Attachment } from 'nodemailer/lib/mailer';
+import { DocsService } from '../../docs/docs.service';
 import { TemplateService } from '../template/template.service';
 
 @Injectable()
@@ -16,53 +13,47 @@ export class EmailService {
   constructor(
     @Inject('SMTP_CLIENT') private readonly smtpClient: nodemailer.Transporter,
     private readonly templateService: TemplateService,
+    private readonly docsService: DocsService,
   ) {}
 
   async sendEmail(payload: SendEmailPayloadDto) {
-    const dataToLog = {
-      ...payload,
-      files: payload.files?.map((file: Express.Multer.File) => ({
-        filename: file.originalname,
-        mimetype: file.mimetype,
-        encoding: file.encoding,
-        buffer: 'Buffer [...] for logging purposes',
-      })),
-    };
-    this.logger.debug(
-      `Sending email with payload: ${JSON.stringify(dataToLog)}`,
-    );
     try {
+      const { documents } = payload;
+      const attachments: Attachment[] = [];
+
+      if (documents?.length) {
+        const documentStream = await this.docsService.getDocumentsStreams({
+          documents,
+        });
+
+        for (const doc of documentStream) {
+          for (const file of doc.files) {
+            if (!file.fileStream) {
+              this.logger.error(`File stream for ${file.fileId} is undefined`);
+              throw new Error(`File stream for ${file.fileId} is undefined`);
+            }
+            const fileBuffer = Buffer.from(
+              await file.fileStream.transformToByteArray(),
+            );
+
+            const attachment = {
+              filename: file.fileId,
+              content: fileBuffer,
+              contentType: file.fileContentType,
+            };
+
+            this.logger.debug(
+              `Attachment added: name: ${attachment.filename}, type: ${attachment.contentType}, content: ${attachment.content.length}`,
+            );
+
+            attachments.push(attachment);
+          }
+        }
+      }
       const { subject, html } = this.templateService.getEmailTemplate(
         payload.emailTemplate,
         payload.data,
       );
-
-      type JsonBuffer = { type: 'Buffer'; data: number[] };
-
-      function isJsonBuffer(value: unknown): value is JsonBuffer {
-        if (value == null || typeof value !== 'object') return false;
-
-        const v = value as Record<string, unknown>;
-        return (
-          v.type === 'Buffer' &&
-          Array.isArray(v.data) &&
-          v.data.every(n => typeof n === 'number')
-        );
-      }
-
-      function toRealBuffer(b: unknown): Buffer {
-        if (Buffer.isBuffer(b)) return b;
-        if (isJsonBuffer(b)) return Buffer.from(b.data);
-        throw new TypeError('Invalid buffer payload');
-      }
-
-      const attachments: Attachment[] =
-        payload.files?.map((file: Express.Multer.File) => ({
-          filename: file.originalname,
-          content: toRealBuffer(file.buffer),
-          contentType: file.mimetype,
-          encoding: file.encoding,
-        })) ?? [];
 
       const mailOptions: nodemailer.SendMailOptions = {
         from: payload.fromEmail || envs.SMTP_FROM_EMAIL,
@@ -72,10 +63,14 @@ export class EmailService {
         attachments: attachments,
       };
 
+      this.logger.log(
+        `Sending email to: ${mailOptions.to}, subject: ${mailOptions.subject}, attachments: ${attachments.length}`,
+      );
+
       return await this.smtpClient.sendMail(mailOptions);
     } catch (error) {
       this.logger.error(`Error sending email: ${error}`);
-      throw new error('Email Service', error);
+      throw new Error('Email Service', error);
     }
   }
 }

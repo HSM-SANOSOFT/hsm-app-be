@@ -1,5 +1,8 @@
 import { ApiDocumentation } from '@hsm-lib/common';
-import { UploadDocumentPayloadDto } from '@hsm-lib/definitions/dtos';
+import {
+  DocumentsPayloadDto,
+  UploadDocumentPayloadDto,
+} from '@hsm-lib/definitions/dtos';
 import { Role } from '@hsm-lib/definitions/enums';
 import {
   Body,
@@ -7,6 +10,7 @@ import {
   Delete,
   Logger,
   Post,
+  Query,
   UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
@@ -24,21 +28,17 @@ export class DocsController {
   @Roles()
   @Post('url')
   async getDocumentsUrl(
-    @Body() payload: Array<{
-      bucket: string;
-      files: Array<{
-        foldername: string;
-        fileId: string;
-      }>;
-    }>,
-    opts?: {
-      expiresInSeconds?: number;
-      download?: boolean;
-    },
+    @Body() payload: DocumentsPayloadDto,
+    @Query('contentDisposition') contentDisposition?: string,
+    @Query('expiresInSeconds') expiresInSeconds?: number,
   ) {
     this.logger.debug(
       `Generating document URLs for ${JSON.stringify(payload)}`,
     );
+    const opts = {
+      contentDisposition,
+      expiresInSeconds: expiresInSeconds,
+    };
     return await this.docsService.getDocumentsUrl(payload, opts);
   }
 

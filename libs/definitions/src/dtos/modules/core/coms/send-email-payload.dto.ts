@@ -1,10 +1,12 @@
-import { ValidateEmailTemplateData } from '@hsm-lib/common/validators';
+//import { ValidateEmailTemplateData } from '@hsm-lib/common/validators';
+
+import { DocumentsPayloadDto } from '@hsm-lib/definitions/dtos/modules/core/docs/documents-payload.dto';
 import {
   EMAIL_TEMPLATE_VALUES,
   EmailTemplate,
 } from '@hsm-lib/definitions/enums';
 import type { EmailTemplateName } from '@hsm-lib/definitions/types';
-import { ApiProperty, ApiSchema } from '@nestjs/swagger';
+import { ApiProperty, ApiSchema, PartialType } from '@nestjs/swagger';
 import {
   ArrayNotEmpty,
   IsArray,
@@ -17,9 +19,9 @@ import {
 } from 'class-validator';
 
 @ApiSchema({ name: 'Send Email Payload' })
-export class SendEmailPayloadDto {
+export class SendEmailPayloadDto extends PartialType(DocumentsPayloadDto) {
   @IsOptional()
-  @IsString()
+  @IsEmail()
   @ApiProperty({
     description: 'correo electrónico del remitente (from)',
     required: false,
@@ -64,14 +66,4 @@ export class SendEmailPayloadDto {
     example: { userName: 'Raul', pin: '123456' },
   })
   data: unknown;
-
-  @IsOptional()
-  @ApiProperty({
-    description: 'archivos adjuntos (multipart/form-data)',
-    required: false,
-    type: 'string',
-    format: 'binary',
-    isArray: true,
-  })
-  files?: unknown[];
 }

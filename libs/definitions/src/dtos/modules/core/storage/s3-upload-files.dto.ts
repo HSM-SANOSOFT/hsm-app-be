@@ -1,37 +1,25 @@
+import { documentDtoFactory } from '@hsm-lib/common/utils/';
 import { Type } from 'class-transformer';
 import { IsArray, IsNotEmpty, IsString, ValidateNested } from 'class-validator';
 
-export class UploadFileDataDto {
+class S3FileInfoUploadDto {
   @IsNotEmpty()
   @IsString()
-  filename: string;
+  fileName: string;
 
   @IsNotEmpty()
-  @IsString()
-  foldername: string;
-
-  @IsNotEmpty()
-  data: Buffer;
+  fileBuffer: Buffer;
 
   @IsNotEmpty()
   @IsString()
   contentType: string;
 }
 
-export class UploadBucketFilesDto {
-  @IsNotEmpty()
-  @IsString()
-  bucket: string;
+export class S3FileUploadDto extends documentDtoFactory(S3FileInfoUploadDto) {}
 
+export class S3FileUploadPayloadDto {
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => UploadFileDataDto)
-  files: UploadFileDataDto[];
-}
-
-export class UploadToS3Dto {
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => UploadBucketFilesDto)
-  payload: UploadBucketFilesDto[];
+  @Type(() => S3FileUploadDto)
+  payload: S3FileUploadDto[];
 }

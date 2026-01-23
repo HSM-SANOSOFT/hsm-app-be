@@ -304,38 +304,48 @@ POST {{host}}/coms/send/email
 Content-Type: {{contentType}}
 
 {
-  "toEmails": ["kijiv85358@eubonus.com"],
+  "toEmails": ["raulsantamariao@hotmail.com"],
   "emailTemplate": "mkt/cotizacion-servicio",
   "data": {
-    "serviceNames": "Chequeo Médico Completo"
+    "serviceName": "Chequeo Médico Completo"
   }
 }
 
 ### send email
 POST {{host}}/coms/send/email
-Content-Type: multipart/form-data; boundary=sendEmailBoundary
-
---sendEmailBoundary
-Content-Disposition: form-data; name="toEmails"
-
-["kijiv85358@eubonus.com", "kijiv85359@eubonus.com"]
---sendEmailBoundary
-Content-Disposition: form-data; name="emailTemplate"
-
-mkt/cotizacion-servicio
---sendEmailBoundary
-Content-Disposition: form-data; name="data"
 Content-Type: {{contentType}}
 
-{"serviceName": "Chequeo Médico Completo"}
---sendEmailBoundary
-Content-Disposition: form-data; name="files"; filename="diceimbre bsc.jpeg"
-Content-Type: image/jpeg
+{
+  "toEmails": ["raulsantamariao@hotmail.com"],
+  "emailTemplate": "mkt/cotizacion-servicio",
+  "data": {
+    "serviceName": "Chequeo Médico Completo"
+  },
+  "documents": [
+  {
+    "bucket": "test",
+    "files": [
+      {
+        "folderName": "test1",
+        "fileInfo": {
+          "fileId": "32e4e180-b307-42c8-8240-096c749a9188"
+          }
 
-< C:\Users\rauls\Downloads\diceimbre bsc.jpeg
---sendEmailBoundary
-Content-Disposition: form-data; name="files"; filename="enero bsc.jpeg"
-Content-Type: image/jpeg
+      },
+      {
+        "folderName": "test1",
+        "fileInfo": {
+          "fileId": "19d609dd-b531-4e7d-bfb8-efffc8e817ee"
+          }
+      },
+      {
+        "folderName": "test1",
+        "fileInfo": {
+          "fileId": "9f6fe419-da67-40d2-b55c-5fb6676d984d"
+          }
+      }
+    ]
+  }
+]
 
-< C:\Users\rauls\Downloads\enero bsc.jpeg
---sendEmailBoundary--
+}

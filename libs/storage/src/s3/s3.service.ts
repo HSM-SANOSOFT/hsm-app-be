@@ -1,13 +1,17 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  GetObjectCommandOutput,
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
   S3ServiceException,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { UploadToS3Dto } from '@hsm-lib/definitions/dtos';
+import {
+  DocumentsPayloadDto,
+  S3FileUploadPayloadDto,
+} from '@hsm-lib/definitions/dtos';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { S3_CLIENT, S3_CLIENT_PRESIGNED } from './s3.symbols';
@@ -33,43 +37,43 @@ export class S3Service {
     return folder ? `${folder}/${fileId}` : fileId;
   }
 
-  async uploadFiles(dto: UploadToS3Dto) {
+  async uploadFiles(payload: S3FileUploadPayloadDto) {
     const results = await Promise.all(
-      dto.payload.map(async item => {
+      payload.payload.map(async item => {
         const { bucket, files } = item;
 
         const uploaded = await Promise.all(
           files.map(async f => {
             const fileId = randomUUID();
-            const key = this.getFileKey(f.foldername, fileId);
+            const key = this.getFileKey(f.folderName, fileId);
 
             try {
               await this.s3Client.send(
                 new PutObjectCommand({
                   Bucket: bucket,
                   Key: key,
-                  Body: f.data,
-                  ContentType: f.contentType,
+                  Body: f.fileInfo.fileBuffer,
+                  ContentType: f.fileInfo.contentType,
                   Metadata: {
-                    originalFilename: f.filename,
+                    originalFilename: f.fileInfo.fileName,
                   },
                 }),
               );
 
               return {
                 fileId,
-                filename: f.filename,
+                filename: f.fileInfo.fileName,
                 key,
               };
             } catch (err: unknown) {
               if (err instanceof S3ServiceException) {
                 const status = err.$metadata?.httpStatusCode;
                 this.logger.error(
-                  `Failed to upload filename="${f.filename}" bucket="${bucket}" key="${key}" status=${status} name=${err.name} fault=${err.$fault} message=${err.message}`,
+                  `Failed to upload filename="${f.fileInfo.fileName}" bucket="${bucket}" key="${key}" status=${status} name=${err.name} fault=${err.$fault} message=${err.message}`,
                 );
               } else {
                 this.logger.error(
-                  `Error uploading filename="${f.filename}" bucket="${bucket}" key="${key}": ${
+                  `Error uploading filename="${f.fileInfo.fileName}" bucket="${bucket}" key="${key}": ${
                     err instanceof Error ? err.message : String(err)
                   }`,
                 );
@@ -86,22 +90,13 @@ export class S3Service {
     return results;
   }
 
-  async checkFilesExist(
-    payload: Array<{
-      bucket: string;
-      files: Array<{
-        foldername: string;
-        fileId: string;
-      }>;
-    }>,
-  ) {
+  async checkFilesExist(payload: DocumentsPayloadDto) {
     const result = await Promise.all(
-      payload.map(async item => {
+      payload.documents.map(async item => {
         const { bucket, files } = item;
         const existence = await Promise.all(
           files.map(async file => {
-            const key = this.getFileKey(file.foldername, file.fileId);
-
+            const key = this.getFileKey(file.folderName, file.fileInfo.fileId);
             try {
               await this.s3Client.send(
                 new HeadObjectCommand({
@@ -109,7 +104,7 @@ export class S3Service {
                   Key: key,
                 }),
               );
-              return { fileId: file.fileId, key, exists: true };
+              return { fileId: file.fileInfo.fileId, key, exists: true };
             } catch (err: unknown) {
               if (err instanceof S3ServiceException) {
                 const status = err.$metadata?.httpStatusCode;
@@ -117,7 +112,7 @@ export class S3Service {
                   this.logger.warn(
                     `File does not exist in bucket "${bucket}": key="${key}"-> name: ${err.name} - message: ${err.message} - status: ${status} - fault: ${err.$fault}`,
                   );
-                  return { fileId: file.fileId, key, exists: false };
+                  return { fileId: file.fileInfo.fileId, key, exists: false };
                 }
               } else {
                 this.logger.error(
@@ -139,21 +134,13 @@ export class S3Service {
     return result;
   }
 
-  async deleteFiles(
-    payload: Array<{
-      bucket: string;
-      files: Array<{
-        foldername: string;
-        fileId: string;
-      }>;
-    }>,
-  ) {
+  async deleteFiles(payload: DocumentsPayloadDto) {
     const results = await Promise.all(
-      payload.map(async item => {
+      payload.documents.map(async item => {
         const { bucket, files } = item;
         const deletions = await Promise.all(
           files.map(async file => {
-            const key = this.getFileKey(file.foldername, file.fileId);
+            const key = this.getFileKey(file.folderName, file.fileInfo.fileId);
             try {
               await this.s3Client.send(
                 new DeleteObjectCommand({
@@ -175,7 +162,7 @@ export class S3Service {
               }
             }
             return {
-              fileId: file.fileId,
+              fileId: file.fileInfo.fileId,
               key: key,
             };
           }),
@@ -189,33 +176,42 @@ export class S3Service {
     return results;
   }
 
-  async getFiles(
-    payload: Array<{
+  async getFilesStreams(payload: DocumentsPayloadDto): Promise<
+    Array<{
       bucket: string;
       files: Array<{
-        foldername: string;
         fileId: string;
+        fileStream: GetObjectCommandOutput['Body'];
+        fileContentType: GetObjectCommandOutput['ContentType'];
       }>;
-    }>,
-  ) {
+    }>
+  > {
     const results = await Promise.all(
-      payload.map(async item => {
+      payload.documents.map(async item => {
         const { bucket, files } = item;
         const contents = await Promise.all(
           files.map(async file => {
-            const key = this.getFileKey(file.foldername, file.fileId);
+            const key = this.getFileKey(file.folderName, file.fileInfo.fileId);
             try {
-              const content = await this.s3Client.send(
+              const response = await this.s3Client.send(
                 new GetObjectCommand({ Bucket: bucket, Key: key }),
               );
-              return { fileId: file.fileId, key, content: content };
+              return {
+                fileId: file.fileInfo.fileId,
+                fileStream: response.Body,
+                fileContentType: response.ContentType,
+              };
             } catch (err: unknown) {
               if (err instanceof S3ServiceException) {
                 if (err.$metadata?.httpStatusCode === 404) {
                   this.logger.warn(
                     `File not found in bucket "${bucket}": key="${key}"-> name: ${err.name} - message: ${err.message} - status: ${err.$metadata?.httpStatusCode} - fault: ${err.$fault}`,
                   );
-                  return { fileId: file.fileId, key, content: null };
+                  return {
+                    fileId: file.fileInfo.fileId,
+                    fileStream: undefined,
+                    fileContentType: undefined,
+                  };
                 }
                 if (err.$metadata?.httpStatusCode === 403) {
                   this.logger.error(
@@ -247,26 +243,17 @@ export class S3Service {
   }
 
   async generatePresignedUrls(
-    payload: Array<{
-      bucket: string;
-      files: Array<{
-        foldername: string;
-        fileId: string;
-      }>;
-    }>,
-    opts?: {
-      expiresInSeconds?: number;
-      download?: boolean;
-    },
+    payload: DocumentsPayloadDto,
+    opts?: { contentDisposition?: string; expiresInSeconds?: number },
   ) {
     const results = await Promise.all(
-      payload.map(async item => {
+      payload.documents.map(async item => {
         const { bucket, files } = item;
 
         const urls = await Promise.all(
           files.map(async file => {
-            const key = this.getFileKey(file.foldername, file.fileId);
-            const contentDisposition = opts?.download ? 'attachment' : 'inline';
+            const key = this.getFileKey(file.folderName, file.fileInfo.fileId);
+            const contentDisposition = opts?.contentDisposition ?? 'inline';
 
             try {
               const cmd = new GetObjectCommand({
@@ -279,7 +266,7 @@ export class S3Service {
                 expiresIn: opts?.expiresInSeconds,
               });
 
-              return { fileId: file.fileId, key, url };
+              return { fileId: file.fileInfo.fileId, key, url };
             } catch (err: unknown) {
               if (err instanceof S3ServiceException) {
                 const status = err.$metadata?.httpStatusCode;
