@@ -32,18 +32,19 @@ export class EmailService {
               this.logger.error(`File stream for ${file.fileId} is undefined`);
               throw new Error(`File stream for ${file.fileId} is undefined`);
             }
-            const fileBuffer = Buffer.from(
-              await file.fileStream.transformToByteArray(),
+
+            const fileContent = Readable.from(
+              file.fileStream.transformToWebStream(),
             );
 
             const attachment = {
               filename: file.fileId,
-              content: fileBuffer,
+              content: fileContent,
               contentType: file.fileContentType,
             };
 
             this.logger.debug(
-              `Attachment added: name: ${attachment.filename}, type: ${attachment.contentType}, content: ${attachment.content.length}`,
+              `Attachment added: name: ${attachment.filename}, type: ${attachment.contentType}, content: `,
             );
 
             attachments.push(attachment);
