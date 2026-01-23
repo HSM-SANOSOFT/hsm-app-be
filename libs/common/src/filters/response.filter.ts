@@ -68,10 +68,9 @@ export class ResponseFilter implements ExceptionFilter {
     if (isRecord(payload) && isRecord(payload['issue'])) {
       issue = payload['issue'] as IUnsuccessResponse;
     } else if (isRecord(payload)) {
-
-    /**
-     * 2) Normalize default Nest / ValidationPipe errors
-     */
+      /**
+       * 2) Normalize default Nest / ValidationPipe errors
+       */
       const msg = payload['message'];
       const err = payload['error'];
       const errors = payload['errors'];
@@ -119,10 +118,9 @@ export class ResponseFilter implements ExceptionFilter {
           issue.issue.field = Array.from(new Set(props));
         }
       } else if (isStringArray(issue.issue.message)) {
-
-      /**
-       * Fallback field inference from message array
-       */
+        /**
+         * Fallback field inference from message array
+         */
         const inferred = issue.issue.message
           .map(s => s.split(' ')[0])
           .filter(t => /^[a-zA-Z0-9_.-]+$/.test(t));
