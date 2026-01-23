@@ -1,3 +1,5 @@
+import { EmailTemplateName } from '@hsm-lib/definitions/types';
+
 export enum AdmEmailTemplate {
   AutoAdmision = 'adm/auto-admision',
   Bienvenida = 'adm/bienvenida',
@@ -47,11 +49,6 @@ export const EmailTemplate = {
   Mkt: MktEmailTemplate,
 };
 
-export const EmailTemplateFlat = {
-  ...BaseEmailTemplate,
-  ...AdmEmailTemplate,
-  ...AuthEmailTemplate,
-  ...FacEmailTemplate,
-  ...HisEmailTemplate,
-  ...MktEmailTemplate,
-} as const;
+export const EMAIL_TEMPLATE_VALUES = Object.values(EmailTemplate).flatMap(e =>
+  Object.values(e),
+) as readonly EmailTemplateName[];

@@ -1,4 +1,6 @@
 import { AdmEmailTemplate } from '@hsm-lib/definitions/enums';
+import type { DtoClass } from '@hsm-lib/definitions/types';
+
 import { AutoAdmisionTemplateDto } from './auto-admision-template.dto';
 import { BienvenidaTemplateDto } from './bienvenida-template.dto';
 import { CitasTurnoTemplateDto } from './citas-turno-template.dto';
@@ -20,4 +22,4 @@ export const AdmTemplateDtoMap = {
     DocumentoDerivacionRechazadoTemplateDto,
   [AdmEmailTemplate.Reagendamiento]: ReagendamientoTemplateDto,
   [AdmEmailTemplate.RecordatorioCita]: RecordatorioCitaTemplateDto,
-} as const;
+} as const satisfies Record<AdmEmailTemplate, DtoClass>;

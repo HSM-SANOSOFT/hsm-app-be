@@ -1,12 +1,14 @@
+import { HisTemplateDtoMap } from '@hsm-lib/definitions/dtos';
 import { HisEmailTemplate } from '@hsm-lib/definitions/enums';
-import { HisEmailRegistry } from '@hsm-lib/definitions/types';
+import { EmailRegistryFromDtoMap } from '@hsm-lib/definitions/types';
+
 import { CertificadoMedicoTemplate } from './certificado-medico.template';
 import { ProgramacionQuirofanoTemplate } from './programacion-quirofano.template';
 import { RecetaMedicaTemplate } from './receta-medica.template';
 import { ResultadoExamenesTemplate } from './resultado-examen.template';
 import { SolicitudExamenesTemplate } from './solicitud-examen.template';
 
-export const hisEmailRegistry: HisEmailRegistry = {
+export const hisEmailRegistry = {
   [HisEmailTemplate.CertificadoMedico]: {
     title: 'Certificado Médico',
     subject: 'Su Certificado Médico está listo para descargar',
@@ -32,4 +34,4 @@ export const hisEmailRegistry: HisEmailRegistry = {
     subject: 'Su Solicitud de Exámenes está lista para descargar',
     template: SolicitudExamenesTemplate,
   },
-} satisfies HisEmailRegistry;
+} satisfies EmailRegistryFromDtoMap<typeof HisTemplateDtoMap>;

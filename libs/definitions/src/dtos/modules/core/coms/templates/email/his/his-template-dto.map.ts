@@ -1,4 +1,5 @@
 import { HisEmailTemplate } from '@hsm-lib/definitions/enums';
+import type { DtoClass } from '@hsm-lib/definitions/types';
 
 import { CertificadoMedicoTemplateDto } from './certificado-medico.dto';
 import { ProgramacionQuirofanoTemplateDto } from './programacion-quirofano.dto';
@@ -12,4 +13,4 @@ export const HisTemplateDtoMap = {
   [HisEmailTemplate.RecetaMedica]: RecetaMedicaTemplateDto,
   [HisEmailTemplate.ResultadoExamenes]: ResultadoExamenesTemplateDto,
   [HisEmailTemplate.SolicitudExamenes]: SolicitudExamenesTemplateDto,
-} as const;
+} as const satisfies Record<HisEmailTemplate, DtoClass>;

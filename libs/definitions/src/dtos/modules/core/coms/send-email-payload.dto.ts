@@ -1,12 +1,15 @@
 import { ValidateEmailTemplateData } from '@hsm-lib/common/validators';
-import { EmailTemplate, EmailTemplateFlat } from '@hsm-lib/definitions/enums';
+import {
+  EMAIL_TEMPLATE_VALUES,
+  EmailTemplate,
+} from '@hsm-lib/definitions/enums';
 import type { EmailTemplateName } from '@hsm-lib/definitions/types';
 import { ApiProperty, ApiSchema } from '@nestjs/swagger';
 import {
   ArrayNotEmpty,
   IsArray,
   IsEmail,
-  IsEnum,
+  IsIn,
   IsNotEmpty,
   IsObject,
   IsOptional,
@@ -44,18 +47,17 @@ export class SendEmailPayloadDto {
   toEmails: string[];
 
   @IsNotEmpty()
-  @IsEnum(EmailTemplateFlat)
+  @IsIn(EMAIL_TEMPLATE_VALUES)
   @ApiProperty({
     description: 'plantilla de correo electrónico a utilizar',
-    enum: EmailTemplateFlat,
     required: true,
+    enum: EMAIL_TEMPLATE_VALUES,
     example: EmailTemplate.Auth.PinRestablecerContrasena,
   })
   emailTemplate: EmailTemplateName;
 
-  //@IsOptional()
   @IsObject()
-  @ValidateEmailTemplateData()
+  //@ValidateEmailTemplateData()
   @ApiProperty({
     description: 'data para la plantilla (merge vars)',
     required: false,

@@ -18,11 +18,13 @@ export class IssueDto {
       },
     ],
   })
+
+  @IsOptional()
   @ValidateIf(o => typeof o.message === 'string')
   @IsString()
   @ValidateIf(o => Array.isArray(o.message))
   @IsArray()
-  message!: string | string[];
+  message?: string | string[];
 
   @ApiPropertyOptional({
     description: 'Human-readable error message',

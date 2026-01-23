@@ -293,7 +293,7 @@ POST {{host}}/coms/send/email
 Content-Type: {{contentType}}
 
 {
-  "toEmails": ["kijiv85358@eubonus.com"],
+  "toEmail": ["kijiv85358@eubonus.com"],
   "emailTemplate": "mkt/campana-promocional",
   "data": {
   }
@@ -307,7 +307,7 @@ Content-Type: {{contentType}}
   "toEmails": ["kijiv85358@eubonus.com"],
   "emailTemplate": "mkt/cotizacion-servicio",
   "data": {
-    "serviceName": "Chequeo Médico Completo"
+    "serviceNames": "Chequeo Médico Completo"
   }
 }
 

@@ -1,5 +1,7 @@
+import { AdmTemplateDtoMap } from '@hsm-lib/definitions/dtos';
 import { AdmEmailTemplate } from '@hsm-lib/definitions/enums';
-import { AdmEmailRegistry } from '@hsm-lib/definitions/types';
+import { EmailRegistryFromDtoMap } from '@hsm-lib/definitions/types';
+
 import { AutoAdmisionTemplate } from './auto-admision.template';
 import { BienvenidaTemplate } from './bienvenida.template';
 import { CitasTurnoTemplate } from './citas-turno.template';
@@ -9,7 +11,7 @@ import { DocumentoDerivacionRechazadoTemplate } from './documento-derivacion-rec
 import { ReagendamientoTemplate } from './reagendamiento.template';
 import { RecordatorioCitaTemplate } from './recordatorio-cita.template';
 
-export const admEmailRegistry: AdmEmailRegistry = {
+export const admEmailRegistry = {
   [AdmEmailTemplate.Bienvenida]: {
     title: 'Bienvenido al Hospital',
     subject: 'Bienvenido al Hospital',
@@ -50,4 +52,4 @@ export const admEmailRegistry: AdmEmailRegistry = {
     subject: 'Recordatorio de Cita / Turno',
     template: RecordatorioCitaTemplate,
   },
-} satisfies AdmEmailRegistry;
+} satisfies EmailRegistryFromDtoMap<typeof AdmTemplateDtoMap>;

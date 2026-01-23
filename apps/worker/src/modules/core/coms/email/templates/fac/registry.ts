@@ -1,9 +1,11 @@
+import { FacTemplateDtoMap } from '@hsm-lib/definitions/dtos';
 import { FacEmailTemplate } from '@hsm-lib/definitions/enums';
-import { FacEmailRegistry } from '@hsm-lib/definitions/types';
+import { EmailRegistryFromDtoMap } from '@hsm-lib/definitions/types';
+
 import { FacturaGeneradaTemplate } from './factura-generada.template';
 import { FacturaListaTemplate } from './factura-lista.template';
 
-export const facEmailRegistry: FacEmailRegistry = {
+export const facEmailRegistry = {
   [FacEmailTemplate.FacturaGenerada]: {
     title: 'Factura Generada',
     subject: 'Su factura ha sido generada',
@@ -14,4 +16,4 @@ export const facEmailRegistry: FacEmailRegistry = {
     subject: 'Su factura está lista para descargar',
     template: FacturaListaTemplate,
   },
-} satisfies FacEmailRegistry;
+} satisfies EmailRegistryFromDtoMap<typeof FacTemplateDtoMap>;

@@ -5,19 +5,48 @@ import {
   Catch,
   ExceptionFilter,
   HttpException,
+  Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { extractApiVersion } from '../services';
 
+/**
+ * Type guards
+ */
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null;
 }
+
 function isStringArray(v: unknown): v is string[] {
   return Array.isArray(v) && v.every(x => typeof x === 'string');
 }
 
+/**
+ * Flatten class-validator ValidationError[]
+ */
+function flattenValidationErrors(errors: unknown[]): string[] {
+  const messages: string[] = [];
+
+  for (const err of errors) {
+    if (isRecord(err) && isRecord(err['constraints'])) {
+      messages.push(
+        ...Object.values(err['constraints']).filter(v => typeof v === 'string'),
+      );
+    }
+
+    // support nested children (just in case)
+    if (isRecord(err) && Array.isArray(err['children'])) {
+      messages.push(...flattenValidationErrors(err['children']));
+    }
+  }
+
+  return messages;
+}
+
 @Catch(HttpException)
 export class ResponseFilter implements ExceptionFilter {
+  private readonly logger = new Logger(ResponseFilter.name);
+
   catch(exception: HttpException, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const res = ctx.getResponse<Response>();
@@ -25,77 +54,90 @@ export class ResponseFilter implements ExceptionFilter {
 
     const status = exception.getStatus();
     const payload = exception.getResponse();
-    const hasIssue = isRecord(payload) && Object.hasOwn(payload, 'issue');
 
-    let issue: IUnsuccessResponse;
+    this.logger.debug(
+      `Handling exception with status ${status} for payload: ${JSON.stringify(payload)}`,
+    );
 
-    if (hasIssue) {
+    // Always start empty – never default to framework text
+    let issue: IUnsuccessResponse = { issue: {} };
+
+    /**
+     * 1) Payload already follows our API contract → trust it
+     */
+    if (isRecord(payload) && isRecord(payload['issue'])) {
       issue = payload['issue'] as IUnsuccessResponse;
-    } else {
-      issue = { issue: { message: exception.message } };
-      if (typeof payload === 'string') {
-        issue = {
-          issue: {
-            message: payload,
-          },
-        };
-      } else if (isRecord(payload)) {
-        const msg = payload['message'];
-        const err = payload['error'];
-        const code =
-          (typeof payload['code'] === 'string' && payload['code']) ||
-          (typeof payload['errorCode'] === 'string' && payload['errorCode']) ||
-          (typeof payload['error_code'] === 'string' &&
-            payload['error_code']) ||
-          undefined;
-        const detail =
-          (typeof payload['detail'] === 'string' && payload['detail']) ||
-          (typeof payload['cause'] === 'string' && payload['cause']) ||
-          (typeof payload['stack'] === 'string' && payload['stack']) ||
-          undefined;
+    } else if (isRecord(payload)) {
 
-        if (typeof msg === 'string') {
-          issue.issue.message = msg;
-        } else if (isStringArray(msg)) {
-          issue.issue.message = msg;
+    /**
+     * 2) Normalize default Nest / ValidationPipe errors
+     */
+      const msg = payload['message'];
+      const err = payload['error'];
+      const errors = payload['errors'];
+
+      /**
+       * message normalization
+       * - ValidationError[]
+       * - string[]
+       * - string
+       */
+      if (Array.isArray(msg) && msg.length && isRecord(msg[0])) {
+        const flattened = flattenValidationErrors(msg);
+        if (flattened.length) {
+          issue.issue.message = flattened;
         }
+      } else if (isStringArray(msg)) {
+        issue.issue.message = msg;
+      } else if (typeof msg === 'string') {
+        issue.issue.message = msg;
+      }
 
-        if (typeof err === 'string') {
-          issue.issue.error = err;
+      /**
+       * error label
+       */
+      if (typeof err === 'string') {
+        issue.issue.error = err;
+      }
+
+      /**
+       * Field inference from ValidationPipe errors
+       */
+      if (Array.isArray(errors)) {
+        const props = errors
+          .filter(
+            e =>
+              isRecord(e) &&
+              typeof e['property'] === 'string' &&
+              e['property'].length > 0,
+          )
+          .map(e => String(e['property']));
+
+        if (props.length === 1) {
+          issue.issue.field = props[0];
+        } else if (props.length > 1) {
+          issue.issue.field = Array.from(new Set(props));
         }
+      } else if (isStringArray(issue.issue.message)) {
 
-        if (code) issue.issue.code = code;
-        if (detail) issue.issue.detail = detail;
+      /**
+       * Fallback field inference from message array
+       */
+        const inferred = issue.issue.message
+          .map(s => s.split(' ')[0])
+          .filter(t => /^[a-zA-Z0-9_.-]+$/.test(t));
 
-        const errors = payload['errors'];
-        if (Array.isArray(errors)) {
-          const props = errors
-            .filter(
-              e =>
-                isRecord(e) &&
-                typeof e['property'] === 'string' &&
-                e['property'].length > 0,
-            )
-            .map(e => String(e['property']));
-          if (props.length === 1) {
-            issue.issue.field = props[0];
-          } else if (props.length > 1) {
-            issue.issue.field = Array.from(new Set(props));
-          }
-        } else if (isStringArray(msg)) {
-          const inferred = msg
-            .map(s => s.split(' ')[0])
-            .filter(t => /^[a-zA-Z0-9_.-]+$/.test(t));
-
-          if (inferred.length === 1) {
-            issue.issue.field = inferred[0];
-          } else if (inferred.length > 1) {
-            issue.issue.field = Array.from(new Set(inferred));
-          }
+        if (inferred.length === 1) {
+          issue.issue.field = inferred[0];
+        } else if (inferred.length > 1) {
+          issue.issue.field = Array.from(new Set(inferred));
         }
       }
     }
 
+    /**
+     * 3) Final response envelope
+     */
     const metadata: MetadataDto = {
       success: false,
       statusCode: status,
@@ -105,7 +147,11 @@ export class ResponseFilter implements ExceptionFilter {
       apiVersion: extractApiVersion(req),
     };
 
-    const body: UnsuccessResponseDto = { metadata, issue: issue.issue };
+    const body: UnsuccessResponseDto = {
+      metadata,
+      issue: issue.issue,
+    };
+
     res.status(status).json(body);
   }
 }

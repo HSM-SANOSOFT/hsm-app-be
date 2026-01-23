@@ -1,5 +1,6 @@
 import { EmailTemplateDtoMap } from '@hsm-lib/definitions/dtos';
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import type { DtoClass } from '@hsm-lib/definitions/types';
+import { Injectable, Logger } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import {
   registerDecorator,
@@ -10,7 +11,6 @@ import {
   validateSync,
 } from 'class-validator';
 
-type DtoClass = new (...args: unknown[]) => object;
 type EmailTemplateKey = keyof typeof EmailTemplateDtoMap;
 
 @ValidatorConstraint({ name: 'EmailTemplateData', async: false })
@@ -19,37 +19,35 @@ export class EmailTemplateDataValidator
   implements ValidatorConstraintInterface
 {
   private readonly logger = new Logger(EmailTemplateDataValidator.name);
+
+  // per-validation-call storage
+  private lastMessages: string[] = [];
+
   validate(value: unknown, args: ValidationArguments): boolean {
-    const obj = args.object as { emailTemplate?: string };
-    this.logger.debug(
-      `validate() called with value: ${JSON.stringify(value)} and args: ${JSON.stringify(args)}`,
-    );
+    this.lastMessages = [];
 
-    this.logger.debug(`template = ${String(obj.emailTemplate)}`);
-
+    const obj = args.object as { emailTemplate?: unknown };
     const template = obj.emailTemplate as EmailTemplateKey | undefined;
 
-    this.logger.debug(`Template key: ${template}`);
+    // Let other validators handle these
+    if (template == null || typeof template !== 'string') {
+      return true;
+    }
 
-    const hasKey = template
-      ? Object.hasOwn(EmailTemplateDtoMap, template)
-      : false;
-
-    this.logger.debug(`map has key? ${hasKey}`);
-
-    if (!template) return false;
+    if (!Object.hasOwn(EmailTemplateDtoMap, template)) {
+      return true;
+    }
 
     const Dto = EmailTemplateDtoMap[template] as unknown as DtoClass;
 
-    const dtoName = Dto?.name ?? 'undefined';
-    const dtoKeys = Dto ? Object.keys(new Dto()) : [];
-    this.logger.debug(`Raw Dto: ${dtoName} , keys = ${dtoKeys.join(', ')}`);
+    if (value == null || typeof value !== 'object' || Array.isArray(value)) {
+      this.lastMessages.push('data must be an object');
+      return false;
+    }
 
-    if (!Dto) return false;
-
-    this.logger.debug(`Template: ${template}, DTO: ${Dto?.name}`);
-
-    if (value == null || typeof value !== 'object') return false;
+    this.logger.debug(
+      `Validating data for template "${template}" and DTO ${Dto.name}`,
+    );
 
     const instance = plainToInstance(Dto, value);
 
@@ -60,22 +58,24 @@ export class EmailTemplateDataValidator
     });
 
     if (errors.length) {
-      const fieldErrors = errors.map(err => ({
-        field: err.property,
-        constraints: err.constraints ?? {},
-      }));
+      for (const err of errors) {
+        if (err.constraints) {
+          this.lastMessages.push(...Object.values(err.constraints));
+        }
+      }
 
-      const messages = fieldErrors.flatMap(e => Object.values(e.constraints));
-      this.logger.error(`Field Issues: ${messages.join('; ')}`);
-      throw new BadRequestException(messages);
+      this.logger.error(`Field Issues: ${this.lastMessages.join('; ')}`);
+      return false;
     }
 
-    return errors.length === 0;
+    return true;
   }
 
   defaultMessage(_args: ValidationArguments) {
-    this.logger.debug(`defaultMessage() called}`);
-    return `data is invalid for email template`;
+    // ValidationPipe will pick this up
+    return this.lastMessages.length
+      ? this.lastMessages.join('; ')
+      : 'data is invalid for email template';
   }
 }
 

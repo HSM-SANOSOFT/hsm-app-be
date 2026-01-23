@@ -1,3 +1,3 @@
-import { EmailTemplate } from '@hsm-lib/definitions/enums/modules/core/coms/email-templates.enum';
+import { EmailTemplate } from '@hsm-lib/definitions/enums';
 
 export type EmailTemplateDomain = keyof typeof EmailTemplate;

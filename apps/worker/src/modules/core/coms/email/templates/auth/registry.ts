@@ -1,11 +1,13 @@
+import { AuthTemplateDtoMap } from '@hsm-lib/definitions/dtos';
 import { AuthEmailTemplate } from '@hsm-lib/definitions/enums';
-import { AuthEmailRegistry } from '@hsm-lib/definitions/types';
+import { EmailRegistryFromDtoMap } from '@hsm-lib/definitions/types';
+
 import { PinInicioSesionTemplate } from './pin-inicio-sesion.template';
 import { PinRegistroTemplate } from './pin-registro.template';
 import { PinRestablecimientoContrasenaTemplate } from './pin-restablecer-contrasena.template';
 import { PinResultadoExamenTemplate } from './pin-resultado-examenes.template';
 
-export const authEmailRegistry: AuthEmailRegistry = {
+export const authEmailRegistry = {
   [AuthEmailTemplate.PinInicioSesion]: {
     title: 'PIN de Inicio de Sesión',
     subject: 'Tu PIN de Inicio de Sesión',
@@ -26,4 +28,4 @@ export const authEmailRegistry: AuthEmailRegistry = {
     subject: 'Tu PIN para Resultados de Exámenes',
     template: PinResultadoExamenTemplate,
   },
-} satisfies AuthEmailRegistry;
+} satisfies EmailRegistryFromDtoMap<typeof AuthTemplateDtoMap>;

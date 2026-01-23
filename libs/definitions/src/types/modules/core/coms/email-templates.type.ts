@@ -1,9 +1,10 @@
-import type * as EmailTemplates from '@hsm-lib/definitions/enums';
+import { EmailTemplate } from '@hsm-lib/definitions/enums';
 
-export type EmailTemplateName =
-  | EmailTemplates.BaseEmailTemplate
-  | EmailTemplates.AdmEmailTemplate
-  | EmailTemplates.AuthEmailTemplate
-  | EmailTemplates.FacEmailTemplate
-  | EmailTemplates.HisEmailTemplate
-  | EmailTemplates.MktEmailTemplate;
+type EnumObject = Record<string, string>;
+
+type EnumValues<T> = T extends EnumObject ? T[keyof T] : never;
+
+type EmailTemplateEnumUnion =
+  (typeof EmailTemplate)[keyof typeof EmailTemplate];
+
+export type EmailTemplateName = EnumValues<EmailTemplateEnumUnion>;

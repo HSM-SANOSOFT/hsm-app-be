@@ -4,4 +4,4 @@ export * from './base';
 export * from './fac';
 export * from './his';
 export * from './mkt';
-export * from './template-dto.map';
+export * from './email-template-dto.map';

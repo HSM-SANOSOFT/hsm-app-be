@@ -2,7 +2,7 @@ import type { BaseTemplateDto } from '@hsm-lib/definitions/dtos';
 import { BaseEmailTemplate } from '@hsm-lib/definitions/enums';
 import type {
   EmailRegistry,
-  EmailTemplateDto,
+  EmailTemplateDtoType,
   EmailTemplateName,
 } from '@hsm-lib/definitions/types';
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
@@ -30,7 +30,7 @@ export class TemplateService {
     const bodyEntry = this.getEmailEntry(name);
     const baseEntry = this.getEmailEntry(BaseEmailTemplate.Base);
 
-    const safedata = data as EmailTemplateDto<T>;
+    const safedata = data as EmailTemplateDtoType<T>;
     const bodyNode = bodyEntry.template(safedata);
     if (bodyNode == null) {
       throw new InternalServerErrorException('Email body template error');
