@@ -12,4 +12,4 @@ import {
 } from 'typeorm';
 
 @Entity({ name: 'store_docs', schema: DBSchemas.DOCS })
-export class StoreDocsEntity {}
+export class StoreDocsEntity {} 
