@@ -1,13 +1,4 @@
-import {
-  Entity,
-  Column,
-  PrimaryColumn,
-  ManyToOne,
-  OneToOne,
-  JoinColumn,
-  Index,
-  Unique,
-} from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import { NomOrgCoordinacionEntity } from './index';
 
 @Entity({ name: 'AREAS', schema: 'SIS' })

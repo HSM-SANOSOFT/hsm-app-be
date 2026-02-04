@@ -1,13 +1,4 @@
-import {
-  Entity,
-  Column,
-  PrimaryColumn,
-  ManyToOne,
-  OneToOne,
-  JoinColumn,
-  Index,
-  Unique,
-} from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import { PersonalEntity } from './index';
 
 @Entity({ name: 'SGI_ISOCARGO', schema: 'SIS' })

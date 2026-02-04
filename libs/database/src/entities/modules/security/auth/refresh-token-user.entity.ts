@@ -1,4 +1,5 @@
 import { UserEntity } from '@hsm-lib/database/entities';
+import { DBSchemas } from '@hsm-lib/definitions/enums';
 import {
   Column,
   CreateDateColumn,
@@ -11,7 +12,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity({ name: 'refresh_token_users', schema: 'auth' })
+@Entity({ name: 'refresh_token_users', schema: DBSchemas.AUTH })
 export class RefreshTokenUserEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

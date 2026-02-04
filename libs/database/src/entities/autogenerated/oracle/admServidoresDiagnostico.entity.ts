@@ -1,14 +1,12 @@
 import {
-  Entity,
   Column,
-  PrimaryColumn,
+  Entity,
+  JoinColumn,
   ManyToOne,
   OneToOne,
-  JoinColumn,
-  Index,
-  Unique,
+  PrimaryColumn,
 } from 'typeorm';
-import { PersonalEntity, AdmGrupoDiagnosticoEntity } from './index';
+import { AdmGrupoDiagnosticoEntity, PersonalEntity } from './index';
 
 @Entity({ name: 'ADM_SERVIDORES_DIAGNOSTICO', schema: 'SIS' })
 export class AdmServidoresDiagnosticoEntity {

@@ -1,22 +1,20 @@
 import {
-  Entity,
   Column,
-  PrimaryColumn,
-  ManyToOne,
-  OneToOne,
+  Entity,
   JoinColumn,
-  Index,
+  ManyToOne,
+  PrimaryColumn,
   Unique,
 } from 'typeorm';
 import {
-  SgiIsoorganigramaEntity,
-  SgiIsoareasEntity,
-  SsaClasificacionOcupacionesEntity,
   CompaniasEntity,
-  SgiIsodptoEntity,
+  SgiIsoareasEntity,
   SgiIsocargoEntity,
-  SsaPuestosSutEntity,
   SgiIsodivisionEntity,
+  SgiIsodptoEntity,
+  SgiIsoorganigramaEntity,
+  SsaClasificacionOcupacionesEntity,
+  SsaPuestosSutEntity,
 } from './index';
 
 @Unique('UK_CARGOS_SSA', [

@@ -1,11 +1,10 @@
 import {
-  Entity,
   Column,
-  PrimaryColumn,
-  ManyToOne,
-  OneToOne,
-  JoinColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryColumn,
   Unique,
 } from 'typeorm';
 import { ParroquiasEntity } from './index';

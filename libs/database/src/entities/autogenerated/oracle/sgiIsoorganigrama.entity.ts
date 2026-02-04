@@ -1,11 +1,9 @@
 import {
-  Entity,
   Column,
-  PrimaryColumn,
-  ManyToOne,
-  OneToOne,
+  Entity,
   JoinColumn,
-  Index,
+  ManyToOne,
+  PrimaryColumn,
   Unique,
 } from 'typeorm';
 import { SgiIsonodoOrgEntity } from './index';

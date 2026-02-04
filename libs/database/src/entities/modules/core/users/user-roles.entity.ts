@@ -1,4 +1,5 @@
 import { UserEntity } from '@hsm-lib/database/entities';
+import { DBSchemas } from '@hsm-lib/definitions/enums';
 import type { RoleDomains, Roles } from '@hsm-lib/definitions/types';
 import {
   Column,
@@ -12,7 +13,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity({ name: 'user_roles', schema: 'users' })
+@Entity({ name: 'user_roles', schema: DBSchemas.USERS })
 @Unique(['user', 'domain', 'role'])
 export class UserRoleEntity {
   @PrimaryGeneratedColumn('uuid')

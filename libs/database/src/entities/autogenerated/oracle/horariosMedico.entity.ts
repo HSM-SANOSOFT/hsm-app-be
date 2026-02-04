@@ -1,14 +1,12 @@
 import {
-  Entity,
   Column,
-  PrimaryColumn,
-  ManyToOne,
-  OneToOne,
-  JoinColumn,
+  Entity,
   Index,
-  Unique,
+  JoinColumn,
+  ManyToOne,
+  PrimaryColumn,
 } from 'typeorm';
-import { PersonalEntity, DepartamentosEntity } from './index';
+import { DepartamentosEntity, PersonalEntity } from './index';
 
 @Index('HRRMDC_DPR_FK_I', ['dprCodigo', 'dprAraCodigo'])
 @Index('HRRMDC_PRS_FK_I', ['prsCodigo'])

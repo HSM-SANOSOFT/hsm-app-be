@@ -1,18 +1,17 @@
 import {
-  Entity,
   Column,
-  PrimaryColumn,
-  ManyToOne,
-  OneToOne,
-  JoinColumn,
+  Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryColumn,
   Unique,
 } from 'typeorm';
 import {
-  DepartamentosEntity,
-  SsaPuestosTrabajoEntity,
   AreasEntity,
+  DepartamentosEntity,
   EspecialidadPersonalEntity,
+  SsaPuestosTrabajoEntity,
 } from './index';
 
 @Unique('PRS_UK', ['usuario'])

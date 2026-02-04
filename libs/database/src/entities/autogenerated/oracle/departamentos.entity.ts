@@ -1,12 +1,10 @@
 import {
-  Entity,
   Column,
-  PrimaryColumn,
-  ManyToOne,
-  OneToOne,
-  JoinColumn,
+  Entity,
   Index,
-  Unique,
+  JoinColumn,
+  ManyToOne,
+  PrimaryColumn,
 } from 'typeorm';
 import { AreasEntity } from './index';
 

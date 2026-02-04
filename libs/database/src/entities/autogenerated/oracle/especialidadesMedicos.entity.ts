@@ -1,14 +1,5 @@
-import {
-  Entity,
-  Column,
-  PrimaryColumn,
-  ManyToOne,
-  OneToOne,
-  JoinColumn,
-  Index,
-  Unique,
-} from 'typeorm';
-import { PersonalEntity, EspecialidadesEntity } from './index';
+import { Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import { EspecialidadesEntity, PersonalEntity } from './index';
 
 @Index('ESPMDC_ESP_FK_I', ['espCodigo'])
 @Index('ESPMDC_PRS_FK_I', ['prsCodigo'])
