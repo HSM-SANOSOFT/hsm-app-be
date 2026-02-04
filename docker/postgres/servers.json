@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "HSM Postgres",
+      "Group": "Servers",
+      "Host": "hsm-app-db-postgres",
+      "Port": 5432,
+      "MaintenanceDB": "hsm",
+      "Username": "postgres",
+      "Password": "postgres",
+      "SSLMode": "prefer"
+    }
+  }
+}

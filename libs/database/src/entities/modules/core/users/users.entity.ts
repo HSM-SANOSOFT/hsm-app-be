@@ -1,8 +1,5 @@
-import {
-  RefreshTokenUserEntity,
-  UserRoleEntity,
-} from '@hsm-lib/database/entities';
-import { DBSchemas } from '@hsm-lib/definitions/enums';
+import { RefreshTokenUserEntity } from '@hsm-lib/database/entities/modules/security/auth';
+import { databaseSchemas } from '@hsm-lib/database/sources/database-schema.enum';
 import {
   Column,
   CreateDateColumn,
@@ -13,8 +10,9 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { UserRoleEntity } from './user-roles.entity';
 
-@Entity({ name: 'users', schema: DBSchemas.USERS })
+@Entity({ name: 'users', schema: databaseSchemas.USERS })
 export class UserEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
@@ -52,7 +50,7 @@ export class UserEntity {
     () => UserRoleEntity,
     userRoles => userRoles.user,
     {
-      cascade: ['insert', 'update'],
+      cascade: true,
     },
   )
   roles!: UserRoleEntity[];

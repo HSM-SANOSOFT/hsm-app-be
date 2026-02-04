@@ -1,5 +1,5 @@
-import { UserIntegrationEntity } from '@hsm-lib/database/entities';
-import { DBSchemas } from '@hsm-lib/definitions/enums';
+import { UserIntegrationEntity } from '@hsm-lib/database/entities/modules/core/users';
+import { databaseSchemas } from '@hsm-lib/database/sources/database-schema.enum';
 import {
   Column,
   CreateDateColumn,
@@ -12,7 +12,10 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity({ name: 'refresh_token_user_integration', schema: DBSchemas.AUTH })
+@Entity({
+  name: 'refresh_token_user_integration',
+  schema: databaseSchemas.AUTH,
+})
 export class RefreshTokenUserIntegrationEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
