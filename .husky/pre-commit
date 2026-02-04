@@ -1,1 +1,1 @@
-pnpm biome check --write --unsafe --staged
+pnpm biome check --write --staged

@@ -1,11 +1,4 @@
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  OneToOne,
-  PrimaryColumn,
-} from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import { AdmGrupoDiagnosticoEntity, PersonalEntity } from './index';
 
 @Entity({ name: 'ADM_SERVIDORES_DIAGNOSTICO', schema: 'SIS' })
