@@ -4,7 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import oracledb from 'oracledb';
 import { Databases } from '../database-source.enum';
 import { DatabaseSourceOptions } from '../database-source-options';
-import {databaseOracleEntities} from './database-oracle.entities';
+import { databaseOracleEntities } from './database-oracle.entities';
 
 try {
   oracledb.initOracleClient({
@@ -15,7 +15,6 @@ try {
 } catch (err) {
   Logger.error('Error initializing Oracle client', err);
 }
-
 
 @Module({
   imports: [
