@@ -12,10 +12,10 @@
       "!!**/dist",
       "!!**/node_modules",
       "!!**/.github",
-      "!!/.husky",
-      "!!/docker",
-      "!!/extra",
-      "!!/kubernetes"
+      "!!**/.husky",
+      "!!**/docker",
+      "!!**/extra",
+      "!!**/kubernetes"
     ]
   },
   "formatter": {
