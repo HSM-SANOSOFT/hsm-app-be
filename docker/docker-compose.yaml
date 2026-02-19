@@ -1,19 +1,26 @@
-name: hsm
+name: hsm-app
 
 networks:
-  hsm-network:
-    name: hsm-network
+  hsm-app-network:
+    name: hsm-app-network
     driver: bridge
 
 volumes:
   pgdata:
-    name: hsm-postgres-data
+    name: hsm-app-postgres-data
   redisdata:
-    name: hsm-redis-data
+    name: hsm-app-redis-data
   miniodata:
-    name: hsm-minio-data
+    name: hsm-app-minio-data
 
 services:
+  hsm-app-be-base:
+    image: hsm-app-be-base
+    build:
+      context: ../
+      dockerfile: ./docker/dockerFile.base
+    container_name: hsm-app-be-base
+
   hsm-app-be-main:
     image: hsm-app-be-main
     build:
@@ -25,7 +32,7 @@ services:
     ports:
       - 3209:3000
     networks:
-      - hsm-network
+      - hsm-app-network
     volumes:
       - ../:/app
       - /app/node_modules
@@ -35,6 +42,7 @@ services:
       SECRET_PATH: /app/be
     restart: unless-stopped
     depends_on:
+      - hsm-app-be-base
       - hsm-app-db-postgres
       - hsm-app-db-redis
       - hsm-app-db-minio
@@ -49,7 +57,7 @@ services:
       dockerfile: ./docker/dockerFile.dev
     container_name: hsm-app-be-worker
     networks:
-      - hsm-network
+      - hsm-app-network
     volumes:
       - ../:/app
       - /app/node_modules
@@ -65,7 +73,7 @@ services:
     ports:
       - 5432:5432
     networks:
-      - hsm-network
+      - hsm-app-network
     volumes:
       - ./postgres/init-schemas.sql:/docker-entrypoint-initdb.d/postgres.schemas.sql:ro
       - pgdata:/var/lib/postgresql/data
@@ -81,7 +89,7 @@ services:
     ports:
       - 6379:6379
     networks:
-      - hsm-network
+      - hsm-app-network
     volumes:
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
       - ./redis/users.acl:/usr/local/etc/redis/users.acl:ro
@@ -96,7 +104,7 @@ services:
     image: minio/minio:latest
     container_name: hsm-app-db-minio
     networks:
-      - hsm-network
+      - hsm-app-network
     environment:
       MINIO_ROOT_USER: minio_user
       MINIO_ROOT_PASSWORD: minio_password
@@ -114,7 +122,7 @@ services:
     ports:
       - 5540:5540
     networks:
-      - hsm-network
+      - hsm-app-network
     environment:
       RI_ACCEPT_TERMS_AND_CONDITIONS: true
       RI_REDIS_HOST: hsm-app-db-redis
@@ -131,7 +139,7 @@ services:
     volumes:
       - ./postgres/servers.json:/pgadmin4/servers.json:ro
     networks:
-      - hsm-network
+      - hsm-app-network
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@example.com
       PGADMIN_DEFAULT_PASSWORD: secret
