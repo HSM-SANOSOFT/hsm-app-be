@@ -10,7 +10,7 @@ import {
   SignupIntegrationTokenPayloadDto,
   SignupPayloadDto,
 } from '@hsm-lib/definitions/dtos';
-import { PinPurpose, Role } from '@hsm-lib/definitions/enums';
+import { Role } from '@hsm-lib/definitions/enums';
 import {
   IJwtPayloadUser,
   IJwtPayloadUserIntegration,

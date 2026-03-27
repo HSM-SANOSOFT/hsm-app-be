@@ -4,7 +4,6 @@ import {
   Public,
 } from '@hsm-lib/common';
 import { SendEmailPayloadDto } from '@hsm-lib/definitions/dtos';
-import { Role } from '@hsm-lib/definitions/enums';
 import { Body, Controller, Post } from '@nestjs/common';
 import { Roles } from '../../security/roles/roles.decorator';
 import { ComsService } from './coms.service';

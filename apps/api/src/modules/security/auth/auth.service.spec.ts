@@ -1,8 +1,6 @@
-import { Test } from '@nestjs/testing';
-
-import { AuthService } from './auth.service';
-
 import type { TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
+import { AuthService } from './auth.service';
 
 describe('authService', () => {
   let service: AuthService;

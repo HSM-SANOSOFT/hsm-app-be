@@ -1,6 +1,5 @@
-import { labelOf } from '../helper/label-by-code';
-
 import type { CodeOf } from '../helper/label-by-code';
+import { labelOf } from '../helper/label-by-code';
 
 const ESTADO_CIVIL = {
   SOLTERO: { code: 'SLT', label: 'Soltero' },

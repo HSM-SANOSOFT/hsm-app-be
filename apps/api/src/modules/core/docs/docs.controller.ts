@@ -3,7 +3,6 @@ import {
   DocumentsPayloadDto,
   UploadDocumentPayloadDto,
 } from '@hsm-lib/definitions/dtos';
-import { Role } from '@hsm-lib/definitions/enums';
 import {
   Body,
   Controller,

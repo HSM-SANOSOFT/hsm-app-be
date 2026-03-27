@@ -1,6 +1,5 @@
-import { labelOf } from '../helper/label-by-code';
-
 import type { CodeOf } from '../helper/label-by-code';
+import { labelOf } from '../helper/label-by-code';
 
 const GRUPO_SANGUINEO = {
   A_POSITIVO: { code: 'A+', label: 'A+' },

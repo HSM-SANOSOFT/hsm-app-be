@@ -1,6 +1,5 @@
-import { labelOf } from '../helper/label-by-code';
-
 import type { CodeOf } from '../helper/label-by-code';
+import { labelOf } from '../helper/label-by-code';
 
 const ESCOLARIDAD = {
   NINGUNO: { code: 'NONE', label: 'Ninguno' },
