@@ -15,8 +15,6 @@
       "@hsm-lib/config/*": ["libs/config/src/*"],
       "@hsm-lib/database": ["libs/database/src"],
       "@hsm-lib/database/*": ["libs/database/src/*"],
-      "@hsm-lib/definitions": ["libs/definitions/src"],
-      "@hsm-lib/definitions/*": ["libs/definitions/src/*"],
       "@hsm-lib/queue": ["libs/queue/src"],
       "@hsm-lib/queue/*": ["libs/queue/src/*"],
       "@hsm-lib/storage": ["libs/storage/src"],

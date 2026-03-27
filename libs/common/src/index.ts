@@ -1,4 +1,5 @@
 export * from './decorator';
+export * from './definitions';
 export * from './filters';
 export * from './guards';
 export * from './interceptors';

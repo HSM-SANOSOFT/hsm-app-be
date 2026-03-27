@@ -15,24 +15,24 @@ volumes:
 
 services:
   hsm-app-be-base:
+    container_name: hsm-app-be-base
     image: hsm-app-be-base
     build:
       context: ../
       dockerfile: ./docker/dockerFile.base
-    container_name: hsm-app-be-base
 
   hsm-app-be-main:
+    container_name: hsm-app-be-main
     image: hsm-app-be-main
     build:
       context: ../
       args:
         - APP_TYPE=main
       dockerfile: ./docker/dockerFile.dev
-    container_name: hsm-app-be-main
-    ports:
-      - 3209:3000
     networks:
       - hsm-app-network
+    ports:
+      - 320901:3000
     volumes:
       - ../:/app
       - /app/node_modules
@@ -49,13 +49,13 @@ services:
       - hsm-app-be-worker
 
   hsm-app-be-worker:
+    container_name: hsm-app-be-worker
     image: hsm-app-be-worker
     build:
       context: ../
       args:
         - APP_TYPE=worker
       dockerfile: ./docker/dockerFile.dev
-    container_name: hsm-app-be-worker
     networks:
       - hsm-app-network
     volumes:
@@ -68,12 +68,12 @@ services:
     restart: unless-stopped
 
   hsm-app-db-postgres:
-    image: postgres:17-bookworm
     container_name: hsm-app-db-postgres
-    ports:
-      - 5432:5432
+    image: postgres:17-bookworm
     networks:
       - hsm-app-network
+    #ports:
+    #  - 5432:5432
     volumes:
       - ./postgres/init-schemas.sql:/docker-entrypoint-initdb.d/postgres.schemas.sql:ro
       - pgdata:/var/lib/postgresql/data
@@ -84,12 +84,12 @@ services:
     restart: unless-stopped
 
   hsm-app-db-redis:
-    image: redis:8-bookworm
     container_name: hsm-app-db-redis
-    ports:
-      - 6379:6379
+    image: redis:8-bookworm
     networks:
       - hsm-app-network
+    #ports:
+    #  - 6379:6379
     volumes:
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
       - ./redis/users.acl:/usr/local/etc/redis/users.acl:ro
@@ -101,28 +101,28 @@ services:
     restart: unless-stopped
 
   hsm-app-db-minio:
-    image: minio/minio:latest
     container_name: hsm-app-db-minio
+    image: minio/minio:latest
     networks:
       - hsm-app-network
+    ports:
+      #- 19000:9000
+      - 320902:9001
     environment:
       MINIO_ROOT_USER: minio_user
       MINIO_ROOT_PASSWORD: minio_password
-    ports:
-      - 19000:9000
-      - 19001:9001
     volumes:
       - miniodata:/data
     command: server /data --console-address ":9001"
     restart: unless-stopped
 
-  redisinsight:
+  hsm-app-db-console-redis:
+    container_name: hsm-app-db-console-redis
     image: redis/redisinsight:latest
-    container_name: redisinsight
-    ports:
-      - 5540:5540
     networks:
       - hsm-app-network
+    ports:
+      - 320903:5540
     environment:
       RI_ACCEPT_TERMS_AND_CONDITIONS: true
       RI_REDIS_HOST: hsm-app-db-redis
@@ -131,15 +131,15 @@ services:
       RI_REDIS_PASSWORD: redis
     restart: unless-stopped
 
-  pgadmin:
+  hsm-app-db-console-pgadmin:
+    container_name: hsm-app-db-console-pgadmin
     image: dpage/pgadmin4:latest
-    container_name: pgadmin
-    ports:
-      - 5050:80
-    volumes:
-      - ./postgres/servers.json:/pgadmin4/servers.json:ro
     networks:
       - hsm-app-network
+    ports:
+      - 320904:80
+    volumes:
+      - ./postgres/servers.json:/pgadmin4/servers.json:ro
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@example.com
       PGADMIN_DEFAULT_PASSWORD: secret
