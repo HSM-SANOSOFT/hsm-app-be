@@ -31,7 +31,7 @@ services:
     networks:
       - hsm-app-network
     ports:
-      - 320901:3000
+      - 10001:3000
     volumes:
       - ../:/app
       - /app/node_modules
@@ -57,6 +57,8 @@ services:
       dockerfile: ./docker/dockerFile.dev
     networks:
       - hsm-app-network
+    ports:
+      - 10002:3001
     volumes:
       - ../:/app
       - /app/node_modules
@@ -64,6 +66,11 @@ services:
       - ../.env
     environment:
       SECRET_PATH: /app/be
+    depends_on:
+      - hsm-app-be-base
+      - hsm-app-db-postgres
+      - hsm-app-db-redis
+      - hsm-app-db-minio
     restart: unless-stopped
 
   hsm-app-db-postgres:
@@ -71,8 +78,8 @@ services:
     image: postgres:17-bookworm
     networks:
       - hsm-app-network
-    #ports:
-    #  - 5432:5432
+    ports:
+      - 10003:5432
     volumes:
       - ./postgres/init-schemas.sql:/docker-entrypoint-initdb.d/postgres.schemas.sql:ro
       - pgdata:/var/lib/postgresql/data
@@ -87,8 +94,8 @@ services:
     image: redis:8-bookworm
     networks:
       - hsm-app-network
-    #ports:
-    #  - 6379:6379
+    ports:
+      - 10004:6379
     volumes:
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
       - ./redis/users.acl:/usr/local/etc/redis/users.acl:ro
@@ -105,8 +112,8 @@ services:
     networks:
       - hsm-app-network
     ports:
-      #- 19000:9000
-      - 320902:9001
+      - 10005:9000
+      - 10006:9001
     environment:
       MINIO_ROOT_USER: minio_user
       MINIO_ROOT_PASSWORD: minio_password
@@ -121,7 +128,7 @@ services:
     networks:
       - hsm-app-network
     ports:
-      - 320903:5540
+      - 10007:5540
     environment:
       RI_ACCEPT_TERMS_AND_CONDITIONS: true
       RI_REDIS_HOST: hsm-app-db-redis
@@ -136,7 +143,7 @@ services:
     networks:
       - hsm-app-network
     ports:
-      - 320904:80
+      - 10008:80
     volumes:
       - ./postgres/servers.json:/pgadmin4/servers.json:ro
     environment:
