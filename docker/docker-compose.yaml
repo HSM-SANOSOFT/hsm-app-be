@@ -12,7 +12,6 @@ volumes:
     name: hsm-app-redis-data
   miniodata:
     name: hsm-app-minio-data
-
 services:
   hsm-app-be-base:
     container_name: hsm-app-be-base
@@ -21,13 +20,13 @@ services:
       context: ../
       dockerfile: ./docker/dockerFile.base
 
-  hsm-app-be-main:
-    container_name: hsm-app-be-main
-    image: hsm-app-be-main
+  hsm-app-be-server:
+    container_name: hsm-app-be-server
+    image: hsm-app-be-server
     build:
       context: ../
       args:
-        - APP_TYPE=main
+        - APP_TYPE=server
       dockerfile: ./docker/dockerFile.dev
     networks:
       - hsm-app-network
