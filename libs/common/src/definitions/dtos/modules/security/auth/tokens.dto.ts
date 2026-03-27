@@ -1,4 +1,4 @@
-import { ITokens } from '@hsm-lib/definitions/interfaces';
+import { ITokens } from '@hsm-lib/common/definitions/interfaces';
 import { ApiProperty, ApiSchema } from '@nestjs/swagger';
 
 @ApiSchema({ name: 'Access and Refresh Token' })

@@ -3,7 +3,7 @@ import {
   EmailTemplateDataPipe,
   Public,
 } from '@hsm-lib/common';
-import { SendEmailPayloadDto } from '@hsm-lib/definitions/dtos';
+import { SendEmailPayloadDto } from '@hsm-lib/common/definitions/dtos';
 import { Body, Controller, Post } from '@nestjs/common';
 import { Roles } from '../../security/roles/roles.decorator';
 import { ComsService } from './coms.service';

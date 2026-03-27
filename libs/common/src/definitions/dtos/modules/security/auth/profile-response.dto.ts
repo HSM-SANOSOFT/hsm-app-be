@@ -1,5 +1,5 @@
-import { Role } from '@hsm-lib/definitions/enums';
-import { Roles } from '@hsm-lib/definitions/types';
+import { Role } from '@hsm-lib/common/definitions/enums';
+import { Roles } from '@hsm-lib/common/definitions/types';
 import { ApiProperty, ApiSchema } from '@nestjs/swagger';
 
 @ApiSchema({ name: 'Signed User Profile' })

@@ -1,5 +1,5 @@
-import { FacEmailTemplate } from '@hsm-lib/definitions/enums';
-import type { DtoClass } from '@hsm-lib/definitions/types';
+import { FacEmailTemplate } from '@hsm-lib/common/definitions/enums';
+import type { DtoClass } from '@hsm-lib/common/definitions/types';
 
 import { FacturaGeneradaTemplateDto } from './factura-generada.dto';
 import { FacturaListaTemplateDto } from './factura-lista.dto';

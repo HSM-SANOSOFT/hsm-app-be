@@ -1,7 +1,7 @@
 import {
   SuccessResponseDto,
   UnsuccessResponseDto,
-} from '@hsm-lib/definitions/dtos';
+} from '@hsm-lib/common/definitions/dtos';
 import { applyDecorators, HttpStatus } from '@nestjs/common';
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { Reflector } from '@nestjs/core';
@@ -22,7 +22,7 @@ import {
   ReferenceObject,
   SchemaObject,
 } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
-import { AuthJwtRtGuard } from '../../../../apps/main/src/modules/security/auth/guard/auth.jwt.rt.guard';
+import { AuthJwtRtGuard } from '../../../../apps/server/src/modules/security/auth/guard/auth.jwt.rt.guard';
 import { IS_PUBLIC_KEY } from './public.decorator';
 
 type ClassType = new (...args: unknown[]) => unknown;

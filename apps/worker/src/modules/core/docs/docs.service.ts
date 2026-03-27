@@ -1,4 +1,4 @@
-import { DocumentsPayloadDto } from '@hsm-lib/definitions/dtos';
+import { DocumentsPayloadDto } from '@hsm-lib/common/definitions/dtos';
 import { S3Service } from '@hsm-lib/storage/s3/s3.service';
 import { Injectable } from '@nestjs/common';
 

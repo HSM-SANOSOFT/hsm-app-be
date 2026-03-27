@@ -1,5 +1,5 @@
-import { MktEmailTemplate } from '@hsm-lib/definitions/enums';
-import type { DtoClass } from '@hsm-lib/definitions/types';
+import { MktEmailTemplate } from '@hsm-lib/common/definitions/enums';
+import type { DtoClass } from '@hsm-lib/common/definitions/types';
 
 import { CampanaPromocionalTemplateDto } from './campana-promocional.dto';
 import { CotizacionServicioTemplateDto } from './cotizacion-servicio.dto';

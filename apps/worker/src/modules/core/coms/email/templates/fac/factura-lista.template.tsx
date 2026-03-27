@@ -1,4 +1,4 @@
-import { FacturaListaTemplateDto } from '@hsm-lib/definitions/dtos';
+import { FacturaListaTemplateDto } from '@hsm-lib/common/definitions/dtos';
 
 export function FacturaListaTemplate(
   data: FacturaListaTemplateDto,

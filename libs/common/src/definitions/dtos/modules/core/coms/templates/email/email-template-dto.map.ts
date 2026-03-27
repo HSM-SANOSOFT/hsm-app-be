@@ -1,4 +1,7 @@
-import type { DtoClass, EmailTemplateName } from '@hsm-lib/definitions/types';
+import type {
+  DtoClass,
+  EmailTemplateName,
+} from '@hsm-lib/common/definitions/types';
 
 import { AdmTemplateDtoMap } from './adm/adm-template-dto.map';
 import { AuthTemplateDtoMap } from './auth/auth-template-dto.map';

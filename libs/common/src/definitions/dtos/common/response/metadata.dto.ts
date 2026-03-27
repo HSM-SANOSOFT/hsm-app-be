@@ -1,4 +1,4 @@
-import { MetadataExtraDto } from '@hsm-lib/definitions/dtos';
+import { MetadataExtraDto } from '@hsm-lib/common/definitions/dtos';
 import {
   ApiProperty,
   ApiPropertyOptional,

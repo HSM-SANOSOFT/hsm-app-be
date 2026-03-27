@@ -1,4 +1,4 @@
-import type { Roles } from '@hsm-lib/definitions/types';
+import type { Roles } from '@hsm-lib/common/definitions/types';
 import { ApiProperty, ApiSchema } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 

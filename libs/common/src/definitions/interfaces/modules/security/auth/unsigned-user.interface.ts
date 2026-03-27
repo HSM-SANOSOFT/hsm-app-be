@@ -1,5 +1,5 @@
+import type { Roles } from '@hsm-lib/common/definitions/types';
 import { UserEntity } from '@hsm-lib/database/entities';
-import type { Roles } from '@hsm-lib/definitions/types';
 
 export interface IUnsignedUser
   extends Pick<

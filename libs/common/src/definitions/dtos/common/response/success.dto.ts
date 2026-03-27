@@ -1,4 +1,4 @@
-import { MetadataDto } from '@hsm-lib/definitions/dtos';
+import { MetadataDto } from '@hsm-lib/common/definitions/dtos';
 import { ApiProperty, ApiSchema } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { ValidateNested } from 'class-validator';

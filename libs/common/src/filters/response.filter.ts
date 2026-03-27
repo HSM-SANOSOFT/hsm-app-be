@@ -1,5 +1,8 @@
-import { MetadataDto, UnsuccessResponseDto } from '@hsm-lib/definitions/dtos';
-import { IUnsuccessResponse } from '@hsm-lib/definitions/interfaces';
+import {
+  MetadataDto,
+  UnsuccessResponseDto,
+} from '@hsm-lib/common/definitions/dtos';
+import { IUnsuccessResponse } from '@hsm-lib/common/definitions/interfaces';
 import {
   ArgumentsHost,
   Catch,

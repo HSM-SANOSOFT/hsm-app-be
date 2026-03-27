@@ -1,6 +1,6 @@
+import { FunctionalityRole } from '@hsm-lib/common/definitions/enums';
 import { RefreshTokenUserIntegrationEntity } from '@hsm-lib/database/entities/modules/security/auth';
 import { databaseSchemas } from '@hsm-lib/database/sources/database-schema.enum';
-import { FunctionalityRole } from '@hsm-lib/definitions/enums';
 import {
   Column,
   CreateDateColumn,

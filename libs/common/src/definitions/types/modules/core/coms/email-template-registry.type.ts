@@ -3,7 +3,7 @@ import type {
   EmailTemplateDtoType,
   EmailTemplateName,
   EmailTemplateSelector,
-} from '@hsm-lib/definitions/types';
+} from '@hsm-lib/common/definitions/types';
 
 export type EmailRegistry = {
   [K in EmailTemplateName]: EmailTemplateSelector<EmailTemplateDtoType<K>>;

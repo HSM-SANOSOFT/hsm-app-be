@@ -1,4 +1,4 @@
-import { EmailTemplateName } from '@hsm-lib/definitions/types';
+import { EmailTemplateName } from '@hsm-lib/common/definitions/types';
 
 export enum AdmEmailTemplate {
   AutoAdmision = 'adm/auto-admision',

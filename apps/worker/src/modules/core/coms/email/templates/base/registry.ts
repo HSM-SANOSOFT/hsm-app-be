@@ -1,6 +1,6 @@
-import { BaseTemplateDtoMap } from '@hsm-lib/definitions/dtos';
-import { BaseEmailTemplate } from '@hsm-lib/definitions/enums';
-import { EmailRegistryFromDtoMap } from '@hsm-lib/definitions/types';
+import { BaseTemplateDtoMap } from '@hsm-lib/common/definitions/dtos';
+import { BaseEmailTemplate } from '@hsm-lib/common/definitions/enums';
+import { EmailRegistryFromDtoMap } from '@hsm-lib/common/definitions/types';
 
 import { BaseTemplate } from './base.template';
 

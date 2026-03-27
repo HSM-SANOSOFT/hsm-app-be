@@ -11,6 +11,9 @@
   ],
   "workspaceFolder": "/app",
   "forwardPorts": [10001, 10002, 10003, 10004, 10005, 10006, 10007, 10008],
+  "mounts": [
+    "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+  ],
   "customizations": {
     "vscode": {
       "extensions": [

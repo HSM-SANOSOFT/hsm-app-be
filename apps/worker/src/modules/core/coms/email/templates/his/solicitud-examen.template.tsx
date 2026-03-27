@@ -1,4 +1,4 @@
-import { SolicitudExamenesTemplateDto } from '@hsm-lib/definitions/dtos';
+import { SolicitudExamenesTemplateDto } from '@hsm-lib/common/definitions/dtos';
 
 export function SolicitudExamenesTemplate(
   data: SolicitudExamenesTemplateDto,

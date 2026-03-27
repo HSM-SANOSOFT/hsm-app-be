@@ -1,4 +1,4 @@
-import { PinRestablecimientoContrasenaTemplateDto } from '@hsm-lib/definitions/dtos';
+import { PinRestablecimientoContrasenaTemplateDto } from '@hsm-lib/common/definitions/dtos';
 
 export function PinRestablecimientoContrasenaTemplate(
   data: PinRestablecimientoContrasenaTemplateDto,

@@ -1,5 +1,5 @@
-import { HisEmailTemplate } from '@hsm-lib/definitions/enums';
-import type { DtoClass } from '@hsm-lib/definitions/types';
+import { HisEmailTemplate } from '@hsm-lib/common/definitions/enums';
+import type { DtoClass } from '@hsm-lib/common/definitions/types';
 
 import { CertificadoMedicoTemplateDto } from './certificado-medico.dto';
 import { ProgramacionQuirofanoTemplateDto } from './programacion-quirofano.dto';

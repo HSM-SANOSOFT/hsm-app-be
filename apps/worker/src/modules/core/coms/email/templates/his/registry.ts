@@ -1,6 +1,6 @@
-import { HisTemplateDtoMap } from '@hsm-lib/definitions/dtos';
-import { HisEmailTemplate } from '@hsm-lib/definitions/enums';
-import { EmailRegistryFromDtoMap } from '@hsm-lib/definitions/types';
+import { HisTemplateDtoMap } from '@hsm-lib/common/definitions/dtos';
+import { HisEmailTemplate } from '@hsm-lib/common/definitions/enums';
+import { EmailRegistryFromDtoMap } from '@hsm-lib/common/definitions/types';
 
 import { CertificadoMedicoTemplate } from './certificado-medico.template';
 import { ProgramacionQuirofanoTemplate } from './programacion-quirofano.template';

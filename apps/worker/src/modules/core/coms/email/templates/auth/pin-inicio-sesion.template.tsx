@@ -1,4 +1,4 @@
-import { PinInicioSesionTemplateDto } from '@hsm-lib/definitions/dtos';
+import { PinInicioSesionTemplateDto } from '@hsm-lib/common/definitions/dtos';
 
 export function PinInicioSesionTemplate(
   data: PinInicioSesionTemplateDto,

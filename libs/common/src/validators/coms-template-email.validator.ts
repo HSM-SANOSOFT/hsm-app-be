@@ -1,5 +1,5 @@
-import { EmailTemplateDtoMap } from '@hsm-lib/definitions/dtos';
-import type { DtoClass } from '@hsm-lib/definitions/types';
+import { EmailTemplateDtoMap } from '@hsm-lib/common/definitions/dtos';
+import type { DtoClass } from '@hsm-lib/common/definitions/types';
 import { Injectable, Logger } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import {

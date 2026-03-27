@@ -1,5 +1,5 @@
-import { AdmEmailTemplate } from '@hsm-lib/definitions/enums';
-import type { DtoClass } from '@hsm-lib/definitions/types';
+import { AdmEmailTemplate } from '@hsm-lib/common/definitions/enums';
+import type { DtoClass } from '@hsm-lib/common/definitions/types';
 
 import { AutoAdmisionTemplateDto } from './auto-admision-template.dto';
 import { BienvenidaTemplateDto } from './bienvenida-template.dto';

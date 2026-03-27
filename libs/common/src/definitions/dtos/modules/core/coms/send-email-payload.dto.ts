@@ -1,11 +1,11 @@
 //import { ValidateEmailTemplateData } from '@hsm-lib/common/validators';
 
-import { DocumentsPayloadDto } from '@hsm-lib/definitions/dtos/modules/core/docs/documents-payload.dto';
+import { DocumentsPayloadDto } from '@hsm-lib/common/definitions/dtos/modules/core/docs/documents-payload.dto';
 import {
   EMAIL_TEMPLATE_VALUES,
   EmailTemplate,
-} from '@hsm-lib/definitions/enums';
-import type { EmailTemplateName } from '@hsm-lib/definitions/types';
+} from '@hsm-lib/common/definitions/enums';
+import type { EmailTemplateName } from '@hsm-lib/common/definitions/types';
 import { ApiProperty, ApiSchema, PartialType } from '@nestjs/swagger';
 import {
   ArrayNotEmpty,

@@ -1,4 +1,4 @@
-import { CertificadoMedicoTemplateDto } from '@hsm-lib/definitions/dtos';
+import { CertificadoMedicoTemplateDto } from '@hsm-lib/common/definitions/dtos';
 
 export function CertificadoMedicoTemplate(
   data: CertificadoMedicoTemplateDto,

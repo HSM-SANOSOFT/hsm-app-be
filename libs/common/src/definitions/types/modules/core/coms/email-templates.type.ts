@@ -1,4 +1,4 @@
-import { EmailTemplate } from '@hsm-lib/definitions/enums';
+import { EmailTemplate } from '@hsm-lib/common/definitions/enums';
 
 type EnumObject = Record<string, string>;
 

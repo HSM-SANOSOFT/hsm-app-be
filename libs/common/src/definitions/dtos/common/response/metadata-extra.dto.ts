@@ -1,4 +1,8 @@
-import { FilterDto, PaginationDto, SortDto } from '@hsm-lib/definitions/dtos';
+import {
+  FilterDto,
+  PaginationDto,
+  SortDto,
+} from '@hsm-lib/common/definitions/dtos';
 import { ApiPropertyOptional, ApiSchema } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsArray, IsOptional, ValidateNested } from 'class-validator';

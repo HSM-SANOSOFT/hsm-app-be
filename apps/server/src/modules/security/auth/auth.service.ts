@@ -1,16 +1,10 @@
-import { envs } from '@hsm-lib/config';
-import {
-  RefreshTokenUserEntity,
-  RefreshTokenUserIntegrationEntity,
-} from '@hsm-lib/database/entities';
-import { Databases } from '@hsm-lib/database/sources';
 import {
   PinGenerationPayloadDto,
   PinValidationPayloadDto,
   SignupIntegrationTokenPayloadDto,
   SignupPayloadDto,
-} from '@hsm-lib/definitions/dtos';
-import { Role } from '@hsm-lib/definitions/enums';
+} from '@hsm-lib/common/definitions/dtos';
+import { Role } from '@hsm-lib/common/definitions/enums';
 import {
   IJwtPayloadUser,
   IJwtPayloadUserIntegration,
@@ -20,7 +14,13 @@ import {
   ITokens,
   IUnsignedUser,
   IUnsignedUserIntegration,
-} from '@hsm-lib/definitions/interfaces';
+} from '@hsm-lib/common/definitions/interfaces';
+import { envs } from '@hsm-lib/config';
+import {
+  RefreshTokenUserEntity,
+  RefreshTokenUserIntegrationEntity,
+} from '@hsm-lib/database/entities';
+import { Databases } from '@hsm-lib/database/sources';
 import {
   BadRequestException,
   Injectable,

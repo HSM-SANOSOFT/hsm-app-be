@@ -1,5 +1,5 @@
 import { ApiDocumentation } from '@hsm-lib/common/decorator';
-import { Role } from '@hsm-lib/definitions/enums';
+import { Role } from '@hsm-lib/common/definitions/enums';
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { Roles } from '../../../security/roles/roles.decorator';
 import { AvailabilityService } from './availability.service';

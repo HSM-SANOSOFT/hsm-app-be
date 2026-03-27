@@ -1,10 +1,10 @@
-import type { BaseTemplateDto } from '@hsm-lib/definitions/dtos';
-import { BaseEmailTemplate } from '@hsm-lib/definitions/enums';
+import type { BaseTemplateDto } from '@hsm-lib/common/definitions/dtos';
+import { BaseEmailTemplate } from '@hsm-lib/common/definitions/enums';
 import type {
   EmailRegistry,
   EmailTemplateDtoType,
   EmailTemplateName,
-} from '@hsm-lib/definitions/types';
+} from '@hsm-lib/common/definitions/types';
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { emailRegistry } from '../email/templates';

@@ -1,10 +1,10 @@
-import { envs } from '@hsm-lib/config';
 import type {
   IJwtPayloadUser,
   IJwtPayloadUserIntegration,
   ISignedUser,
   ISignedUserIntegration,
-} from '@hsm-lib/definitions/interfaces';
+} from '@hsm-lib/common/definitions/interfaces';
+import { envs } from '@hsm-lib/config';
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';

@@ -1,11 +1,11 @@
 import { IS_PUBLIC_KEY } from '@hsm-lib/common/decorator';
-import { envs } from '@hsm-lib/config/envs';
-import { Role } from '@hsm-lib/definitions/enums';
+import { Role } from '@hsm-lib/common/definitions/enums';
 import {
   ISignedUser,
   ISignedUserIntegration,
-} from '@hsm-lib/definitions/interfaces';
-import type { Roles } from '@hsm-lib/definitions/types';
+} from '@hsm-lib/common/definitions/interfaces';
+import type { Roles } from '@hsm-lib/common/definitions/types';
+import { envs } from '@hsm-lib/config/envs';
 import {
   CanActivate,
   ExecutionContext,

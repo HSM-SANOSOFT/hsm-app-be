@@ -1,4 +1,4 @@
-import { IssueDto } from '@hsm-lib/definitions/dtos';
+import { IssueDto } from '@hsm-lib/common/definitions/dtos';
 import { ApiProperty, ApiPropertyOptional, ApiSchema } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { ValidateNested } from 'class-validator';

@@ -1,4 +1,4 @@
-import type { EmailRegistry } from '@hsm-lib/definitions/types';
+import type { EmailRegistry } from '@hsm-lib/common/definitions/types';
 import { admEmailRegistry } from './adm';
 import { authEmailRegistry } from './auth';
 import { baseEmailRegistry } from './base';

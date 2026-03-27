@@ -1,6 +1,6 @@
-import { AuthTemplateDtoMap } from '@hsm-lib/definitions/dtos';
-import { AuthEmailTemplate } from '@hsm-lib/definitions/enums';
-import { EmailRegistryFromDtoMap } from '@hsm-lib/definitions/types';
+import { AuthTemplateDtoMap } from '@hsm-lib/common/definitions/dtos';
+import { AuthEmailTemplate } from '@hsm-lib/common/definitions/enums';
+import { EmailRegistryFromDtoMap } from '@hsm-lib/common/definitions/types';
 
 import { PinInicioSesionTemplate } from './pin-inicio-sesion.template';
 import { PinRegistroTemplate } from './pin-registro.template';

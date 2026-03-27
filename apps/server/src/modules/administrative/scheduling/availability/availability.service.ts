@@ -1,4 +1,5 @@
 import { parseIsoLocalDate, startOfLocalDay } from '@hsm-lib/common';
+import { AppointmentType } from '@hsm-lib/common/definitions/enums';
 import {
   AdmServidoresDiagnosticoEntity,
   EspecialidadesEntity,
@@ -7,7 +8,6 @@ import {
   PersonalEntity,
 } from '@hsm-lib/database/entities';
 import { Databases } from '@hsm-lib/database/sources';
-import { AppointmentType } from '@hsm-lib/definitions/enums';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';

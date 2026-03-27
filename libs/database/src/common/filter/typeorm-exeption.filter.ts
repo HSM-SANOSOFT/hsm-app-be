@@ -1,5 +1,5 @@
+import { IUnsuccessResponse } from '@hsm-lib/common/definitions/interfaces';
 import { envs } from '@hsm-lib/config';
-import { IUnsuccessResponse } from '@hsm-lib/definitions/interfaces';
 import {
   ArgumentsHost,
   Catch,
@@ -8,7 +8,6 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { Response } from 'express';
 import * as Mssql from 'mssql';
 import * as Mysql from 'mysql2';
 import * as Oracle from 'oracledb';

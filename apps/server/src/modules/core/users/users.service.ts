@@ -1,15 +1,15 @@
 import {
+  CreateUserIntegrationPayloadDto,
+  CreateUserPayloadDto,
+  DeleteUserPayloadDto,
+  UpdateUserPayloadDto,
+} from '@hsm-lib/common/definitions/dtos';
+import {
   UserEntity,
   UserIntegrationEntity,
   UserRoleEntity,
 } from '@hsm-lib/database/entities';
 import { Databases } from '@hsm-lib/database/sources';
-import {
-  CreateUserIntegrationPayloadDto,
-  CreateUserPayloadDto,
-  DeleteUserPayloadDto,
-  UpdateUserPayloadDto,
-} from '@hsm-lib/definitions/dtos';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { QueryRunner } from 'typeorm';

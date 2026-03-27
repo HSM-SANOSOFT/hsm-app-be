@@ -1,4 +1,4 @@
-import { IUnsignedUser } from '@hsm-lib/definitions/interfaces';
+import { IUnsignedUser } from '@hsm-lib/common/definitions/interfaces';
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-local';

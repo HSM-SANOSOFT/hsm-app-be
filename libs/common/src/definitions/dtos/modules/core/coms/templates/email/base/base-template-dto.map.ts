@@ -1,5 +1,5 @@
-import { BaseEmailTemplate } from '@hsm-lib/definitions/enums';
-import type { DtoClass } from '@hsm-lib/definitions/types';
+import { BaseEmailTemplate } from '@hsm-lib/common/definitions/enums';
+import type { DtoClass } from '@hsm-lib/common/definitions/types';
 
 import { BaseTemplateDto } from './base-template.dto';
 

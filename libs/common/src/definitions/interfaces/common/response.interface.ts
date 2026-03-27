@@ -1,7 +1,7 @@
 import {
   SuccessResponseDto,
   UnsuccessResponseDto,
-} from '@hsm-lib/definitions/dtos';
+} from '@hsm-lib/common/definitions/dtos';
 
 type MetadataOf<T> = NonNullable<SuccessResponseDto<T>['metadata']>;
 

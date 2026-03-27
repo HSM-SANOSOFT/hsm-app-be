@@ -1,4 +1,4 @@
-import { CotizacionServicioTemplateDto } from '@hsm-lib/definitions/dtos';
+import { CotizacionServicioTemplateDto } from '@hsm-lib/common/definitions/dtos';
 
 export function CotizacionServicioTemplate(
   data: CotizacionServicioTemplateDto,

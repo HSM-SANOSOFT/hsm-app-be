@@ -1,4 +1,4 @@
-import { ResultadoExamenesTemplateDto } from '@hsm-lib/definitions/dtos';
+import { ResultadoExamenesTemplateDto } from '@hsm-lib/common/definitions/dtos';
 
 export function ResultadoExamenesTemplate(
   data: ResultadoExamenesTemplateDto,

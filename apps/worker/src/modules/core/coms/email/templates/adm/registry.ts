@@ -1,6 +1,6 @@
-import { AdmTemplateDtoMap } from '@hsm-lib/definitions/dtos';
-import { AdmEmailTemplate } from '@hsm-lib/definitions/enums';
-import { EmailRegistryFromDtoMap } from '@hsm-lib/definitions/types';
+import { AdmTemplateDtoMap } from '@hsm-lib/common/definitions/dtos';
+import { AdmEmailTemplate } from '@hsm-lib/common/definitions/enums';
+import { EmailRegistryFromDtoMap } from '@hsm-lib/common/definitions/types';
 
 import { AutoAdmisionTemplate } from './auto-admision.template';
 import { BienvenidaTemplate } from './bienvenida.template';

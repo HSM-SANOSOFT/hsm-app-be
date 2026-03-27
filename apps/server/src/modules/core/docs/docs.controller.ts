@@ -2,7 +2,7 @@ import { ApiDocumentation } from '@hsm-lib/common';
 import {
   DocumentsPayloadDto,
   UploadDocumentPayloadDto,
-} from '@hsm-lib/definitions/dtos';
+} from '@hsm-lib/common/definitions/dtos';
 import {
   Body,
   Controller,

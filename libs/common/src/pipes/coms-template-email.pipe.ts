@@ -1,7 +1,7 @@
-import { Injectable, PipeTransform, BadRequestException } from '@nestjs/common';
+import { EmailTemplateDtoMap } from '@hsm-lib/common/definitions/dtos';
+import { BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
-import { validateSync, ValidationError } from 'class-validator';
-import { EmailTemplateDtoMap } from '@hsm-lib/definitions/dtos';
+import { ValidationError, validateSync } from 'class-validator';
 
 @Injectable()
 export class EmailTemplateDataPipe implements PipeTransform {

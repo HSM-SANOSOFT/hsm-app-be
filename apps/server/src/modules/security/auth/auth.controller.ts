@@ -6,17 +6,17 @@ import {
   PinValidationPayloadDto,
   SignupIntegrationTokenPayloadDto,
   SignupPayloadDto,
-} from '@hsm-lib/definitions/dtos';
+} from '@hsm-lib/common/definitions/dtos';
 import {
   SignedIntegrationProfileDto,
   SignedUserProfileDto,
-} from '@hsm-lib/definitions/dtos/modules/security/auth/profile-response.dto';
-import { TokensDto } from '@hsm-lib/definitions/dtos/modules/security/auth/tokens.dto';
-import { Role } from '@hsm-lib/definitions/enums';
+} from '@hsm-lib/common/definitions/dtos/modules/security/auth/profile-response.dto';
+import { TokensDto } from '@hsm-lib/common/definitions/dtos/modules/security/auth/tokens.dto';
+import { Role } from '@hsm-lib/common/definitions/enums';
 import type {
   IRefreshUser,
   ISignedUser,
-} from '@hsm-lib/definitions/interfaces';
+} from '@hsm-lib/common/definitions/interfaces';
 import {
   Body,
   Controller,

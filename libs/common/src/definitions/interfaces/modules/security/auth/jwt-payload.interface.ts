@@ -1,7 +1,7 @@
 import type {
   IUnsignedUser,
   IUnsignedUserIntegration,
-} from '@hsm-lib/definitions/interfaces';
+} from '@hsm-lib/common/definitions/interfaces';
 
 export interface IJwtPayloadUser extends Omit<IUnsignedUser, 'id'> {
   sub: IUnsignedUser['id'];
