@@ -10,16 +10,7 @@
     "hsm-app-db-console-pgadmin"
   ],
   "workspaceFolder": "/app",
-  "forwardPorts": [
-    10001,
-    10002,
-    10003,
-    10004,
-    10005,
-    10006,
-    10007,
-    10008
-  ],
+  "forwardPorts": [10001, 10002, 10003, 10004, 10005, 10006, 10007, 10008],
   "customizations": {
     "vscode": {
       "extensions": [
