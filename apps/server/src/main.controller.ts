@@ -1,10 +1,10 @@
-import { ApiDocumentation, Public } from '@hsm-lib/common/decorator';
 import { Controller, Get } from '@nestjs/common';
 import {
   HealthCheck,
   HealthCheckService,
   HttpHealthIndicator,
 } from '@nestjs/terminus';
+import { ApiDocumentation, Public } from 'apps/server/src/decorator';
 import { MainService } from './main.service';
 
 @Controller('health')

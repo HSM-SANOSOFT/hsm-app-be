@@ -22,7 +22,7 @@ import {
   ReferenceObject,
   SchemaObject,
 } from '@nestjs/swagger/dist/interfaces/open-api-spec.interface';
-import { AuthJwtRtGuard } from '../../../../apps/server/src/modules/security/auth/guard/auth.jwt.rt.guard';
+import { AuthJwtRtGuard } from '../modules/security/auth/guard/auth.jwt.rt.guard';
 import { IS_PUBLIC_KEY } from './public.decorator';
 
 type ClassType = new (...args: unknown[]) => unknown;

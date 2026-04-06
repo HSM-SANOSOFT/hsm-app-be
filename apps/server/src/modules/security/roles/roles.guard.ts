@@ -1,4 +1,3 @@
-import { IS_PUBLIC_KEY } from '@hsm-lib/common/decorator';
 import { Role } from '@hsm-lib/common/definitions/enums';
 import {
   ISignedUser,
@@ -14,6 +13,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { IS_PUBLIC_KEY } from 'apps/server/src/decorator';
 import { ROLES_KEY } from './roles.decorator';
 
 @Injectable()

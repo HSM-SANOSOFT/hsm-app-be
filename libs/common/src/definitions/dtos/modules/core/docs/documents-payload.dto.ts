@@ -1,4 +1,4 @@
-import { documentDtoFactory } from '@hsm-lib/common/utils/';
+import { documentDtoFactory } from 'apps/server/src/utils';
 import { Type } from 'class-transformer';
 import { IsArray, IsNotEmpty, IsString, ValidateNested } from 'class-validator';
 

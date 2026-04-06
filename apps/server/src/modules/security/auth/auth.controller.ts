@@ -1,4 +1,3 @@
-import { ApiDocumentation, Public } from '@hsm-lib/common/decorator';
 import {
   LoginPayloadDto,
   LogoutIntegrationTokenPayloadDto,
@@ -26,6 +25,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { ApiDocumentation, Public } from 'apps/server/src/decorator';
 import type { Request } from 'express';
 import { Roles } from '../roles/roles.decorator';
 import { AuthService } from './auth.service';
