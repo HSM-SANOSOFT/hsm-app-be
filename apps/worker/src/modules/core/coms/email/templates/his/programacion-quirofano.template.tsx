@@ -1,4 +1,5 @@
-import { ProgramacionQuirofanoTemplateDto } from '@hsm-lib/common/definitions/dtos';
+import { ProgramacionQuirofanoTemplateDto } from
+'@hsm-lib/common/
 
 export function ProgramacionQuirofanoTemplate(
   data: ProgramacionQuirofanoTemplateDto,

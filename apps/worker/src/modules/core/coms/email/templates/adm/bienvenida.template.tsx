@@ -1,4 +1,5 @@
-import { BienvenidaTemplateDto } from '@hsm-lib/common/definitions/dtos';
+import { BienvenidaTemplateDto } from
+'@hsm-lib/common/
 
 export function BienvenidaTemplate(
   _data: BienvenidaTemplateDto,

@@ -1,10 +1,14 @@
 import { ROLES_KEY } from '@hsm-app/server/modules/security/roles/roles.decorator';
-import { Role } from '@hsm-lib/common/definitions/enums';
+import { Role } from
+'@hsm-lib/common/
 import {
   ISignedUser,
   ISignedUserIntegration,
-} from '@hsm-lib/common/definitions/interfaces';
-import type { Roles } from '@hsm-lib/common/definitions/types';
+} from
+'@hsm-lib/common/
+import type { Roles } from
+'@hsm-lib/common/
+
 import { envs } from '@hsm-lib/config/envs';
 import {
   CanActivate,

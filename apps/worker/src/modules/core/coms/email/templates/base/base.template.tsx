@@ -1,4 +1,5 @@
-import { BaseTemplateDto } from '@hsm-lib/common/definitions/dtos';
+import { BaseTemplateDto } from
+'@hsm-lib/common/
 
 export function BaseTemplate(data: BaseTemplateDto): React.ReactNode {
   const BRAND_BLUE = '#06478d';

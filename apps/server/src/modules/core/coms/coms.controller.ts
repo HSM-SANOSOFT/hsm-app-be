@@ -2,7 +2,9 @@ import { ApiDocumentation, Public } from '@hsm-app/server/decorator';
 import { ComsService } from '@hsm-app/server/modules/core/coms/coms.service';
 import { Roles } from '@hsm-app/server/modules/security/roles/roles.decorator';
 import { EmailTemplateDataPipe } from '@hsm-app/server/pipes';
-import { SendEmailPayloadDto } from '@hsm-lib/common/definitions/dtos';
+import { SendEmailPayloadDto } from
+'@hsm-lib/common/
+
 import { Body, Controller, Post } from '@nestjs/common';
 
 @Controller('coms')

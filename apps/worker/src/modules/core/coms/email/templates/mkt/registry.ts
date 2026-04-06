@@ -1,6 +1,10 @@
-import { MktTemplateDtoMap } from '@hsm-lib/common/definitions/dtos';
-import { MktEmailTemplate } from '@hsm-lib/common/definitions/enums';
-import { EmailRegistryFromDtoMap } from '@hsm-lib/common/definitions/types';
+import { MktTemplateDtoMap } from
+'@hsm-lib/common/
+import { MktEmailTemplate } from
+'@hsm-lib/common/
+import { EmailRegistryFromDtoMap } from
+'@hsm-lib/common/
+
 import { CampanaPromocionalTemplate } from './campana-promocional.template';
 import { CotizacionServicioTemplate } from './cotizacion-servicio.template';
 

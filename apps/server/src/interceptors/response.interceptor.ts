@@ -2,8 +2,8 @@ import {
   MetadataDto,
   MetadataExtraDto,
   SuccessResponseDto,
-} from '@hsm-lib/common/definitions/dtos';
-import { ISuccessResponse } from '@hsm-lib/common/definitions/interfaces';
+} from '@hsm-lib/common/dtos';
+import { ISuccessResponse } from '@hsm-lib/common/interfaces';
 import {
   CallHandler,
   ExecutionContext,

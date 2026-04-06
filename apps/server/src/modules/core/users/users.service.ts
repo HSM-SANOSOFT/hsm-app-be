@@ -4,7 +4,9 @@ import {
   CreateUserPayloadDto,
   DeleteUserPayloadDto,
   UpdateUserPayloadDto,
-} from '@hsm-lib/common/definitions/dtos';
+} from
+'@hsm-lib/common/
+
 import {
   UserEntity,
   UserIntegrationEntity,

@@ -1,4 +1,5 @@
-import { DocumentoDerivacionAprobadoTemplateDto } from '@hsm-lib/common/definitions/dtos';
+import { DocumentoDerivacionAprobadoTemplateDto } from
+'@hsm-lib/common/
 
 export function DocumentoDerivacionAprobadoTemplate(
   data: DocumentoDerivacionAprobadoTemplateDto,

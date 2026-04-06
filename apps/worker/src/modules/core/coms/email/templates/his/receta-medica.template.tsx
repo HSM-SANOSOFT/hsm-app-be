@@ -1,4 +1,5 @@
-import { RecetaMedicaTemplateDto } from '@hsm-lib/common/definitions/dtos';
+import { RecetaMedicaTemplateDto } from
+'@hsm-lib/common/
 
 export function RecetaMedicaTemplate(
   data: RecetaMedicaTemplateDto,

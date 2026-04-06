@@ -1,4 +1,5 @@
-import { PinResultadoExamenTemplateDto } from '@hsm-lib/common/definitions/dtos';
+import { PinResultadoExamenTemplateDto } from
+'@hsm-lib/common/
 
 export function PinResultadoExamenTemplate(
   data: PinResultadoExamenTemplateDto,

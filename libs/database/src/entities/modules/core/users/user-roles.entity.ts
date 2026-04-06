@@ -1,4 +1,4 @@
-import type { RoleDomains, Roles } from '@hsm-lib/common/definitions/types';
+import type { RoleDomains, Roles } from '@hsm-lib/common/types';
 import { UserEntity } from '@hsm-lib/database/entities/modules/core/users/users.entity';
 import { databaseSchemas } from '@hsm-lib/database/sources/database-schema.enum';
 import {

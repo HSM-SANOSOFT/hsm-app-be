@@ -1,4 +1,6 @@
-import { SendEmailPayloadDto } from '@hsm-lib/common/definitions/dtos';
+import { SendEmailPayloadDto } from
+'@hsm-lib/common/
+
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { Queue } from 'bullmq';

@@ -2,7 +2,7 @@ import {
   DocumentsPayloadDto,
   S3FileUploadPayloadDto,
   UploadDocumentPayloadDto,
-} from '@hsm-lib/common/definitions/dtos';
+} from '@hsm-lib/common/dtos';
 import { S3Service } from '@hsm-lib/storage/s3/s3.service';
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 

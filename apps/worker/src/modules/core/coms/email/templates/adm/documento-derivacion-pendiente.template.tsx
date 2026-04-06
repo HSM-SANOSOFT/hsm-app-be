@@ -1,4 +1,4 @@
-import { DocumentoDerivacionPendienteTemplateDto } from '@hsm-lib/common/definitions/dtos';
+import { DocumentoDerivacionPendienteTemplateDto } from '@hsm-lib/common/dtos';
 
 export function DocumentoDerivacionPendienteTemplate(
   _data: DocumentoDerivacionPendienteTemplateDto,

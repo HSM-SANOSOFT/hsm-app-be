@@ -1,4 +1,5 @@
-import { RecordatorioCitaTemplateDto } from '@hsm-lib/common/definitions/dtos';
+import { RecordatorioCitaTemplateDto } from
+'@hsm-lib/common/
 export function RecordatorioCitaTemplate(
   data: RecordatorioCitaTemplateDto,
 ): React.ReactNode {

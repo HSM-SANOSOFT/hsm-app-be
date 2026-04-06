@@ -4,8 +4,8 @@ import {
   PinValidationPayloadDto,
   SignupIntegrationTokenPayloadDto,
   SignupPayloadDto,
-} from '@hsm-lib/common/definitions/dtos';
-import { Role } from '@hsm-lib/common/definitions/enums';
+} from '@hsm-lib/common/dtos';
+import { Role } from '@hsm-lib/common/enums';
 import {
   IJwtPayloadUser,
   IJwtPayloadUserIntegration,
@@ -15,7 +15,7 @@ import {
   ITokens,
   IUnsignedUser,
   IUnsignedUserIntegration,
-} from '@hsm-lib/common/definitions/interfaces';
+} from '@hsm-lib/common/interfaces';
 import { envs } from '@hsm-lib/config';
 import {
   RefreshTokenUserEntity,

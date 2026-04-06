@@ -1,4 +1,5 @@
-import { ReagendamientoTemplateDto } from '@hsm-lib/common/definitions/dtos';
+import { ReagendamientoTemplateDto } from
+'@hsm-lib/common/
 export function ReagendamientoTemplate(
   data: ReagendamientoTemplateDto,
 ): React.ReactNode {

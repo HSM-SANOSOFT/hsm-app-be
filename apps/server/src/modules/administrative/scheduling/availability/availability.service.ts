@@ -1,5 +1,7 @@
 import { parseIsoLocalDate, startOfLocalDay } from '@hsm-app/server/utils';
-import { AppointmentType } from '@hsm-lib/common/definitions/enums';
+import { AppointmentType } from
+'@hsm-lib/common/
+
 import {
   AdmServidoresDiagnosticoEntity,
   EspecialidadesEntity,

@@ -1,4 +1,4 @@
-import { CampanaPromocionalTemplateDto } from '@hsm-lib/common/definitions/dtos';
+import { CampanaPromocionalTemplateDto } from '@hsm-lib/common/dtos';
 
 export function CampanaPromocionalTemplate(
   _data: CampanaPromocionalTemplateDto,

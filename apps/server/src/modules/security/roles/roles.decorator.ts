@@ -1,4 +1,4 @@
-import type { Roles as Role } from '@hsm-lib/common/definitions/types/modules/security/roles';
+import type { Roles as Role } from '@hsm-lib/common/s/security/roles';
 import { SetMetadata } from '@nestjs/common';
 
 export const ROLES_KEY = 'roles';

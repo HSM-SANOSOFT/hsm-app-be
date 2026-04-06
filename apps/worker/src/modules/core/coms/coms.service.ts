@@ -1,4 +1,6 @@
-import { SendEmailPayloadDto } from '@hsm-lib/common/definitions/dtos';
+import { SendEmailPayloadDto } from
+'@hsm-lib/common/
+
 import { QueueWorkerHost } from '@hsm-lib/queue';
 import { Processor } from '@nestjs/bullmq';
 import { Job } from 'bullmq';

@@ -1,4 +1,4 @@
-import { IUnsuccessResponse } from '@hsm-lib/common/definitions/interfaces';
+import { IUnsuccessResponse } from '@hsm-lib/common/interfaces';
 import { envs } from '@hsm-lib/config';
 import {
   ArgumentsHost,

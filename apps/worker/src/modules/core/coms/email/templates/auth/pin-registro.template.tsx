@@ -1,4 +1,4 @@
-import { PinRegistroTemplateDto } from '@hsm-lib/common/definitions/dtos';
+import { PinRegistroTemplateDto } from '@hsm-lib/common/dtos';
 
 export function PinRegistroTemplate(
   data: PinRegistroTemplateDto,

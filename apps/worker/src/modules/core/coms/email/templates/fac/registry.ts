@@ -1,6 +1,9 @@
-import { FacTemplateDtoMap } from '@hsm-lib/common/definitions/dtos';
-import { FacEmailTemplate } from '@hsm-lib/common/definitions/enums';
-import { EmailRegistryFromDtoMap } from '@hsm-lib/common/definitions/types';
+import { FacTemplateDtoMap } from
+'@hsm-lib/common/
+import { FacEmailTemplate } from
+'@hsm-lib/common/
+import { EmailRegistryFromDtoMap } from
+'@hsm-lib/common/
 
 import { FacturaGeneradaTemplate } from './factura-generada.template';
 import { FacturaListaTemplate } from './factura-lista.template';

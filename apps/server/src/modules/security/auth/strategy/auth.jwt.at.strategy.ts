@@ -3,7 +3,7 @@ import type {
   IJwtPayloadUserIntegration,
   ISignedUser,
   ISignedUserIntegration,
-} from '@hsm-lib/common/definitions/interfaces';
+} from '@hsm-lib/common/interfaces';
 import { envs } from '@hsm-lib/config';
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';

@@ -1,4 +1,6 @@
-import { EmailTemplateDtoMap } from '@hsm-lib/common/definitions/dtos';
+import { EmailTemplateDtoMap } from
+'@hsm-lib/common/
+
 import { BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { ValidationError, validateSync } from 'class-validator';

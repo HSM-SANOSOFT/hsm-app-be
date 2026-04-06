@@ -1,15 +1,14 @@
-import {
-  MetadataDto,
-  UnsuccessResponseDto,
-} from '@hsm-lib/common/definitions/dtos';
-import { IUnsuccessResponse } from '@hsm-lib/common/definitions/interfaces';
-import {
-  ArgumentsHost,
-  Catch,
+import { MetadataDto, UnsuccessResponseDto } from '@hsm-lib/common/dtos';
+import { IUnsuccessResponse } from '@hsm-lib/common/interfaces';
+
+@hsm
+-lib/common/
+  Catch,@hsm-lib/common/
   ExceptionFilter,
   HttpException,
   Logger,
-} from '@nestjs/common';
+} from '@nestjs/common'
+
 import { Request, Response } from 'express';
 import { extractApiVersion } from '../utils';
 

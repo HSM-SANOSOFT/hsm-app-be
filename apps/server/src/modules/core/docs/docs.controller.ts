@@ -4,7 +4,9 @@ import { Roles } from '@hsm-app/server/modules/security/roles/roles.decorator';
 import {
   DocumentsPayloadDto,
   UploadDocumentPayloadDto,
-} from '@hsm-lib/common/definitions/dtos';
+} from
+'@hsm-lib/common/
+
 import {
   Body,
   Controller,

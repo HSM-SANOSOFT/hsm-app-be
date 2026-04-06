@@ -1,4 +1,5 @@
-import { AutoAdmisionTemplateDto } from '@hsm-lib/common/definitions/dtos';
+import { AutoAdmisionTemplateDto } from
+'@hsm-lib/common/
 export function AutoAdmisionTemplate(
   data: AutoAdmisionTemplateDto,
 ): React.ReactNode {

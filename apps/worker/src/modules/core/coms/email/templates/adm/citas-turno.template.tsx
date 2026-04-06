@@ -1,4 +1,5 @@
-import { CitasTurnoTemplateDto } from '@hsm-lib/common/definitions/dtos';
+import { CitasTurnoTemplateDto } from
+'@hsm-lib/common/
 
 export function CitasTurnoTemplate(
   data: CitasTurnoTemplateDto,
