@@ -1,3 +1,4 @@
+import { ROLES_KEY } from '@hsm-app/server/modules/security/roles/roles.decorator';
 import { Role } from '@hsm-lib/common/definitions/enums';
 import {
   ISignedUser,
@@ -14,7 +15,6 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from 'apps/server/src/decorator';
-import { ROLES_KEY } from './roles.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {

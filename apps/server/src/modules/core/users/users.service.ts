@@ -1,3 +1,4 @@
+import { RolesService } from '@hsm-app/server/modules/security/roles/roles.service';
 import {
   CreateUserIntegrationPayloadDto,
   CreateUserPayloadDto,
@@ -14,7 +15,6 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { QueryRunner } from 'typeorm';
 import { Repository } from 'typeorm';
-import { RolesService } from '../../security/roles/roles.service';
 
 @Injectable()
 export class UsersService {

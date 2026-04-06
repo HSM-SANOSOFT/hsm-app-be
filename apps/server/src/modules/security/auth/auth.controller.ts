@@ -1,3 +1,8 @@
+import { ApiDocumentation, Public } from '@hsm-app/server/decorator';
+import { AuthService } from '@hsm-app/server/modules/security/auth/auth.service';
+import { AuthLocalGuard } from '@hsm-app/server/modules/security/auth/guard';
+import { AuthJwtRtGuard } from '@hsm-app/server/modules/security/auth/guard/auth.jwt.rt.guard';
+import { Roles } from '@hsm-app/server/modules/security/roles/roles.decorator';
 import {
   LoginPayloadDto,
   LogoutIntegrationTokenPayloadDto,
@@ -25,12 +30,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiDocumentation, Public } from 'apps/server/src/decorator';
 import type { Request } from 'express';
-import { Roles } from '../roles/roles.decorator';
-import { AuthService } from './auth.service';
-import { AuthLocalGuard } from './guard';
-import { AuthJwtRtGuard } from './guard/auth.jwt.rt.guard';
 
 @Controller('auth')
 export class AuthController {

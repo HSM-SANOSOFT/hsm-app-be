@@ -1,4 +1,6 @@
-import { ApiDocumentation } from '@hsm-lib/common';
+import { ApiDocumentation } from '@hsm-app/server/decorator';
+import { DocsService } from '@hsm-app/server/modules/core/docs/docs.service';
+import { Roles } from '@hsm-app/server/modules/security/roles/roles.decorator';
 import {
   DocumentsPayloadDto,
   UploadDocumentPayloadDto,
@@ -14,8 +16,6 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { Roles } from '../../security/roles/roles.decorator';
-import { DocsService } from './docs.service';
 
 @Controller('docs')
 export class DocsController {

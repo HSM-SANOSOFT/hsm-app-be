@@ -1,8 +1,8 @@
+import { AuthService } from '@hsm-app/server/modules/security/auth/auth.service';
 import { IUnsignedUser } from '@hsm-lib/common/definitions/interfaces';
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-local';
-import { AuthService } from '../auth.service';
 
 @Injectable()
 export class AuthLocalStrategy extends PassportStrategy(Strategy, 'local') {

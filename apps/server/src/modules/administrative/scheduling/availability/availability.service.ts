@@ -1,3 +1,4 @@
+import { parseIsoLocalDate, startOfLocalDay } from '@hsm-app/server/utils';
 import { AppointmentType } from '@hsm-lib/common/definitions/enums';
 import {
   AdmServidoresDiagnosticoEntity,
@@ -10,7 +11,6 @@ import { Databases } from '@hsm-lib/database/sources';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { parseIsoLocalDate, startOfLocalDay } from '../../../../utils';
 
 @Injectable()
 export class AvailabilityService {
