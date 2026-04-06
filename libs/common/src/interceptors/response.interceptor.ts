@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { map, Observable } from 'rxjs';
-import { extractApiVersion } from '../services';
+import { extractApiVersion } from '../utils';
 
 @Injectable()
 export class ResponseInterceptor<T>

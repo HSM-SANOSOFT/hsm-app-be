@@ -11,7 +11,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { extractApiVersion } from '../services';
+import { extractApiVersion } from '../utils';
 
 /**
  * Type guards
