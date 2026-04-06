@@ -9,6 +9,10 @@
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "paths": {
+      "@hsm-apps/server": ["apps/server/src"],
+      "@hsm-apps/server/*": ["apps/server/src/*"],
+      "@hsm-apps/worker": ["apps/worker/src"],
+      "@hsm-apps/worker/*": ["apps/worker/src/*"],
       "@hsm-lib/common": ["libs/common/src"],
       "@hsm-lib/common/*": ["libs/common/src/*"],
       "@hsm-lib/config": ["libs/config/src/"],
