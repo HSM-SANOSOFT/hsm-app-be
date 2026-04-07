@@ -24,3 +24,9 @@ export const Role = {
   Clinical: ClinicalRoles,
   Administrative: AdministrativeRole,
 } as const;
+
+export enum FunctionalityRole {
+  Prod = 'prod',
+  Staging = 'staging',
+  Dev = 'dev',
+}
