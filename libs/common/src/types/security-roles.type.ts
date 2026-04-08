@@ -1,6 +1,6 @@
-import { Role } from '@hsm-lib/common/enums';
-export type RoleDomains = keyof typeof Role;
+import { RolesEnum } from '@hsm-lib/common/enums';
+export type RoleDomains = keyof typeof RolesEnum;
 
 type RoleValues<T> = T extends object ? T[keyof T] : never;
 
-export type Roles = RoleValues<(typeof Role)[keyof typeof Role]>;
+export type RolesType = RoleValues<(typeof RolesEnum)[keyof typeof RolesEnum]>;

@@ -1,4 +1,4 @@
-import { Role } from '@hsm-lib/common/enums';
+import { RolesEnum } from '@hsm-lib/common/enums';
 
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiDocumentation } from 'apps/server/src/decorator';
@@ -9,7 +9,7 @@ import { AvailabilityService } from './availability.service';
 export class AvailabilityController {
   constructor(private readonly availabilityService: AvailabilityService) {}
   @ApiDocumentation()
-  @Roles(Role.System.Integration)
+  @Roles(RolesEnum.System.Integration)
   @Get('specialties')
   getSpecialties() {
     return this.availabilityService.getSpecialties();

@@ -1,31 +1,31 @@
-export enum SystemRoles {
+export enum RolesSystemEnum {
   Admin = 'admin',
   Integration = 'integration',
 }
 
-export enum ClinicalRoles {
+export enum RolesClinicalEnum {
   Doctor = 'doctor',
   Nurse = 'nurse',
 }
 
-export enum AdministrativeRole {
+export enum RolesAdministrativeEnum {
   Receptionist = 'receptionist',
 }
 
-export enum DefaultRole {
+export enum RolesDefaultEnum {
   Basic = 'basic',
   User = 'user',
   Auditor = 'auditor',
 }
 
-export const Role = {
-  Default: DefaultRole,
-  System: SystemRoles,
-  Clinical: ClinicalRoles,
-  Administrative: AdministrativeRole,
+export const RolesEnum = {
+  Default: RolesDefaultEnum,
+  System: RolesSystemEnum,
+  Clinical: RolesClinicalEnum,
+  Administrative: RolesAdministrativeEnum,
 } as const;
 
-export enum FunctionalityRole {
+export enum RoleFunctionalityEnum {
   Prod = 'prod',
   Staging = 'staging',
   Dev = 'dev',

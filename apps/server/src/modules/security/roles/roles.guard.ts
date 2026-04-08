@@ -1,10 +1,10 @@
 import { ROLES_KEY } from '@hsm-app/server/modules/security/roles/roles.decorator';
-import { Role } from '@hsm-lib/common/enums';
+import { RolesEnum } from '@hsm-lib/common/enums';
 import {
   ISignedUser,
   ISignedUserIntegration,
 } from '@hsm-lib/common/interfaces';
-import type { Roles } from '@hsm-lib/common/types';
+import type { RolesType } from '@hsm-lib/common/types';
 
 import { envs } from '@hsm-lib/config/envs';
 import {
@@ -27,10 +27,10 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const requiredRoles = this.reflector.getAllAndOverride<Roles[]>(ROLES_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const requiredRoles = this.reflector.getAllAndOverride<RolesType[]>(
+      ROLES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
     const hasRequiredRoles = !!requiredRoles && requiredRoles.length > 0;
 
@@ -43,7 +43,7 @@ export class RolesGuard implements CanActivate {
       .switchToHttp()
       .getRequest();
 
-    const isAdmin = user.roles.includes(Role.System.Admin);
+    const isAdmin = user.roles.includes(RolesEnum.System.Admin);
 
     if (isPublic) {
       if (hasRequiredRoles) {

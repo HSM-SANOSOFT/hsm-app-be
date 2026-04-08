@@ -1,5 +1,5 @@
 import { parseIsoLocalDate, startOfLocalDay } from '@hsm-app/server/utils';
-import { AppointmentTypes } from '@hsm-lib/common/enums';
+import { AppointmentTypesEnums } from '@hsm-lib/common/enums';
 
 import {
   AdmServidoresDiagnosticoEntity,
@@ -125,7 +125,7 @@ export class AvailabilityService {
     query: {
       dateFrom?: string;
       dateTo?: string;
-      appointmentType?: AppointmentTypes;
+      appointmentType?: AppointmentTypesEnums;
     },
   ) {
     const { providerId } = params;
@@ -162,7 +162,8 @@ export class AvailabilityService {
 
       const fechaStr = `${dd}/${mm}/${yyyy}`;
 
-      const appointmentType = query.appointmentType || AppointmentTypes.Privado;
+      const appointmentType =
+        query.appointmentType || AppointmentTypesEnums.Privado;
 
       const horarioRows = await this.dataSourceOracle.query(
         `

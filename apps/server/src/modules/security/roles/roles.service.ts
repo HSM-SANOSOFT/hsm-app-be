@@ -1,14 +1,16 @@
-import { Role } from '@hsm-lib/common/enums';
-import type { RoleDomains, Roles } from '@hsm-lib/common/types';
+import { RolesEnum } from '@hsm-lib/common/enums';
+import type { RoleDomains, RolesType } from '@hsm-lib/common/types';
 
 import { Injectable } from '@nestjs/common';
 @Injectable()
 export class RolesService {
-  findRoleDomains(roles: Roles[]): { role: Roles; domain: RoleDomains }[] {
-    const result: { role: Roles; domain: RoleDomains }[] = [];
+  findRoleDomains(
+    roles: RolesType[],
+  ): { role: RolesType; domain: RoleDomains }[] {
+    const result: { role: RolesType; domain: RoleDomains }[] = [];
 
     for (const role of roles) {
-      for (const [domain, domainRoles] of Object.entries(Role)) {
+      for (const [domain, domainRoles] of Object.entries(RolesEnum)) {
         if (Object.values(domainRoles).includes(role)) {
           result.push({ role, domain: domain as RoleDomains });
           break;

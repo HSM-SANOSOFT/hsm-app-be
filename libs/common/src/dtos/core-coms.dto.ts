@@ -1,14 +1,11 @@
 //import { ValidateEmailTemplateData } from '@hsm-lib/common/validators';
 
 import { DocumentsPayloadDto } from '@hsm-lib/common/dtos';
-import { EMAIL_TEMPLATE_VALUES, EmailTemplate } from '@hsm-lib/common/enums';
-import type { EmailTemplateName } from '@hsm-lib/common/types';
 import { ApiProperty, ApiSchema, PartialType } from '@nestjs/swagger';
 import {
   ArrayNotEmpty,
   IsArray,
   IsEmail,
-  IsIn,
   IsNotEmpty,
   IsObject,
   IsOptional,
@@ -46,14 +43,13 @@ export class SendEmailPayloadDto extends PartialType(DocumentsPayloadDto) {
   toEmails: string[];
 
   @IsNotEmpty()
-  @IsIn(EMAIL_TEMPLATE_VALUES)
+  @IsString()
   @ApiProperty({
     description: 'plantilla de correo electrónico a utilizar',
     required: true,
-    enum: EMAIL_TEMPLATE_VALUES,
-    example: EmailTemplate.Auth.PinRestablecerContrasena,
+    example: 'password_reset',
   })
-  emailTemplate: EmailTemplateName;
+  emailTemplate: string;
 
   @IsObject()
   //@ValidateEmailTemplateData()

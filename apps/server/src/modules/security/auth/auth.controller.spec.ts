@@ -1,6 +1,6 @@
 import type { SignupPayloadDto } from '@hsm-lib/common/dtos';
 
-import { Role } from '@hsm-lib/common/enums';
+import { RolesEnum } from '@hsm-lib/common/enums';
 
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';
@@ -49,7 +49,7 @@ it('should be defined', () => {
       phoneNumber: undefined,
       secondLastName: undefined,
       secondName: undefined,
-      roles: [Role.System.Admin],
+      roles: [RolesEnum.System.Admin],
     };
     expect(await controller.signup(signupDto)).toBeDefined();
   }

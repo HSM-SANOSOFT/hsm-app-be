@@ -2,9 +2,9 @@ import {
   CreateUserIntegrationPayloadDto,
   CreateUserPayloadDto,
 } from '@hsm-lib/common/dtos';
-import { PinPurpose, Role } from '@hsm-lib/common/enums';
+import { PinPurposeEnum, RolesEnum } from '@hsm-lib/common/enums';
 import { ITokens } from '@hsm-lib/common/interfaces';
-import { Roles } from '@hsm-lib/common/types';
+import { RolesType } from '@hsm-lib/common/types';
 import { ApiProperty, ApiSchema } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsNumber, IsString } from 'class-validator';
 
@@ -40,14 +40,17 @@ export class LogoutPayloadDto {
 @ApiSchema({ name: 'PIN Generation Payload' })
 export class PinGenerationPayloadDto {
   @IsNotEmpty()
-  @IsEnum(PinPurpose)
+  @IsEnum(PinPurposeEnum)
   @ApiProperty({
     description: 'Tipo de PIN a generar',
     required: true,
-    enum: PinPurpose,
-    examples: [PinPurpose.EMAIL_VERIFICATION, PinPurpose.PASSWORD_RESET],
+    enum: PinPurposeEnum,
+    examples: [
+      PinPurposeEnum.EMAIL_VERIFICATION,
+      PinPurposeEnum.PASSWORD_RESET,
+    ],
   })
-  purpose: PinPurpose;
+  purpose: PinPurposeEnum;
 
   @IsNotEmpty()
   @IsString()
@@ -87,10 +90,10 @@ export class SignedUserProfileDto {
   @ApiProperty({
     description: 'Assigned roles',
     isArray: true,
-    enum: Role,
-    example: [Role.System.Admin],
+    enum: RolesEnum,
+    example: [RolesEnum.System.Admin],
   })
-  roles!: Roles[];
+  roles!: RolesType[];
 
   @ApiProperty({
     description: 'Issued-at timestamp (JWT)',
@@ -119,10 +122,10 @@ export class SignedIntegrationProfileDto {
   @ApiProperty({
     description: 'Assigned roles',
     isArray: true,
-    enum: Role,
-    example: [Role.System.Integration],
+    enum: RolesEnum,
+    example: [RolesEnum.System.Integration],
   })
-  roles!: Roles[];
+  roles!: RolesType[];
 
   @ApiProperty({
     description: 'Issued-at timestamp (JWT)',

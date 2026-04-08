@@ -1,4 +1,3 @@
-import { FilterEnum, SortEnum } from '@hsm-lib/common/enums';
 import {
   ApiProperty,
   ApiPropertyOptional,
@@ -9,7 +8,6 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
-  IsEnum,
   IsInt,
   IsISO8601,
   IsNotEmpty,
@@ -20,34 +18,7 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
-
-@ApiSchema({ name: 'Metadata.Extra.Filter' })
-export class FilterDto {
-  @ApiProperty({
-    description: 'Field name on which the filter is applied',
-    example: 'role',
-  })
-  @IsString()
-  @IsNotEmpty()
-  field!: string;
-
-  @ApiProperty({
-    description: 'Conditional operator for the filter',
-    enum: FilterEnum,
-    example: FilterEnum.EQUAL,
-  })
-  @IsString()
-  @IsEnum(FilterEnum)
-  conditional!: string;
-
-  @ApiProperty({
-    description: 'Value used in the filter condition',
-    example: 'doctor',
-  })
-  @IsString()
-  @IsNotEmpty()
-  value!: string;
-}
+import { FilterDto, SortDto } from './common-request.dto';
 
 @ApiSchema({ name: 'Unsuccess Response.Issue' })
 export class IssueDto {
@@ -251,25 +222,6 @@ export class PaginationDto {
   @IsNotEmpty()
   @Type(() => Number)
   totalPages!: number;
-}
-
-@ApiSchema({ name: 'Metadata.Extra.Sort' })
-export class SortDto {
-  @ApiProperty({
-    description: 'Field by which the data is sorted',
-    example: 'createdAt',
-  })
-  @IsString()
-  @IsNotEmpty()
-  field!: string;
-
-  @ApiProperty({
-    description: 'Sorting order',
-    enum: SortEnum,
-    example: 'desc',
-  })
-  @IsEnum(SortEnum)
-  order!: SortEnum;
 }
 
 @ApiSchema({ name: 'Success Response' })

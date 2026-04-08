@@ -5,7 +5,7 @@ import {
   SignupIntegrationTokenPayloadDto,
   SignupPayloadDto,
 } from '@hsm-lib/common/dtos';
-import { Role } from '@hsm-lib/common/enums';
+import { RolesEnum } from '@hsm-lib/common/enums';
 import {
   IJwtPayloadUser,
   IJwtPayloadUserIntegration,
@@ -58,7 +58,9 @@ export class AuthService {
     user: IUnsignedUser | IUnsignedUserIntegration,
     refreshToken: string,
   ): Promise<void> {
-    const integration: boolean = user.roles.includes(Role.System.Integration);
+    const integration: boolean = user.roles.includes(
+      RolesEnum.System.Integration,
+    );
     const userId: string = user.id;
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -123,7 +125,9 @@ export class AuthService {
     user: IRefreshUser,
   ): Promise<IUnsignedUser | IUnsignedUserIntegration> {
     const { refreshToken, iat: _iat, exp: _exp, ...userData } = user;
-    const integration: boolean = user.roles.includes(Role.System.Integration);
+    const integration: boolean = user.roles.includes(
+      RolesEnum.System.Integration,
+    );
     const userId: string = user.id;
     let refreshTokenInDb:
       | RefreshTokenUserEntity
@@ -158,7 +162,9 @@ export class AuthService {
   async generateTokens(
     user: IUnsignedUser | IUnsignedUserIntegration,
   ): Promise<ITokens> {
-    const integration: boolean = user.roles.includes(Role.System.Integration);
+    const integration: boolean = user.roles.includes(
+      RolesEnum.System.Integration,
+    );
     const payload: IJwtPayloadUser | IJwtPayloadUserIntegration = {
       sub: user.id,
       ...user,
@@ -273,7 +279,7 @@ export class AuthService {
       const userToSign: IUnsignedUserIntegration = {
         id: user.id,
         name: user.name,
-        roles: [Role.System.Integration],
+        roles: [RolesEnum.System.Integration],
       };
 
       const tokens: ITokens = await this.generateTokens(userToSign);
@@ -317,7 +323,7 @@ export class AuthService {
       }
     }
     const integration: boolean = decoded.roles.includes(
-      Role.System.Integration,
+      RolesEnum.System.Integration,
     );
 
     if (!integration) {

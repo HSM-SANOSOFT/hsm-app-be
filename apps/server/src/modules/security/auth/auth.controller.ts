@@ -11,7 +11,7 @@ import {
   SignupPayloadDto,
   TokensDto,
 } from '@hsm-lib/common/dtos';
-import { Role } from '@hsm-lib/common/enums';
+import { RolesEnum } from '@hsm-lib/common/enums';
 import type { IRefreshUser, ISignedUser } from '@hsm-lib/common/interfaces';
 import {
   Body,
@@ -65,7 +65,7 @@ export class AuthController {
   }
 
   @ApiDocumentation(TokensDto)
-  @Roles(Role.System.Admin)
+  @Roles(RolesEnum.System.Admin)
   @Post('signup/integration')
   async signupIntegration(
     @Body() payload: SignupIntegrationTokenPayloadDto,
@@ -74,7 +74,7 @@ export class AuthController {
   }
 
   @ApiDocumentation()
-  @Roles(Role.System.Admin)
+  @Roles(RolesEnum.System.Admin)
   @Post('logout/integration')
   async logoutIntegration(@Body() payload: LogoutIntegrationTokenPayloadDto) {
     const token = payload.token;

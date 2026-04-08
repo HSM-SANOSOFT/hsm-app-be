@@ -1,6 +1,6 @@
-import { documentDtoFactory } from '@hsm-lib/common/dtos';
 import { Type } from 'class-transformer';
 import { IsArray, IsNotEmpty, IsString, ValidateNested } from 'class-validator';
+import { documentDtoFactory } from './core-docs.dto';
 
 class S3FileInfoUploadDto {
   @IsNotEmpty()

@@ -1,5 +1,5 @@
-import { FunctionalityRole, Role } from '@hsm-lib/common/enums';
-import type { Roles } from '@hsm-lib/common/types';
+import { RoleFunctionalityEnum, RolesEnum } from '@hsm-lib/common/enums';
+import type { RolesType } from '@hsm-lib/common/types';
 import { ApiProperty, ApiSchema } from '@nestjs/swagger';
 import {
   ArrayMinSize,
@@ -23,10 +23,10 @@ export class CreateUserIntegrationPayloadDto {
   @ApiProperty({ required: true })
   description: string;
 
-  @IsEnum(FunctionalityRole)
+  @IsEnum(RoleFunctionalityEnum)
   @IsNotEmpty()
-  @ApiProperty({ required: true, enum: FunctionalityRole })
-  functionality: FunctionalityRole;
+  @ApiProperty({ required: true, enum: RoleFunctionalityEnum })
+  functionality: RoleFunctionalityEnum;
 }
 @ApiSchema({ name: 'Create User Payload' })
 export class CreateUserPayloadDto {
@@ -77,14 +77,14 @@ export class CreateUserPayloadDto {
 
   @ArrayMinSize(1)
   @IsArray()
-  @IsIn(Object.values(Role).flatMap(Object.values) as readonly string[], {
+  @IsIn(Object.values(RolesEnum).flatMap(Object.values) as readonly string[], {
     each: true,
   })
   @ApiProperty({
     required: true,
-    enum: [Object.values(Role).flatMap(Object.values)],
+    enum: [Object.values(RolesEnum).flatMap(Object.values)],
   })
-  roles!: Roles[];
+  roles!: RolesType[];
 }
 
 @ApiSchema({ name: 'Delete User Payload' })
@@ -150,5 +150,5 @@ export class UpdateUserPayloadDto {
   @IsOptional()
   @IsString()
   @ApiProperty({ required: false })
-  role?: Roles;
+  role?: RolesType;
 }

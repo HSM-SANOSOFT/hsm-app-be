@@ -1,4 +1,4 @@
-import { FunctionalityRole } from '@hsm-lib/common/enums';
+import { RoleFunctionalityEnum } from '@hsm-lib/common/enums';
 import { RefreshTokenUserIntegrationEntity } from '@hsm-lib/database/entities/modules/security/auth';
 import { databaseSchemas } from '@hsm-lib/database/sources/database-schema.enum';
 import {
@@ -28,8 +28,8 @@ export class UserIntegrationEntity {
   )
   refreshToken!: RefreshTokenUserIntegrationEntity[];
 
-  @Column({ type: 'enum', enum: FunctionalityRole })
-  functionality!: FunctionalityRole;
+  @Column({ type: 'enum', enum: RoleFunctionalityEnum })
+  functionality!: RoleFunctionalityEnum;
 
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;

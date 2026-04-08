@@ -1,4 +1,4 @@
-import type { RoleDomains, Roles } from '@hsm-lib/common/types';
+import type { RoleDomains, RolesType } from '@hsm-lib/common/types';
 import { UserEntity } from '@hsm-lib/database/entities/modules/core/users/users.entity';
 import { databaseSchemas } from '@hsm-lib/database/sources/database-schema.enum';
 import {
@@ -31,7 +31,7 @@ export class UserRoleEntity {
   domain!: RoleDomains;
 
   @Column({ type: 'varchar' })
-  role!: Roles;
+  role!: RolesType;
 
   @CreateDateColumn()
   createdAt!: Date;
