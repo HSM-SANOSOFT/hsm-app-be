@@ -1,8 +1,6 @@
-import type { SignupPayloadDto } from
-'@hsm-lib/common/
+import type { SignupPayloadDto } from '@hsm-lib/common/dtos';
 
-import { Role } from
-'@hsm-lib/common/
+import { Role } from '@hsm-lib/common/enums';
 
 import type { TestingModule } from '@nestjs/testing';
 import { Test } from '@nestjs/testing';

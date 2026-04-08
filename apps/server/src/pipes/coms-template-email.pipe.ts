@@ -1,5 +1,3 @@
-import { EmailTemplateDtoMap } from
-'@hsm-lib/common/
 
 import { BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
@@ -16,7 +14,7 @@ export class EmailTemplateDataPipe implements PipeTransform {
       return value;
     }
 
-    const Dto = EmailTemplateDtoMap[emailTemplate];
+    const Dto = {} ; // EmailTemplateDtoMap[emailTemplate];
     if (!Dto) {
       return value;
     }

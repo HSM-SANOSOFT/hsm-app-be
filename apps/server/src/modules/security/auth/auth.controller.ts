@@ -1,21 +1,16 @@
 import { ApiDocumentation, Public } from '@hsm-app/server/decorator';
-import { AuthService } from '@hsm-app/server/modules/security/auth/auth.service';
-import { AuthLocalGuard } from '@hsm-app/server/modules/security/auth/guard';
-import { AuthJwtRtGuard } from '@hsm-app/server/modules/security/auth/guard/auth.jwt.rt.guard';
 import { Roles } from '@hsm-app/server/modules/security/roles/roles.decorator';
 import {
   LoginPayloadDto,
   LogoutIntegrationTokenPayloadDto,
   PinGenerationPayloadDto,
   PinValidationPayloadDto,
-  SignupIntegrationTokenPayloadDto,
-  SignupPayloadDto,
-} from '@hsm-lib/common/dtos';
-import {
   SignedIntegrationProfileDto,
   SignedUserProfileDto,
-} from '@hsm-lib/common/dtos/modules/security/auth/profile-response.dto';
-import { TokensDto } from '@hsm-lib/common/dtos/modules/security/auth/tokens.dto';
+  SignupIntegrationTokenPayloadDto,
+  SignupPayloadDto,
+  TokensDto,
+} from '@hsm-lib/common/dtos';
 import { Role } from '@hsm-lib/common/enums';
 import type { IRefreshUser, ISignedUser } from '@hsm-lib/common/interfaces';
 import {
@@ -28,6 +23,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
+import { AuthService } from './auth.service';
+import { AuthJwtRtGuard, AuthLocalGuard } from './guard';
 
 @Controller('auth')
 export class AuthController {

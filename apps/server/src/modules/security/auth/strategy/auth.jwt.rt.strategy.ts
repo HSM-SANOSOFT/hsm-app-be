@@ -2,8 +2,7 @@ import type {
   IJwtPayloadUser,
   IJwtPayloadUserIntegration,
   IRefreshUser,
-} from
-'@hsm-lib/common/
+} from '@hsm-lib/common/interfaces';
 
 import { envs } from '@hsm-lib/config';
 import { Injectable, Logger } from '@nestjs/common';

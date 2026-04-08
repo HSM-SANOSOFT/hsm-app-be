@@ -1,6 +1,6 @@
-import { ApiDocumentation } from '@hsm-lib/common';
+import { ApiDocumentation } from '@hsm-app/server/decorator';
+import { Roles } from '@hsm-app/server/modules/security/roles/roles.decorator';
 import { Controller, Get, Post } from '@nestjs/common';
-import { Roles } from '../../security/roles/roles.decorator';
 
 @Controller('patients')
 export class PatientsController {

@@ -1,4 +1,4 @@
-import { ApiDocumentation } from '@hsm-lib/common';
+import { ApiDocumentation } from '@hsm-app/server/decorator';
 import { Controller, Post } from '@nestjs/common';
 import { Roles } from '../../security/roles/roles.decorator';
 

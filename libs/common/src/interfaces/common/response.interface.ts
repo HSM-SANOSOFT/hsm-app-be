@@ -1,8 +1,4 @@
-import {
-  SuccessResponseDto,
-  UnsuccessResponseDto,
-} from
-'@hsm-lib/common/
+import { SuccessResponseDto, UnsuccessResponseDto } from '@hsm-lib/common/dtos';
 
 type MetadataOf<T> = NonNullable<SuccessResponseDto<T>['metadata']>;
 

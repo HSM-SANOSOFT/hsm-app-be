@@ -1,4 +1,4 @@
-export enum AppointmentType {
+export enum AppointmentTypes {
   Privado = 'P',
   CallCenter = 'C',
   Otro = 'O',

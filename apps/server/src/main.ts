@@ -1,8 +1,8 @@
-import { HttpLoggingInterceptor } from '@hsm-lib/common';
 import { envs } from '@hsm-lib/config';
 import { ConsoleLogger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { HttpLoggingInterceptor } from './interceptors';
 import { MainModule } from './main.module';
 
 async function bootstrap() {
