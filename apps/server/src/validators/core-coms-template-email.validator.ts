@@ -1,30 +1,30 @@
-import type { DtoClass } from '@hsm-lib/com';
+//import type { DtoClass } from '@hsm-lib/common/types';
 
-import { Injectable, Logger } from '@nestjs/common';
-import { plainToInstance } from 'class-transformer';
+import { Injectable /*Logger */ } from '@nestjs/common';
+//import { plainToInstance } from 'class-transformer';
 import {
   registerDecorator,
   ValidationArguments,
   ValidationOptions,
   ValidatorConstraint,
   ValidatorConstraintInterface,
-  validateSync,
+  /*validateSync,*/
 } from 'class-validator';
 
-type EmailTemplateKey = keyof typeof EmailTemplateDtoMap;
+//type EmailTemplateKey = keyof typeof EmailTemplateDtoMap;
 
 @ValidatorConstraint({ name: 'EmailTemplateData', async: false })
 @Injectable()
 export class EmailTemplateDataValidator
   implements ValidatorConstraintInterface
 {
-  private readonly logger = new Logger(EmailTemplateDataValidator.name);
+  /*private readonly logger = new Logger(EmailTemplateDataValidator.name);
 
   // per-validation-call storage
-  private lastMessages: string[] = [];
+  private lastMessages: string[] = [];*/
 
   validate(value: unknown, args: ValidationArguments): boolean {
-    this.lastMessages = [];
+    /*this.lastMessages = [];
 
     const obj = args.object as { emailTemplate?: unknown };
     const template = obj.emailTemplate as EmailTemplateKey | undefined;
@@ -66,16 +66,17 @@ export class EmailTemplateDataValidator
 
       this.logger.error(`Field Issues: ${this.lastMessages.join('; ')}`);
       return false;
-    }
+    }*/
 
     return true;
   }
 
   defaultMessage(_args: ValidationArguments) {
-    // ValidationPipe will pick this up
+    /*// ValidationPipe will pick this up
     return this.lastMessages.length
       ? this.lastMessages.join('; ')
-      : 'data is invalid for email template';
+      : 'data is invalid for email template';*/
+    return 'data is invalid for email template';
   }
 }
 

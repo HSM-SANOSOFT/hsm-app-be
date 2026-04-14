@@ -1,5 +1,5 @@
-import { ApiDocumentation } from '@hsm-app/server/decorator';
 import { Controller, Post } from '@nestjs/common';
+import { ApiDocumentation } from '../../../decorator';
 import { Roles } from '../../security/roles/roles.decorator';
 
 @Controller('user')

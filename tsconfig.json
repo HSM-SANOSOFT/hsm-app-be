@@ -1,42 +1,62 @@
 {
   "compilerOptions": {
-    "jsx": "react-jsx",
-    "incremental": true,
-    "target": "ES2023",
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "baseUrl": "./",
     "module": "nodenext",
     "moduleResolution": "nodenext",
-    "paths": {
-      "@hsm-app/server": ["apps/server/src"],
-      "@hsm-app/server/*": ["apps/server/src/*"],
-      "@hsm-app/worker": ["apps/worker/src"],
-      "@hsm-app/worker/*": ["apps/worker/src/*"],
-      "@hsm-lib/common": ["libs/common/src"],
-      "@hsm-lib/common/*": ["libs/common/src/*"],
-      "@hsm-lib/config": ["libs/config/src/"],
-      "@hsm-lib/config/*": ["libs/config/src/*"],
-      "@hsm-lib/database": ["libs/database/src"],
-      "@hsm-lib/database/*": ["libs/database/src/*"],
-      "@hsm-lib/queue": ["libs/queue/src"],
-      "@hsm-lib/queue/*": ["libs/queue/src/*"],
-      "@hsm-lib/storage": ["libs/storage/src"],
-      "@hsm-lib/storage/*": ["libs/storage/src/*"]
-    },
     "resolvePackageJsonExports": true,
-    "strictBindCallApply": false,
-    "strictNullChecks": true,
-    "noFallthroughCasesInSwitch": false,
-    "noImplicitAny": false,
-    "declaration": true,
-    "outDir": "./dist",
-    "removeComments": true,
-    "sourceMap": true,
-    "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,
-    "skipLibCheck": true
-  }
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2023",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "noFallthroughCasesInSwitch": false,
+    //"jsx": "react-jsx",
+    "types": [
+      "node",
+      "multer"
+    ],
+    "paths": {
+      "@hsm-lib/common": [
+        "libs/common/src"
+      ],
+      "@hsm-lib/common/*": [
+        "libs/common/src/*"
+      ],
+      "@hsm-lib/config": [
+        "libs/config/src"
+      ],
+      "@hsm-lib/config/*": [
+        "libs/config/src/*"
+      ],
+      "@hsm-lib/database": [
+        "libs/database/src"
+      ],
+      "@hsm-lib/database/*": [
+        "libs/database/src/*"
+      ],
+      "@hsm-lib/queue": [
+        "libs/queue/src"
+      ],
+      "@hsm-lib/queue/*": [
+        "libs/queue/src/*"
+      ],
+      "@hsm-lib/storage": [
+        "libs/storage/src"
+      ],
+      "@hsm-lib/storage/*": [
+        "libs/storage/src/*"
+      ]
+    }
+  },
 }

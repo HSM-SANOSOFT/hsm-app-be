@@ -1,10 +1,9 @@
-import { ApiDocumentation, Public } from '@hsm-app/server/decorator';
-import { ComsService } from '@hsm-app/server/modules/core/coms/coms.service';
-import { Roles } from '@hsm-app/server/modules/security/roles/roles.decorator';
-import { EmailTemplateDataPipe } from '@hsm-app/server/pipes';
+//import { EmailTemplateDataPipe } from '@hsm-app/server/pipes';
 import { SendEmailPayloadDto } from '@hsm-lib/common/dtos';
-
 import { Body, Controller, Post } from '@nestjs/common';
+import { ApiDocumentation, Public } from '../../../decorator';
+import { Roles } from '../../security/roles/roles.decorator';
+import { ComsService } from '../coms/coms.service';
 
 @Controller('coms')
 export class ComsController {
@@ -14,7 +13,9 @@ export class ComsController {
   @ApiDocumentation()
   @Public()
   @Post('send/email')
-  async sendEmail(@Body(EmailTemplateDataPipe) payload: SendEmailPayloadDto) {
+  async sendEmail(
+    @Body(/*EmailTemplateDataPipe*/) payload: SendEmailPayloadDto,
+  ) {
     await this.comsService.sendEmail(payload);
   }
 

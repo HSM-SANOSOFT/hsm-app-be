@@ -9,7 +9,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { JsonWebTokenError, TokenExpiredError } from '@nestjs/jwt';
 import { AuthGuard } from '@nestjs/passport';
-import { IS_PUBLIC_KEY } from 'apps/server/src/decorator';
+import { IS_PUBLIC_KEY } from '../../../../decorator';
 
 @Injectable()
 export class AuthJwtRtGuard extends AuthGuard('jwt-rt') {

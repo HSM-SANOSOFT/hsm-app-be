@@ -54,7 +54,13 @@ export class DocumentsPayloadDto {
   documents: DocumentDto[];
 }
 
-class UploadDocument extends documentDtoFactory(FileInfoDto) {}
+class FileInfoUploadDto {
+  @IsNotEmpty()
+  @IsString()
+  fileName: string;
+}
+
+class UploadDocument extends documentDtoFactory(FileInfoUploadDto) {}
 
 export class UploadDocumentPayloadDto {
   @Transform(

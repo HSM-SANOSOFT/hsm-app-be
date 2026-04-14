@@ -1,3 +1,4 @@
+export * from './common-request.dto';
 export * from './common-response.dto';
 export * from './core-coms.dto';
 export * from './core-docs.dto';

@@ -1,4 +1,3 @@
-import { UsersService } from '@hsm-app/server/modules/core/users/users.service';
 import {
   PinGenerationPayloadDto,
   PinValidationPayloadDto,
@@ -32,6 +31,7 @@ import { JwtService } from '@nestjs/jwt';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { DataSource, Repository, UpdateResult } from 'typeorm';
+import { UsersService } from '../../core/users/users.service';
 
 @Injectable()
 export class AuthService {

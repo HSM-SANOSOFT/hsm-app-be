@@ -1,20 +1,20 @@
-import { ResponseFilter } from '@hsm-app/server/filters';
-import { ResponseInterceptor } from '@hsm-app/server/interceptors';
-import {
-  AdministrativeModule,
-  ClinicalModule,
-  CoreModule,
-  SecurityModule,
-} from '@hsm-app/server/modules';
-import { EmailTemplateDataValidator } from '@hsm-app/server/validators';
 import { DatabaseModule } from '@hsm-lib/database';
 import { QueueModule } from '@hsm-lib/queue';
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { TerminusModule } from '@nestjs/terminus';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ResponseFilter } from './filters';
+import { ResponseInterceptor } from './interceptors';
 import { MainController } from './main.controller';
 import { MainService } from './main.service';
+import {
+  AdministrativeModule,
+  ClinicalModule,
+  CoreModule,
+  SecurityModule,
+} from './modules';
+import { EmailTemplateDataValidator } from './validators';
 
 @Module({
   imports: [

@@ -1,10 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "composite": true,
     "declaration": true,
-    "declarationMap": true,
-    "emitDeclarationOnly": false,
     "outDir": "../../dist/libs/config"
   },
   "include": ["src/**/*"],

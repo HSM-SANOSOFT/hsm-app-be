@@ -1,5 +1,3 @@
-import { ApiDocumentation, Public } from '@hsm-app/server/decorator';
-import { Roles } from '@hsm-app/server/modules/security/roles/roles.decorator';
 import {
   LoginPayloadDto,
   LogoutIntegrationTokenPayloadDto,
@@ -23,6 +21,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
+import { ApiDocumentation, Public } from '../../../decorator';
+import { Roles } from '../../security/roles/roles.decorator';
 import { AuthService } from './auth.service';
 import { AuthJwtRtGuard, AuthLocalGuard } from './guard';
 

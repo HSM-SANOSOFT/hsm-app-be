@@ -1,7 +1,7 @@
 import { RolesEnum } from '@hsm-lib/common/enums';
 
 import { Controller, Get, Param, Query } from '@nestjs/common';
-import { ApiDocumentation } from 'apps/server/src/decorator';
+import { ApiDocumentation } from '../../../../decorator';
 import { Roles } from '../../../security/roles/roles.decorator';
 import { AvailabilityService } from './availability.service';
 

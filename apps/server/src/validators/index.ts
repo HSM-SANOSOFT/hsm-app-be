@@ -1,1 +1,1 @@
-export * from './coms-template-email.validator';
+export * from './core-coms-template-email.validator';

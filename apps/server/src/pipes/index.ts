@@ -1,1 +1,1 @@
-export * from './coms-template-email.pipe';
+export * from './core-coms-template-email.pipe';

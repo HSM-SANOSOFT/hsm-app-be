@@ -4,7 +4,7 @@ import {
   HealthCheckService,
   HttpHealthIndicator,
 } from '@nestjs/terminus';
-import { ApiDocumentation, Public } from 'apps/server/src/decorator';
+import { ApiDocumentation, Public } from './decorator';
 import { MainService } from './main.service';
 
 @Controller('health')

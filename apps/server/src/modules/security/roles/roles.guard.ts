@@ -1,11 +1,9 @@
-import { ROLES_KEY } from '@hsm-app/server/modules/security/roles/roles.decorator';
 import { RolesEnum } from '@hsm-lib/common/enums';
 import {
   ISignedUser,
   ISignedUserIntegration,
 } from '@hsm-lib/common/interfaces';
 import type { RolesType } from '@hsm-lib/common/types';
-
 import { envs } from '@hsm-lib/config/envs';
 import {
   CanActivate,
@@ -15,7 +13,8 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { IS_PUBLIC_KEY } from 'apps/server/src/decorator';
+import { IS_PUBLIC_KEY } from '../../../decorator';
+import { ROLES_KEY } from '../../security/roles/roles.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
