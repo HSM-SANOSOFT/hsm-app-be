@@ -20,6 +20,37 @@ import {
 } from 'class-validator';
 import { FilterDto, SortDto } from './common-request.dto';
 
+@ApiSchema({ name: 'Metadata.Extra.Pagination' })
+export class PaginationDto {
+  @ApiProperty({ description: 'Page number', example: 1 })
+  @IsInt()
+  @Min(1)
+  @IsNotEmpty()
+  @Type(() => Number)
+  page!: number;
+
+  @ApiProperty({ description: 'Page size', example: 10 })
+  @IsInt()
+  @Min(1)
+  @IsNotEmpty()
+  @Type(() => Number)
+  pageSize!: number;
+
+  @ApiProperty({ description: 'Total items', example: 100 })
+  @IsInt()
+  @Min(0)
+  @IsNotEmpty()
+  @Type(() => Number)
+  totalItems!: number;
+
+  @ApiProperty({ description: 'Total pages', example: 10 })
+  @IsInt()
+  @Min(0)
+  @IsNotEmpty()
+  @Type(() => Number)
+  totalPages!: number;
+}
+
 @ApiSchema({ name: 'Unsuccess Response.Issue' })
 export class IssueDto {
   @ApiProperty({
@@ -192,37 +223,6 @@ export class MetadataDto {
 export class MetadataWithoutExtra extends OmitType(MetadataDto, [
   'extra',
 ] as const) {}
-
-@ApiSchema({ name: 'Metadata.Extra.Pagination' })
-export class PaginationDto {
-  @ApiProperty({ description: 'Page number', example: 1 })
-  @IsInt()
-  @Min(1)
-  @IsNotEmpty()
-  @Type(() => Number)
-  page!: number;
-
-  @ApiProperty({ description: 'Page size', example: 10 })
-  @IsInt()
-  @Min(1)
-  @IsNotEmpty()
-  @Type(() => Number)
-  pageSize!: number;
-
-  @ApiProperty({ description: 'Total items', example: 100 })
-  @IsInt()
-  @Min(0)
-  @IsNotEmpty()
-  @Type(() => Number)
-  totalItems!: number;
-
-  @ApiProperty({ description: 'Total pages', example: 10 })
-  @IsInt()
-  @Min(0)
-  @IsNotEmpty()
-  @Type(() => Number)
-  totalPages!: number;
-}
 
 @ApiSchema({ name: 'Success Response' })
 export class SuccessResponseDto<T> {
