@@ -1,7 +1,9 @@
-FROM node:24-bookworm-slim
+# ── Setup stage (big) ─────────────────────────────────────────────────────────
+# All installation and extraction happens here.
+# Build tools never reach the final image.
+FROM node:24-bookworm-slim AS setup
 
 ADD docker/oracle/instantclient-basic-linux.x64-12.1.0.2.0.zip /tmp/
-
 RUN set -eux; \
   apt-get update && \
   apt-get install -y --no-install-recommends unzip libaio1 libnsl2 && \
@@ -12,16 +14,23 @@ RUN set -eux; \
   mv /tmp/ic/instantclient_*/* /usr/lib/oracle/12.1/client64/lib/ && \
   rm -rf /tmp/ic /tmp/instantclient-basic-linux.x64-12.1.0.2.0.zip; \
   ln -sfn /usr/lib/oracle/12.1/client64/lib/libclntsh.so.12.1 \
-  /usr/lib/oracle/12.1/client64/lib/libclntsh.so || true; \
-  echo "/usr/lib/oracle/12.1/client64/lib" > /etc/ld.so.conf.d/oracle-instantclient.conf && \
-  ldconfig
+  /usr/lib/oracle/12.1/client64/lib/libclntsh.so || true
 
 RUN apt-get update && apt-get install -y bash curl debian-keyring && curl -1sLf \
   'https://artifacts-cli.infisical.com/setup.deb.sh' \
   | bash && apt-get update && apt-get install -y infisical \
   && rm -rf /var/lib/apt/lists/*
 
+RUN corepack enable
+RUN PUPPETEER_SKIP_DOWNLOAD=true pnpm dlx puppeteer browsers install chrome-headless-shell
+
+# ── Runtime base ──────────────────────────────────────────────────────────────
+FROM node:24-bookworm-slim
+
+# System shared libs must be apt-installed (OS integration / ldconfig)
 RUN apt-get update && apt-get install -y --no-install-recommends \
+  bash \
+  libaio1 libnsl2 \
   ca-certificates \
   fonts-liberation \
   libatk-bridge2.0-0 \
@@ -33,16 +42,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libnspr4 \
   libnss3 \
   libx11-6 \
-  libx11-xcb1 \
-  libxcb1 \
-  libxcomposite1 \
-  libxdamage1 \
   libxext6 \
-  libxfixes3 \
-  libxrandr2 \
-  libxss1 \
-  libxtst6 \
   && rm -rf /var/lib/apt/lists/*
 
+COPY --from=setup /usr/lib/oracle /usr/lib/oracle
+RUN echo "/usr/lib/oracle/12.1/client64/lib" > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig
+
+COPY --from=setup /usr/bin/infisical /usr/bin/infisical
+
+COPY --from=setup /root/.cache/puppeteer /root/.cache/puppeteer
+
 RUN corepack enable
-RUN PUPPETEER_SKIP_DOWNLOAD=true pnpm dlx puppeteer browsers install chrome-headless-shell
