@@ -65,7 +65,9 @@ export class DatabaseLogger implements TypeOrmLogger {
   logSchemaBuild(message: string, queryRunner?: QueryRunner) {
     const sourcePart = this.queryRunnerParce(queryRunner);
     const messagePart = this.stringParce(message);
-    this.logger.debug(`DatabaseSource: ${sourcePart} -> Schema: ${messagePart}`);
+    this.logger.debug(
+      `DatabaseSource: ${sourcePart} -> Schema: ${messagePart}`,
+    );
   }
 
   logMigration(message: string, queryRunner?: QueryRunner) {
@@ -85,10 +87,14 @@ export class DatabaseLogger implements TypeOrmLogger {
     switch (level) {
       case 'log':
       case 'info':
-        this.logger.log(`DatabaseSource: ${sourcePart} -> message:  ${message}`);
+        this.logger.log(
+          `DatabaseSource: ${sourcePart} -> message:  ${message}`,
+        );
         break;
       case 'warn':
-        this.logger.warn(`DatabaseSource: ${sourcePart} -> message: ${message}`);
+        this.logger.warn(
+          `DatabaseSource: ${sourcePart} -> message: ${message}`,
+        );
         break;
     }
   }
