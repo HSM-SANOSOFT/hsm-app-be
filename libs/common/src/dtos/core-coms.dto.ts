@@ -1,6 +1,5 @@
 //import { ValidateEmailTemplateData } from '@hsm-lib/common/validators';
 
-import { DocumentsPayloadDto } from '@hsm-lib/common/dtos';
 import { ApiProperty, ApiSchema, PartialType } from '@nestjs/swagger';
 import {
   ArrayNotEmpty,
@@ -11,6 +10,7 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
+import { DocumentsPayloadDto } from './core-docs.dto';
 
 @ApiSchema({ name: 'Send Email Payload' })
 export class SendEmailPayloadDto extends PartialType(DocumentsPayloadDto) {
