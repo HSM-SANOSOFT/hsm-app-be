@@ -1,5 +1,5 @@
 import { DocumentsVersionEntity } from '@hsm-lib/database/entities/modules/core/docs/document-version.entity';
-import { databaseSchemas } from '@hsm-lib/database/sources/database-schema.enum';
+import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres/database-postgres.schemas';
 import {
   Column,
   CreateDateColumn,
@@ -9,7 +9,10 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
-@Entity({ name: 'documents-generated', schema: databaseSchemas.DOCS })
+@Entity({
+  name: 'documents-generated',
+  schema: DatabasePostgresSchemasEnum.DOCS,
+})
 export class DocumentsGeneratedEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;

@@ -1,8 +1,11 @@
-import { databaseSchemas } from '@hsm-lib/database/sources/database-schema.enum';
+import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres/database-postgres.schemas';
 import { Column, Entity, JoinColumn, OneToOne, PrimaryColumn } from 'typeorm';
 import { TemplatesEntity } from './templates.entity';
 
-@Entity({ name: 'template_coms_email', schema: databaseSchemas.TEMPLATES })
+@Entity({
+  name: 'template_coms_email',
+  schema: DatabasePostgresSchemasEnum.TEMPLATES,
+})
 export class TemplateComEmailEntity {
   @PrimaryColumn({ type: 'uuid' })
   id: string;

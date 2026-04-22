@@ -6,7 +6,7 @@ import {
   HorariosMedicoEntity,
   PersonalEntity,
 } from '@hsm-lib/database/entities';
-import { Databases } from '@hsm-lib/database/sources';
+import { DatabasesEnum } from '@hsm-lib/database/sources';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -17,19 +17,19 @@ export class AvailabilityService {
   private readonly logger = new Logger(AvailabilityService.name);
 
   constructor(
-    @InjectDataSource(Databases.HsmDbOracle)
+    @InjectDataSource(DatabasesEnum.HsmDbOracle)
     private readonly dataSourceOracle: DataSource,
-    @InjectDataSource(Databases.HsmDbPostgres)
+    @InjectDataSource(DatabasesEnum.HsmDbPostgres)
     private readonly dataSourcePostgres: DataSource,
-    @InjectRepository(PersonalEntity, Databases.HsmDbOracle)
+    @InjectRepository(PersonalEntity, DatabasesEnum.HsmDbOracle)
     private readonly personalRepository: Repository<PersonalEntity>,
-    @InjectRepository(EspecialidadesEntity, Databases.HsmDbOracle)
+    @InjectRepository(EspecialidadesEntity, DatabasesEnum.HsmDbOracle)
     private readonly especialidadesRepository: Repository<EspecialidadesEntity>,
-    @InjectRepository(EspecialidadesMedicosEntity, Databases.HsmDbOracle)
+    @InjectRepository(EspecialidadesMedicosEntity, DatabasesEnum.HsmDbOracle)
     private readonly especialidadesMedicosRepository: Repository<EspecialidadesMedicosEntity>,
-    @InjectRepository(HorariosMedicoEntity, Databases.HsmDbOracle)
+    @InjectRepository(HorariosMedicoEntity, DatabasesEnum.HsmDbOracle)
     private readonly horariosMedicoRepository: Repository<HorariosMedicoEntity>,
-    @InjectRepository(AdmServidoresDiagnosticoEntity, Databases.HsmDbOracle)
+    @InjectRepository(AdmServidoresDiagnosticoEntity, DatabasesEnum.HsmDbOracle)
     private readonly admServidoresDiagnosticoRepository: Repository<AdmServidoresDiagnosticoEntity>,
   ) {}
 

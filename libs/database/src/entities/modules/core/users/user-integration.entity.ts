@@ -1,6 +1,6 @@
 import { RoleFunctionalityEnum } from '@hsm-lib/common/enums';
 import { RefreshTokenUserIntegrationEntity } from '@hsm-lib/database/entities/modules/security/auth';
-import { databaseSchemas } from '@hsm-lib/database/sources/database-schema.enum';
+import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres/database-postgres.schemas';
 import {
   Column,
   CreateDateColumn,
@@ -11,7 +11,10 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity({ name: 'users_integration', schema: databaseSchemas.USERS })
+@Entity({
+  name: 'users_integration',
+  schema: DatabasePostgresSchemasEnum.USERS,
+})
 export class UserIntegrationEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

@@ -1,5 +1,5 @@
 import { RefreshTokenUserEntity } from '@hsm-lib/database/entities/modules/security/auth';
-import { databaseSchemas } from '@hsm-lib/database/sources/database-schema.enum';
+import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres/database-postgres.schemas';
 import {
   Column,
   CreateDateColumn,
@@ -12,7 +12,7 @@ import {
 } from 'typeorm';
 import { UserRoleEntity } from './user-roles.entity';
 
-@Entity({ name: 'users', schema: databaseSchemas.USERS })
+@Entity({ name: 'users', schema: DatabasePostgresSchemasEnum.USERS })
 export class UserEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;

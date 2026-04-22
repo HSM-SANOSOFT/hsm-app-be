@@ -2,7 +2,7 @@ import { envs } from '@hsm-lib/config';
 import { Logger, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import oracledb from 'oracledb';
-import { Databases } from '../database-source.enum';
+import { DatabasesEnum } from '../database-source.enum';
 import { DatabaseSourceOptions } from '../database-source-options';
 import { databaseOracleEntities } from './database-oracle.entities';
 
@@ -20,7 +20,7 @@ try {
   imports: [
     TypeOrmModule.forRoot({
       type: 'oracle',
-      name: Databases.HsmDbOracle,
+      name: DatabasesEnum.HsmDbOracle,
       host: envs.HSM_DB_ORACLE_HOST,
       port: envs.HSM_DB_ORACLE_PORT,
       username: envs.HSM_DB_ORACLE_USER,
@@ -30,7 +30,7 @@ try {
       entities: databaseOracleEntities,
       ...DatabaseSourceOptions,
     }),
-    TypeOrmModule.forFeature(databaseOracleEntities, Databases.HsmDbOracle),
+    TypeOrmModule.forFeature(databaseOracleEntities, DatabasesEnum.HsmDbOracle),
   ],
   controllers: [],
   providers: [],

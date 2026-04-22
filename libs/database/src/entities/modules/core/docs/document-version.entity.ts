@@ -1,7 +1,7 @@
 import { DocumentsGeneratedEntity } from '@hsm-lib/database/entities/modules/core/docs/document-generated.entity';
 import { DocumentStorageObjectEntity } from '@hsm-lib/database/entities/modules/core/docs/document-storage-object.entity';
 import { DocumentsEntity } from '@hsm-lib/database/entities/modules/core/docs/documents.entity';
-import { databaseSchemas } from '@hsm-lib/database/sources/database-schema.enum';
+import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres/database-postgres.schemas';
 import {
   Column,
   CreateDateColumn,
@@ -13,7 +13,10 @@ import {
   Unique,
 } from 'typeorm';
 
-@Entity({ name: 'documents-version', schema: databaseSchemas.DOCS })
+@Entity({
+  name: 'documents-version',
+  schema: DatabasePostgresSchemasEnum.DOCS,
+})
 @Unique(['document', 'version'])
 export class DocumentsVersionEntity {
   @PrimaryGeneratedColumn('uuid')

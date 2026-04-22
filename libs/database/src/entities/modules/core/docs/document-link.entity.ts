@@ -1,5 +1,5 @@
 import { DocumentsEntity } from '@hsm-lib/database/entities/modules/core/docs/documents.entity';
-import { databaseSchemas } from '@hsm-lib/database/sources/database-schema.enum';
+import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres/database-postgres.schemas';
 import {
   Column,
   Entity,
@@ -8,7 +8,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
-@Entity({ name: 'document-link', schema: databaseSchemas.DOCS })
+@Entity({ name: 'document-link', schema: DatabasePostgresSchemasEnum.DOCS })
 export class DocumentLinkEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;

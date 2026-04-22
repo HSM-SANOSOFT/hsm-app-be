@@ -1,6 +1,7 @@
 import { envs } from '@hsm-lib/config';
 import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
+import { QueueEnum } from './queue.enum';
 import { QueueService } from './queue.service';
 
 @Global()
@@ -21,9 +22,7 @@ import { QueueService } from './queue.service';
       },
     }),
     BullModule.registerQueue(
-      { name: 'coms' },
-      { name: 'document' },
-      { name: 'notification' },
+      ...Object.values(QueueEnum).map(name => ({ name })),
     ),
   ],
   providers: [QueueService],

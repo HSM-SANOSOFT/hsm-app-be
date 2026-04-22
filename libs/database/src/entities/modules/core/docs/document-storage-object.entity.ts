@@ -1,5 +1,5 @@
 import { DocumentsVersionEntity } from '@hsm-lib/database/entities/modules/core/docs/document-version.entity';
-import { databaseSchemas } from '@hsm-lib/database/sources/database-schema.enum';
+import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres/database-postgres.schemas';
 import {
   Column,
   CreateDateColumn,
@@ -10,7 +10,10 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity({ name: 'document-storage-object', schema: databaseSchemas.DOCS })
+@Entity({
+  name: 'document-storage-object',
+  schema: DatabasePostgresSchemasEnum.DOCS,
+})
 export class DocumentStorageObjectEntity {
   @PrimaryColumn('uuid')
   id: string;

@@ -1,4 +1,4 @@
-import { databaseSchemas } from '@hsm-lib/database/sources/database-schema.enum';
+import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres/database-postgres.schemas';
 import {
   Check,
   Column,
@@ -15,7 +15,7 @@ import { TemplateDocEntity } from './template-doc.entity';
 @Check(
   `(type = 'base' AND base_template IS NULL) OR (type != 'base' AND base_template IS NOT NULL)`,
 )
-@Entity({ name: 'templates', schema: databaseSchemas.TEMPLATES })
+@Entity({ name: 'templates', schema: DatabasePostgresSchemasEnum.TEMPLATES })
 export class TemplatesEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;

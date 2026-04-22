@@ -20,7 +20,7 @@ import {
   RefreshTokenUserEntity,
   RefreshTokenUserIntegrationEntity,
 } from '@hsm-lib/database/entities';
-import { Databases } from '@hsm-lib/database/sources';
+import { DatabasesEnum } from '@hsm-lib/database/sources';
 import {
   BadRequestException,
   Injectable,
@@ -38,15 +38,15 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   constructor(
     private usersService: UsersService,
-    @InjectRepository(RefreshTokenUserEntity, Databases.HsmDbPostgres)
+    @InjectRepository(RefreshTokenUserEntity, DatabasesEnum.HsmDbPostgres)
     private refreshTokenUserRepository: Repository<RefreshTokenUserEntity>,
     @InjectRepository(
       RefreshTokenUserIntegrationEntity,
-      Databases.HsmDbPostgres,
+      DatabasesEnum.HsmDbPostgres,
     )
     private refreshTokenUserIntegrationRepository: Repository<RefreshTokenUserIntegrationEntity>,
     private jwtService: JwtService,
-    @InjectDataSource(Databases.HsmDbPostgres)
+    @InjectDataSource(DatabasesEnum.HsmDbPostgres)
     private readonly dataSource: DataSource,
   ) {}
 

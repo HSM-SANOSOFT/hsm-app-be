@@ -9,7 +9,7 @@ import {
   UserIntegrationEntity,
   UserRoleEntity,
 } from '@hsm-lib/database/entities';
-import { Databases } from '@hsm-lib/database/sources';
+import { DatabasesEnum } from '@hsm-lib/database/sources';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { QueryRunner } from 'typeorm';
@@ -20,11 +20,11 @@ import { RolesService } from '../../security/roles/roles.service';
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
   constructor(
-    @InjectRepository(UserEntity, Databases.HsmDbPostgres)
+    @InjectRepository(UserEntity, DatabasesEnum.HsmDbPostgres)
     private UserRepository: Repository<UserEntity>,
-    @InjectRepository(UserIntegrationEntity, Databases.HsmDbPostgres)
+    @InjectRepository(UserIntegrationEntity, DatabasesEnum.HsmDbPostgres)
     private UserIntegrationRepository: Repository<UserIntegrationEntity>,
-    @InjectRepository(UserRoleEntity, Databases.HsmDbPostgres)
+    @InjectRepository(UserRoleEntity, DatabasesEnum.HsmDbPostgres)
     private UserRoleRepository: Repository<UserRoleEntity>,
     private readonly rolesService: RolesService,
   ) {}

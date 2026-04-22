@@ -1,8 +1,11 @@
-import { databaseSchemas } from '@hsm-lib/database/sources/database-schema.enum';
+import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres/database-postgres.schemas';
 import { Column, Entity, JoinColumn, OneToOne, PrimaryColumn } from 'typeorm';
 import { TemplatesEntity } from './templates.entity';
 
-@Entity({ name: 'template_docs', schema: databaseSchemas.TEMPLATES })
+@Entity({
+  name: 'template_docs',
+  schema: DatabasePostgresSchemasEnum.TEMPLATES,
+})
 export class TemplateDocEntity {
   @PrimaryColumn({ type: 'uuid' })
   id: string;

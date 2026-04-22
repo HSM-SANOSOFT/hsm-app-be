@@ -75,14 +75,14 @@ services:
 
   hsm-app-db-postgres:
     container_name: hsm-app-db-postgres
-    image: postgres:17-bookworm
+    image: postgres:18-bookworm
     networks:
       - hsm-app-network
     ports:
       - 10003:5432
     volumes:
-      - ./postgres/init-schemas.sql:/docker-entrypoint-initdb.d/postgres.schemas.sql:ro
-      - pgdata:/var/lib/postgresql/data
+      #- ./postgres/init-schemas.sql:/docker-entrypoint-initdb.d/postgres.schemas.sql:ro
+      - pgdata:/var/lib/postgresql
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -147,5 +147,5 @@ services:
     volumes:
       - ./postgres/servers.json:/pgadmin4/servers.json:ro
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@example.com
-      PGADMIN_DEFAULT_PASSWORD: secret
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin

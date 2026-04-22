@@ -6,7 +6,7 @@ export const DatabaseSourceOptions: Pick<
   TypeOrmModuleOptions,
   'retryAttempts' | 'retryDelay' | 'logging' | 'extra' | 'logger'
 > = {
-  logging: envs.ENVIRONMENT === 'dev' ? 'all' : ['error', 'warn'],
+  logging: envs.ENVIRONMENT === 'dev' ? 'all' : ['info', 'error', 'warn'],
   logger: new DatabaseLogger(), //envs.ENVIRONMENT === 'dev' ? 'advanced-console' : 'formatted-console',
   extra: {
     poolMin: 2,

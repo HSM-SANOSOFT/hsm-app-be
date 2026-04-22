@@ -4,7 +4,7 @@ import {
   TemplateDocEntity,
   TemplatesEntity,
 } from '@hsm-lib/database/entities/modules/core/template';
-import { Databases } from '@hsm-lib/database/sources';
+import { DatabasesEnum } from '@hsm-lib/database/sources';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -15,13 +15,13 @@ import { Repository } from 'typeorm';
 export class TemplatesService {
   constructor(
     @InjectQueue('templates') private readonly templatesQueue: Queue,
-    @InjectRepository(TemplatesEntity, Databases.HsmDbPostgres)
+    @InjectRepository(TemplatesEntity, DatabasesEnum.HsmDbPostgres)
     private readonly templatesRepository: Repository<TemplatesEntity>,
-    @InjectRepository(TemplateComEmailEntity, Databases.HsmDbPostgres)
+    @InjectRepository(TemplateComEmailEntity, DatabasesEnum.HsmDbPostgres)
     private readonly templateComEmailRepository: Repository<TemplateComEmailEntity>,
-    @InjectRepository(TemplateComSmsEntity, Databases.HsmDbPostgres)
+    @InjectRepository(TemplateComSmsEntity, DatabasesEnum.HsmDbPostgres)
     private readonly templateComSmsRepository: Repository<TemplateComSmsEntity>,
-    @InjectRepository(TemplateDocEntity, Databases.HsmDbPostgres)
+    @InjectRepository(TemplateDocEntity, DatabasesEnum.HsmDbPostgres)
     private readonly templateDocRepository: Repository<TemplateDocEntity>,
   ) {}
 

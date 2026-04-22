@@ -1,6 +1,6 @@
 import type { RoleDomains, RolesType } from '@hsm-lib/common/types';
 import { UserEntity } from '@hsm-lib/database/entities/modules/core/users/users.entity';
-import { databaseSchemas } from '@hsm-lib/database/sources/database-schema.enum';
+import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres/database-postgres.schemas';
 import {
   Column,
   CreateDateColumn,
@@ -13,7 +13,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity({ name: 'user_roles', schema: databaseSchemas.USERS })
+@Entity({ name: 'user_roles', schema: DatabasePostgresSchemasEnum.USERS })
 @Unique(['user', 'domain', 'role'])
 export class UserRoleEntity {
   @PrimaryGeneratedColumn('uuid')
