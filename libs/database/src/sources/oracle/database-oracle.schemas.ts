@@ -1,10 +1,7 @@
 import { DatabaseUniversalSchemasEnum } from '../database-universal.schemas';
 
 enum SchemasEnum {
-  USERS = 'users',
-  AUTH = 'auth',
-  DOCS = 'docs',
-  TEMPLATES = 'templates',
+  SIS = 'SIS',
 }
 
 export const DatabaseOracleSchemasEnum = {

@@ -9,6 +9,7 @@ import { DatabasePostgresSchemasEnum } from './database-postgres.schemas';
 @Module({
   imports: [
     TypeOrmModule.forRoot({
+      ...DatabaseSourceOptions,
       type: 'postgres',
       name: DatabasesEnum.HsmDbPostgres,
       host: envs.HSM_DB_POSTGRES_HOST,
@@ -18,7 +19,6 @@ import { DatabasePostgresSchemasEnum } from './database-postgres.schemas';
       database: envs.HSM_DB_POSTGRES_DB,
       synchronize: false,
       entities: databasePostgresEntities,
-      ...DatabaseSourceOptions,
     }),
     TypeOrmModule.forFeature(
       databasePostgresEntities,
@@ -46,8 +46,12 @@ export class DatabasePostgresModule implements OnModuleInit {
 
     if (envs.ENVIRONMENT === 'dev') {
       this.logger.debug('Synchronizing database schema...');
-      await this.dataSource.synchronize();
-      this.logger.debug('Database schema synchronized');
+      if (databasePostgresEntities.length !== 0) {
+        await this.dataSource.synchronize();
+        this.logger.debug('Database schema synchronized');
+      } else {
+        this.logger.debug('No entities to synchronize');
+      }
     }
   }
 }

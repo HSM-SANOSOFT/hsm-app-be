@@ -2,7 +2,7 @@ import { Logger as NestLogger } from '@nestjs/common';
 import { QueryRunner, Logger as TypeOrmLogger } from 'typeorm';
 
 export class DatabaseLogger implements TypeOrmLogger {
-  private readonly logger = new NestLogger('DatabaseSource');
+  private readonly logger = new NestLogger(DatabaseLogger.name);
   private readonly needTrimming = true;
   private readonly lengthLimit = 500;
   private readonly logParameters = true;
@@ -21,22 +21,30 @@ export class DatabaseLogger implements TypeOrmLogger {
     return paramsString;
   }
 
-  logQuery(query: string, parameters?: unknown[], _queryRunner?: QueryRunner) {
+  queryRunnerParce(queryRunner?: QueryRunner): string {
+    return queryRunner?.connection.name || 'UnknownSource';
+  }
+
+  logQuery(query: string, parameters?: unknown[], queryRunner?: QueryRunner) {
+    const sourcePart = this.queryRunnerParce(queryRunner);
     const queryPart = this.stringParce(query);
     const paramsPart = this.paramParce(parameters);
-    this.logger.debug(`Query: ${queryPart} -- Parameters: ${paramsPart}`);
+    this.logger.debug(
+      `DatabaseSource: ${sourcePart} -> Query: ${queryPart} -- Parameters: ${paramsPart}`,
+    );
   }
 
   logQueryError(
     error: string | Error,
     query: string,
     parameters?: unknown[],
-    _queryRunner?: QueryRunner,
+    queryRunner?: QueryRunner,
   ) {
+    const sourcePart = this.queryRunnerParce(queryRunner);
     const queryPart = this.stringParce(query);
     const paramsPart = this.paramParce(parameters);
     this.logger.error(
-      `Query Failed: ${queryPart} -- Parameters: ${paramsPart} -- Error: ${error}`,
+      `DatabaseSource: ${sourcePart} -> Query Failed: ${queryPart} -- Parameters: ${paramsPart} -- Error: ${error}`,
     );
   }
 
@@ -44,37 +52,43 @@ export class DatabaseLogger implements TypeOrmLogger {
     time: number,
     query: string,
     parameters?: unknown[],
-    _queryRunner?: QueryRunner,
+    queryRunner?: QueryRunner,
   ) {
+    const sourcePart = this.queryRunnerParce(queryRunner);
     const queryPart = this.stringParce(query);
     const paramsPart = this.paramParce(parameters);
     this.logger.warn(
-      `Slow Query (${time}ms): ${queryPart} -- Parameters: ${paramsPart}`,
+      `DatabaseSource: ${sourcePart} -> Slow Query (${time}ms): ${queryPart} -- Parameters: ${paramsPart}`,
     );
   }
 
-  logSchemaBuild(message: string, _queryRunner?: QueryRunner) {
+  logSchemaBuild(message: string, queryRunner?: QueryRunner) {
+    const sourcePart = this.queryRunnerParce(queryRunner);
     const messagePart = this.stringParce(message);
-    this.logger.debug(`Schema: ${messagePart}`);
+    this.logger.debug(`DatabaseSource: ${sourcePart} -> Schema: ${messagePart}`);
   }
 
-  logMigration(message: string, _queryRunner?: QueryRunner) {
+  logMigration(message: string, queryRunner?: QueryRunner) {
+    const sourcePart = this.queryRunnerParce(queryRunner);
     const messagePart = this.stringParce(message);
-    this.logger.debug(`Migration: ${messagePart}`);
+    this.logger.debug(
+      `DatabaseSource: ${sourcePart} -> Migration: ${messagePart}`,
+    );
   }
 
   log(
     level: 'log' | 'info' | 'warn',
     message: unknown,
-    _queryRunner?: QueryRunner,
+    queryRunner?: QueryRunner,
   ) {
+    const sourcePart = this.queryRunnerParce(queryRunner);
     switch (level) {
       case 'log':
       case 'info':
-        this.logger.log(message);
+        this.logger.log(`DatabaseSource: ${sourcePart} -> message:  ${message}`);
         break;
       case 'warn':
-        this.logger.warn(message);
+        this.logger.warn(`DatabaseSource: ${sourcePart} -> message: ${message}`);
         break;
     }
   }
