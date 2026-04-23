@@ -10,17 +10,17 @@ export class TemplateComSmsEntity {
   id: string;
 
   @Column()
-  method: string;
+  provider: string;
 
-  @Column({ name: 'method_template_name' })
-  methodTemplateName: string;
+  @Column({ name: 'template_name' })
+  templateName: string;
 
   @Column()
   from: string;
 
   @OneToOne(
     () => TemplatesEntity,
-    t => t.comSms,
+    template => template.comSms,
   )
   @JoinColumn({ name: 'id' })
   template: TemplatesEntity;

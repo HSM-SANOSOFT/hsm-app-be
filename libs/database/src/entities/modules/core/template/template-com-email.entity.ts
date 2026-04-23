@@ -30,7 +30,7 @@ export class TemplateComEmailEntity {
 
   @OneToOne(
     () => TemplatesEntity,
-    t => t.comEmail,
+    template => template.comEmail,
   )
   @JoinColumn({ name: 'id' })
   template: TemplatesEntity;

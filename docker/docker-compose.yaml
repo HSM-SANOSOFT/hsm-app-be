@@ -40,6 +40,8 @@ services:
     environment:
       SECRET_PATH: /app/be
     restart: unless-stopped
+    stop_signal: SIGTERM
+    stop_grace_period: 15s
     depends_on:
       - hsm-app-be-base
       - hsm-app-db-postgres

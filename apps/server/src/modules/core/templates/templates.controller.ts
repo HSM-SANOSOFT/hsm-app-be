@@ -1,3 +1,4 @@
+import { GetTemplateRequestDto } from '@hsm-lib/common/dtos';
 import {
   Body,
   Controller,
@@ -7,20 +8,17 @@ import {
   Post,
   Put,
 } from '@nestjs/common';
-
 import { ApiDocumentation, Public } from '../../../decorator';
-
 import { TemplatesService } from './templates.service';
 
 @Controller('templates')
 export class TemplatesController {
   constructor(private readonly templatesService: TemplatesService) {}
 
-  @ApiDocumentation()
-  @Public()
+  @ApiDocumentation(GetTemplateRequestDto) 
   @Get(':identifier')
-  async getTemplate(@Param('identifier') identifier: string) {
-    await this.templatesService.getTemplate(identifier);
+  async getTemplate(@Param() params: GetTemplateRequestDto) {
+    await this.templatesService.getTemplate(params.identifier);
   }
 
   @ApiDocumentation()

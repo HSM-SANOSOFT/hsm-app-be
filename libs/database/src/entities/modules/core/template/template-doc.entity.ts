@@ -1,3 +1,9 @@
+import {
+  DocumentCodesEnum,
+  DocumentFormatsEnum,
+  DocumentOrientationsEnum,
+  DocumentSizesEnum,
+} from '@hsm-lib/common/enums';
 import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres';
 import { Column, Entity, JoinColumn, OneToOne, PrimaryColumn } from 'typeorm';
 import { TemplatesEntity } from './templates.entity';
@@ -10,24 +16,21 @@ export class TemplateDocEntity {
   @PrimaryColumn({ type: 'uuid' })
   id: string;
 
-  @Column()
-  category: string;
+  @Column({ name: 'document_code', type: 'enum', enum: DocumentCodesEnum })
+  documentCode: DocumentCodesEnum;
 
-  @Column({ name: 'document_code' })
-  documentCode: string;
+  @Column({ type: 'enum', enum: DocumentFormatsEnum })
+  format: DocumentFormatsEnum;
 
-  @Column()
-  format: string;
+  @Column({ type: 'enum', enum: DocumentSizesEnum })
+  size: DocumentSizesEnum;
 
-  @Column()
-  size: string;
-
-  @Column()
-  orientation: string;
+  @Column({ type: 'enum', enum: DocumentOrientationsEnum })
+  orientation: DocumentOrientationsEnum;
 
   @OneToOne(
     () => TemplatesEntity,
-    t => t.doc,
+    template => template.doc,
   )
   @JoinColumn({ name: 'id' })
   template: TemplatesEntity;

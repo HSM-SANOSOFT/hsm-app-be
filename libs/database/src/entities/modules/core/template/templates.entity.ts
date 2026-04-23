@@ -1,3 +1,4 @@
+import { TemplateCategoriesEnum } from '@hsm-lib/common/enums';
 import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres';
 import {
   Check,
@@ -13,15 +14,15 @@ import { TemplateComSmsEntity } from './template-com-sms.entity';
 import { TemplateDocEntity } from './template-doc.entity';
 
 @Check(
-  `(type = 'base' AND base_template IS NULL) OR (type != 'base' AND base_template IS NOT NULL)`,
+  `(category = '${TemplateCategoriesEnum.BASE}' AND base_template IS NULL) OR (category != '${TemplateCategoriesEnum.BASE}' AND base_template IS NOT NULL)`,
 )
 @Entity({ name: 'templates', schema: DatabasePostgresSchemasEnum.TEMPLATES })
 export class TemplatesEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
-  type: string;
+  @Column({ type: 'enum', enum: TemplateCategoriesEnum })
+  category: TemplateCategoriesEnum;
 
   @Column()
   name: string;
@@ -38,28 +39,25 @@ export class TemplatesEntity {
   @Column({ nullable: true })
   description: string;
 
-  @Column({ name: 'base_template', nullable: true })
-  baseTemplateId: string;
-
   @ManyToOne(() => TemplatesEntity, { nullable: true })
   @JoinColumn({ name: 'base_template' })
   baseTemplate: TemplatesEntity;
 
   @OneToOne(
     () => TemplateComEmailEntity,
-    e => e.template,
+    templateComEmail => templateComEmail.template,
   )
   comEmail: TemplateComEmailEntity;
 
   @OneToOne(
     () => TemplateComSmsEntity,
-    e => e.template,
+    templateComSms => templateComSms.template,
   )
   comSms: TemplateComSmsEntity;
 
   @OneToOne(
     () => TemplateDocEntity,
-    e => e.template,
+    templateDoc => templateDoc.template,
   )
   doc: TemplateDocEntity;
 }
