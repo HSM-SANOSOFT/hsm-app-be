@@ -74,4 +74,3 @@ export enum DocumentCodesEnum {
   ANEXO_1 = 'ANEXO-1',
   ANEXO_2 = 'ANEXO-2',
 }
-

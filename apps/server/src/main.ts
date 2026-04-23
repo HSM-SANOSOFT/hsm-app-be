@@ -7,10 +7,6 @@ import { MainModule } from './main.module';
 import { freePort } from './utils';
 
 async function bootstrap() {
-  const port = 3000;
-
-  await freePort(port);
-
   const app = await NestFactory.create(MainModule, {
     logger: new ConsoleLogger({
       prefix: 'hsm-app-be-main',
@@ -21,6 +17,10 @@ async function bootstrap() {
           : ['log', 'error', 'warn'],
     }),
   });
+
+  const port = 3000;
+
+  await freePort(port);
 
   const config = new DocumentBuilder()
     .setTitle('HSM App Backend')

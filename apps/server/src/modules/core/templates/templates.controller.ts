@@ -15,7 +15,7 @@ import { TemplatesService } from './templates.service';
 export class TemplatesController {
   constructor(private readonly templatesService: TemplatesService) {}
 
-  @ApiDocumentation(GetTemplateRequestDto) 
+  @ApiDocumentation(GetTemplateRequestDto)
   @Get(':identifier')
   async getTemplate(@Param() params: GetTemplateRequestDto) {
     await this.templatesService.getTemplate(params.identifier);
