@@ -1,4 +1,4 @@
-import { DatabaseUniversalSchemasEnum } from '../database-universal.schemas';
+import { DatabaseAllSchemasEnum } from '../all/database-all.schemas';
 
 enum SchemasEnum {
   USERS = 'users',
@@ -8,7 +8,7 @@ enum SchemasEnum {
 }
 
 export const DatabasePostgresSchemasEnum = {
-  ...DatabaseUniversalSchemasEnum,
+  ...DatabaseAllSchemasEnum,
   ...SchemasEnum,
 } as const;
 

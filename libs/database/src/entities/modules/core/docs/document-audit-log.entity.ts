@@ -1,5 +1,4 @@
-import { DocumentsEntity } from '@hsm-lib/database/entities/modules/core/docs/documents.entity';
-import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres/database-postgres.schemas';
+import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres';
 import {
   Column,
   CreateDateColumn,
@@ -8,6 +7,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { DocumentsEntity } from './documents.entity';
 
 @Entity({
   name: 'document-audit-log',

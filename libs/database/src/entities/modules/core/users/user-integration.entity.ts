@@ -1,6 +1,6 @@
 import { RoleFunctionalityEnum } from '@hsm-lib/common/enums';
 import { RefreshTokenUserIntegrationEntity } from '@hsm-lib/database/entities/modules/security/auth';
-import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres/database-postgres.schemas';
+import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres';
 import {
   Column,
   CreateDateColumn,

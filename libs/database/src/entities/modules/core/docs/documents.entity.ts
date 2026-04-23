@@ -1,7 +1,4 @@
-import { DocumentAuditLogEntity } from '@hsm-lib/database/entities/modules/core/docs/document-audit-log.entity';
-import { DocumentLinkEntity } from '@hsm-lib/database/entities/modules/core/docs/document-link.entity';
-import { DocumentsVersionEntity } from '@hsm-lib/database/entities/modules/core/docs/document-version.entity';
-import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres/database-postgres.schemas';
+import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres';
 import {
   Column,
   CreateDateColumn,
@@ -11,6 +8,9 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { DocumentAuditLogEntity } from './document-audit-log.entity';
+import { DocumentLinkEntity } from './document-link.entity';
+import { DocumentsVersionEntity } from './document-version.entity';
 
 @Entity({ name: 'documents', schema: DatabasePostgresSchemasEnum.DOCS })
 export class DocumentsEntity {

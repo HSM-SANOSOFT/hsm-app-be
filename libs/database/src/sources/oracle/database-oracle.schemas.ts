@@ -1,11 +1,11 @@
-import { DatabaseUniversalSchemasEnum } from '../database-universal.schemas';
+import { DatabaseAllSchemasEnum } from '../all/database-all.schemas';
 
 enum SchemasEnum {
   SIS = 'SIS',
 }
 
 export const DatabaseOracleSchemasEnum = {
-  ...DatabaseUniversalSchemasEnum,
+  ...DatabaseAllSchemasEnum,
   ...SchemasEnum,
 } as const;
 
