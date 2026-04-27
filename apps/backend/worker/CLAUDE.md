@@ -42,7 +42,8 @@ Defined in `@hsm/queue` (3 attempts, 1s delay, 2s backoff):
 | ----- | --------- | ----- |
 | `coms` | `ComsModule` | Email (Nodemailer) + SMS |
 | `document` | `DocsModule` | PDF/doc generation via Puppeteer |
-| `notification` | (TBD) | Reserved |
+| `templates` | `TemplatesModule` | Template rendering / Handlebars |
+| `notification` | (TBD) | Reserved — declared in `@hsm/queue` but no consumer yet |
 
 ## Adding a processor
 

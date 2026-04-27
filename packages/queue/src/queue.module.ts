@@ -9,10 +9,10 @@ import { QueueService } from './queue.service';
   imports: [
     BullModule.forRoot({
       connection: {
-        host: envs.HSM_DB_REDIS_HOST,
-        port: envs.HSM_DB_REDIS_PORT,
-        username: envs.HSM_DB_REDIS_USER,
-        password: envs.HSM_DB_REDIS_PASSWORD,
+        host: envs.DB_REDIS_HOST,
+        port: envs.DB_REDIS_PORT,
+        username: envs.DB_REDIS_USER,
+        password: envs.DB_REDIS_PASSWORD,
       },
       prefix: 'hsm-app-be-queue',
       defaultJobOptions: {

@@ -29,11 +29,11 @@ const dataSourceOptions: TypeOrmModuleOptions = {
   ...DatabaseSourceOptions,
   type: 'oracle',
   name: DatabasesEnum.HsmDbOracle,
-  host: envs.HSM_DB_ORACLE_HOST,
-  port: envs.HSM_DB_ORACLE_PORT,
-  username: envs.HSM_DB_ORACLE_USER,
-  password: envs.HSM_DB_ORACLE_PASSWORD,
-  connectString: `${envs.HSM_DB_ORACLE_HOST}:${envs.HSM_DB_ORACLE_PORT}/${envs.HSM_DB_ORACLE_DB}`,
+  host: envs.DB_ORACLE_HOST,
+  port: envs.DB_ORACLE_PORT,
+  username: envs.DB_ORACLE_USER,
+  password: envs.DB_ORACLE_PASSWORD,
+  connectString: `${envs.DB_ORACLE_HOST}:${envs.DB_ORACLE_PORT}/${envs.DB_ORACLE_DB}`,
   synchronize: false,
 };
 

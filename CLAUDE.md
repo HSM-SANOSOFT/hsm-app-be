@@ -2,6 +2,22 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Per-workspace context
+
+Each app and package has its own `CLAUDE.md` with details specific to that workspace. **Read it before working in that directory** — it covers conventions, module wiring, and gotchas this root file doesn't repeat.
+
+| Workspace | File |
+| --------- | ---- |
+| `@hsm/api` | [`apps/backend/api/CLAUDE.md`](apps/backend/api/CLAUDE.md) |
+| `@hsm/worker` | [`apps/backend/worker/CLAUDE.md`](apps/backend/worker/CLAUDE.md) |
+| `@hsm/web` | [`apps/frontend/web/CLAUDE.md`](apps/frontend/web/CLAUDE.md) |
+| `@hsm/mobile` | [`apps/frontend/mobile/CLAUDE.md`](apps/frontend/mobile/CLAUDE.md) |
+| `@hsm/common` | [`packages/common/CLAUDE.md`](packages/common/CLAUDE.md) |
+| `@hsm/config` | [`packages/config/CLAUDE.md`](packages/config/CLAUDE.md) |
+| `@hsm/database` | [`packages/database/CLAUDE.md`](packages/database/CLAUDE.md) |
+| `@hsm/queue` | [`packages/queue/CLAUDE.md`](packages/queue/CLAUDE.md) |
+| `@hsm/storage` | [`packages/storage/CLAUDE.md`](packages/storage/CLAUDE.md) |
+
 ## Commands
 
 Everything runs inside Docker. Source is volume-mounted so hot reload works without rebuilding.
@@ -84,9 +100,9 @@ packages/
 | ------- | -------------- |
 | `@hsm/config` | `envs` — frozen, Joi-validated env vars. Import this everywhere instead of `process.env`. |
 | `@hsm/database` | Global `DatabaseModule`. Two TypeORM data sources: `hsm-db-postgres` (Postgres) and `hsm-db-oracle` (Oracle). Contains codegen CLI to introspect Oracle DB and emit TypeORM entities. |
-| `@hsm/queue` | Global `QueueModule`. BullMQ wired to Redis. Queues: `coms`, `document`, `notification`. 3 attempts, 1 s delay, 2 s backoff. |
-| `@hsm/common` | Shared DTOs, interfaces, enums, errors, types. |
-| `@hsm/storage` | S3-compatible storage (`StorageService`). Path-style (self-hosted) and AWS-native modes via `HSM_STORAGE_S3_FORCE_PATH_STYLE`. |
+| `@hsm/queue` | Global `QueueModule`. BullMQ wired to Redis. Queues: `coms`, `document`, `notification`, `templates`. 3 attempts, 1 s delay, 2 s backoff. |
+| `@hsm/common` | Shared DTOs, interfaces, enums, errors, types. Imported via subpaths (`@hsm/common/dtos`, `@hsm/common/enums`, …) — the package root index is empty by design. |
+| `@hsm/storage` | S3-compatible storage (`S3Service` under `S3Module`, plus a placeholder `StorageService`). Path-style (self-hosted) and AWS-native modes via `STRG_S3_FORCE_PATH_STYLE`. |
 
 ### API module tree (`apps/backend/api`)
 
@@ -100,11 +116,9 @@ MainModule
 ├── SecurityModule
 │   ├── AuthModule        (JWT AT+RT, Passport local)
 │   └── RolesModule
-├── ClinicalModule
-│   ├── PatientsModule
-│   └── AppointmentsModule
-└── AdministrativeModule
-    └── SchedulingModule
+└── ClinicalModule
+    ├── PatientsModule
+    └── AppointmentsModule
 ```
 
 ### Database patterns

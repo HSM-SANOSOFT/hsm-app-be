@@ -4,14 +4,14 @@ import { Logger } from '@nestjs/common';
 import { S3_CLIENT, S3_CLIENT_PRESIGNED } from './s3.symbols';
 
 function makeS3Client(host?: string) {
-  const endpoint = envs.HSM_STORAGE_S3_FORCE_PATH_STYLE ? host : undefined;
+  const endpoint = envs.STRG_S3_FORCE_PATH_STYLE ? host : undefined;
   return new S3Client({
-    region: envs.HSM_STORAGE_S3_REGION,
+    region: envs.STRG_S3_REGION,
     endpoint: endpoint,
-    forcePathStyle: envs.HSM_STORAGE_S3_FORCE_PATH_STYLE,
+    forcePathStyle: envs.STRG_S3_FORCE_PATH_STYLE,
     credentials: {
-      accessKeyId: envs.HSM_STORAGE_S3_ACCESS_KEY,
-      secretAccessKey: envs.HSM_STORAGE_S3_SECRET_KEY,
+      accessKeyId: envs.STRG_S3_ACCESS_KEY,
+      secretAccessKey: envs.STRG_S3_SECRET_KEY,
     },
   });
 }
@@ -41,9 +41,9 @@ function makeS3Provider(name: symbol, host?: string) {
   };
 }
 
-export const s3Client = makeS3Provider(S3_CLIENT, envs.HSM_STORAGE_S3_HOST);
+export const s3Client = makeS3Provider(S3_CLIENT, envs.STRG_S3_HOST);
 
 export const s3ClientPresigned = makeS3Provider(
   S3_CLIENT_PRESIGNED,
-  envs.HSM_STORAGE_S3_HOST_EXTERNAL ?? envs.HSM_STORAGE_S3_HOST,
+  envs.STRG_S3_HOST_EXTERNAL ?? envs.STRG_S3_HOST,
 );
