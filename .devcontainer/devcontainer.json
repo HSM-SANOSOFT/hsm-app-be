@@ -14,24 +14,21 @@
   ],
   "forwardPorts": [
     3000,
-    3001,
     4200
   ],
   "portsAttributes": {
     "3000": {
-      "label": "API"
-    },
-    "3001": {
-      "label": "Worker"
+      "label": "Api"
     },
     "4200": {
-      "label": "Angular"
+      "label": "Web"
     }
   },
   "containerEnv": {
     "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"
   },
   "postCreateCommand": "pnpm install --force && pnpm dlx puppeteer browsers install chrome-headless-shell",
+  "postStartCommand": "mkdir -p /root/.claude && [ -f /root/.claude.json ] && [ ! -L /root/.claude.json ] && mv /root/.claude.json /root/.claude/claude.json || true; [ -e /root/.claude/claude.json ] || touch /root/.claude/claude.json; ln -sfn /root/.claude/claude.json /root/.claude.json",
   "customizations": {
     "vscode": {
       "settings": {

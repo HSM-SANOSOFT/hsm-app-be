@@ -49,5 +49,28 @@
   ],
   "inlineFold.unfoldOnLineSelect": true,
   "inlineFold.autoFoldOnOpen": true,
-  "python-envs.defaultEnvManager": "ms-python.python:system"
+  "python-envs.defaultEnvManager": "ms-python.python:system",
+  "dbcode.connections": [
+    {
+      "connectionId": "OXibkh7WNhi03gaK3CsyT",
+      "name": "pg",
+      "driver": "postgres",
+      "connectionType": "host",
+      "host": "hsm-app-postgres-1",
+      "port": 5432,
+      "ssl": false,
+      "authMethod": "password",
+      "username": "postgres",
+      "password": "",
+      "savePassword": "secretStorage",
+      "database": "hsm",
+      "readOnly": false,
+      "postConnectionSqlType": "inline",
+      "connectionTimeout": 30,
+      "pinnedConnectionTimeout": "0",
+      "introspection": {
+        "progressive": false
+      }
+    }
+  ]
 }
