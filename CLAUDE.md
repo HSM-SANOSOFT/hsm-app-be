@@ -7,9 +7,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Everything runs inside Docker. Source is volume-mounted so hot reload works without rebuilding.
 
 ```bash
-# First time — build base image (must precede other builds)
-docker compose -f docker/docker-compose.yaml build hsm-app-be-base
-
 # Start full stack (api + worker + postgres + redis + minio + consoles)
 docker compose -f docker/docker-compose.yaml up
 
