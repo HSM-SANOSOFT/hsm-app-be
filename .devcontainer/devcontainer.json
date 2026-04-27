@@ -1,14 +1,32 @@
 {
   "name": "HSM Dev",
-  "dockerComposeFile": ["../docker/docker-compose.yaml", "docker-compose.yaml"],
+  "dockerComposeFile": [
+    "../docker/docker-compose.yaml",
+    "docker-compose.yaml"
+  ],
   "service": "workspace",
   "workspaceFolder": "/workspace",
-  "runServices": ["workspace", "postgres", "redis", "minio"],
-  "forwardPorts": [3000, 3001, 4200],
+  "runServices": [
+    "workspace",
+    "postgres",
+    "redis",
+    "minio"
+  ],
+  "forwardPorts": [
+    3000,
+    3001,
+    4200
+  ],
   "portsAttributes": {
-    "3000": { "label": "API" },
-    "3001": { "label": "Worker" },
-    "4200": { "label": "Angular" }
+    "3000": {
+      "label": "API"
+    },
+    "3001": {
+      "label": "Worker"
+    },
+    "4200": {
+      "label": "Angular"
+    }
   },
   "postCreateCommand": "pnpm install && pnpm dlx puppeteer browsers install chrome-headless-shell",
   "customizations": {
@@ -18,7 +36,20 @@
         "ms-vscode.vscode-typescript-next",
         "orta.vscode-jest",
         "ms-azuretools.vscode-docker",
-        "eamodio.gitlens"
+        "eamodio.gitlens",
+        "angular.ng-template",
+        "imgildev.vscode-auto-barrel",
+        "steoates.autoimport",
+        "aaron-bond.better-comments",
+        "dbcode.dbcode",
+        "jmkrivocapich.drawfolderstructure",
+        "usernamehw.errorlens",
+        "greenbyte.handlebars-preview",
+        "ctf0.inline-fold-new",
+        "firsttris.vscode-jest-runner",
+        "christian-kohler.path-intellisense",
+        "yoavbls.pretty-ts-errors",
+        "ms-vscode.test-adapter-converter"
       ]
     }
   }
