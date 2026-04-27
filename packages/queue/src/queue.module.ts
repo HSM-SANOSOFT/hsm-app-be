@@ -1,4 +1,4 @@
-import { envs } from '@hsm-lib/config';
+import { envs } from '@hsm/config';
 import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
 import { QueueEnum } from './queue.enum';

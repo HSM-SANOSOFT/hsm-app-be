@@ -1,5 +1,5 @@
-import { MetadataDto, UnsuccessResponseDto } from '@hsm-lib/common/dtos';
-import { IUnsuccessResponse } from '@hsm-lib/common/interfaces';
+import { MetadataDto, UnsuccessResponseDto } from '@hsm/common/dtos';
+import { IUnsuccessResponse } from '@hsm/common/interfaces';
 
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, Logger } from '@nestjs/common';
 

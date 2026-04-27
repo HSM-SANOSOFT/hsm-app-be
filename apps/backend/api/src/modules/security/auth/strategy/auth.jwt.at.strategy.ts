@@ -3,8 +3,8 @@ import type {
   IJwtPayloadUserIntegration,
   ISignedUser,
   ISignedUserIntegration,
-} from '@hsm-lib/common/interfaces';
-import { envs } from '@hsm-lib/config';
+} from '@hsm/common/interfaces';
+import { envs } from '@hsm/config';
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';

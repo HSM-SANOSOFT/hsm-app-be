@@ -1,4 +1,4 @@
-import { envs } from '@hsm-lib/config';
+import { envs } from '@hsm/config';
 import { ConsoleLogger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';

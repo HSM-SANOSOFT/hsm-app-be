@@ -1,5 +1,5 @@
-import { DriversEnum } from '@hsm-lib/database/generator/definitions';
-import { getArgs } from '@hsm-lib/database/generator/utils';
+import { DriversEnum } from '@hsm/database/generator/definitions';
+import { getArgs } from '@hsm/database/generator/utils';
 import { oracleQueryTest } from './oracle';
 
 async function entityGenerator() {

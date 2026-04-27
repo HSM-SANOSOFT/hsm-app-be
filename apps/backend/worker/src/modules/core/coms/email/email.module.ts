@@ -1,4 +1,4 @@
-import { envs } from '@hsm-lib/config';
+import { envs } from '@hsm/config';
 import { InternalServerErrorException, Module } from '@nestjs/common';
 import nodemailer from 'nodemailer';
 import { DocsModule } from '../../docs/docs.module';

@@ -1,5 +1,5 @@
-import { RefreshTokenUserEntity } from '@hsm-lib/database/entities/modules/security/auth';
-import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres';
+import { RefreshTokenUserEntity } from '@hsm/database/entities/modules/security/auth';
+import { DatabasePostgresSchemasEnum } from '@hsm/database/sources/postgres';
 import {
   Column,
   CreateDateColumn,

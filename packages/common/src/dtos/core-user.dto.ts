@@ -1,5 +1,5 @@
-import { RoleFunctionalityEnum, RolesEnum } from '@hsm-lib/common/enums';
-import type { RolesType } from '@hsm-lib/common/types';
+import { RoleFunctionalityEnum, RolesEnum } from '@hsm/common/enums';
+import type { RolesType } from '@hsm/common/types';
 import { ApiProperty, ApiSchema } from '@nestjs/swagger';
 import {
   ArrayMinSize,

@@ -1,5 +1,5 @@
-import { RolesEnum } from '@hsm-lib/common/enums';
-import type { RoleDomains, RolesType } from '@hsm-lib/common/types';
+import { RolesEnum } from '@hsm/common/enums';
+import type { RoleDomains, RolesType } from '@hsm/common/types';
 
 import { Injectable } from '@nestjs/common';
 @Injectable()

@@ -1,4 +1,4 @@
-import { SuccessResponseDto, UnsuccessResponseDto } from '@hsm-lib/common/dtos';
+import { SuccessResponseDto, UnsuccessResponseDto } from '@hsm/common/dtos';
 import { applyDecorators, HttpStatus } from '@nestjs/common';
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { Reflector } from '@nestjs/core';

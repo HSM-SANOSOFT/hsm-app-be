@@ -3,8 +3,8 @@ import {
   DocumentFormatsEnum,
   DocumentOrientationsEnum,
   DocumentSizesEnum,
-} from '@hsm-lib/common/enums';
-import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres';
+} from '@hsm/common/enums';
+import { DatabasePostgresSchemasEnum } from '@hsm/database/sources/postgres';
 import { Column, Entity, JoinColumn, OneToOne, PrimaryColumn } from 'typeorm';
 import { TemplatesEntity } from './templates.entity';
 

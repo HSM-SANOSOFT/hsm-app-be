@@ -1,5 +1,5 @@
 import { S3Client, S3ServiceException } from '@aws-sdk/client-s3';
-import { envs } from '@hsm-lib/config';
+import { envs } from '@hsm/config';
 import { Logger } from '@nestjs/common';
 import { S3_CLIENT, S3_CLIENT_PRESIGNED } from './s3.symbols';
 

@@ -1,4 +1,4 @@
-import { envs } from '@hsm-lib/config';
+import { envs } from '@hsm/config';
 import { ConsoleLogger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 

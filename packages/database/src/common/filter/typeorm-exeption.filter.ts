@@ -1,5 +1,5 @@
-import { IUnsuccessResponse } from '@hsm-lib/common/interfaces';
-import { envs } from '@hsm-lib/config';
+import { IUnsuccessResponse } from '@hsm/common/interfaces';
+import { envs } from '@hsm/config';
 import {
   ArgumentsHost,
   Catch,

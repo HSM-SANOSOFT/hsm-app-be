@@ -1,4 +1,4 @@
-import { OracleIndexQuery } from '@hsm-lib/database/generator/definitions';
+import { OracleIndexQuery } from '@hsm/database/generator/definitions';
 import oracledb from 'oracledb';
 
 export async function oracleIndexQuery(

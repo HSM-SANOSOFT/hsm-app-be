@@ -1,10 +1,10 @@
-import { RolesEnum } from '@hsm-lib/common/enums';
+import { RolesEnum } from '@hsm/common/enums';
 import {
   ISignedUser,
   ISignedUserIntegration,
-} from '@hsm-lib/common/interfaces';
-import type { RolesType } from '@hsm-lib/common/types';
-import { envs } from '@hsm-lib/config/envs';
+} from '@hsm/common/interfaces';
+import type { RolesType } from '@hsm/common/types';
+import { envs } from '@hsm/config/envs';
 import {
   CanActivate,
   ExecutionContext,

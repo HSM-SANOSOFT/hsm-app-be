@@ -1,7 +1,7 @@
 import { Readable } from 'node:stream';
-import { SendEmailPayloadDto } from '@hsm-lib/common/dtos';
+import { SendEmailPayloadDto } from '@hsm/common/dtos';
 
-import { envs } from '@hsm-lib/config';
+import { envs } from '@hsm/config';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import nodemailer from 'nodemailer';
 import { Attachment } from 'nodemailer/lib/mailer';

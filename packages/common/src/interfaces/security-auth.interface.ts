@@ -1,5 +1,5 @@
-import type { RolesType } from '@hsm-lib/common/types';
-import { UserEntity, UserIntegrationEntity } from '@hsm-lib/database/entities';
+import type { RolesType } from '@hsm/common/types';
+import { UserEntity, UserIntegrationEntity } from '@hsm/database/entities';
 
 export interface IJwtPayloadUser extends Omit<IUnsignedUser, 'id'> {
   sub: IUnsignedUser['id'];

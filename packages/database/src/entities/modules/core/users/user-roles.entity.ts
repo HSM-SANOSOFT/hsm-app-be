@@ -1,6 +1,6 @@
-import type { RoleDomains, RolesType } from '@hsm-lib/common/types';
-import { UserEntity } from '@hsm-lib/database/entities/modules/core/users/users.entity';
-import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres';
+import type { RoleDomains, RolesType } from '@hsm/common/types';
+import { UserEntity } from '@hsm/database/entities/modules/core/users/users.entity';
+import { DatabasePostgresSchemasEnum } from '@hsm/database/sources/postgres';
 import {
   Column,
   CreateDateColumn,

@@ -1,7 +1,7 @@
 import {
   DocumentsPayloadDto,
   UploadDocumentPayloadDto,
-} from '@hsm-lib/common/dtos';
+} from '@hsm/common/dtos';
 import {
   Body,
   Controller,

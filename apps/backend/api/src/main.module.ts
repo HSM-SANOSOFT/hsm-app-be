@@ -1,5 +1,5 @@
-import { DatabaseModule } from '@hsm-lib/database';
-import { QueueModule } from '@hsm-lib/queue';
+import { DatabaseModule } from '@hsm/database';
+import { QueueModule } from '@hsm/queue';
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { TerminusModule } from '@nestjs/terminus';

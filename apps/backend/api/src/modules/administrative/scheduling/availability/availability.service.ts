@@ -1,12 +1,12 @@
-import { AppointmentTypesEnums } from '@hsm-lib/common/enums';
+import { AppointmentTypesEnums } from '@hsm/common/enums';
 import {
   AdmServidoresDiagnosticoEntity,
   EspecialidadesEntity,
   EspecialidadesMedicosEntity,
   HorariosMedicoEntity,
   PersonalEntity,
-} from '@hsm-lib/database/entities';
-import { DatabasesEnum } from '@hsm-lib/database/sources';
+} from '@hsm/database/entities';
+import { DatabasesEnum } from '@hsm/database/sources';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';

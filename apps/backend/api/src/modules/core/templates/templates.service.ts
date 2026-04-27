@@ -3,8 +3,8 @@ import {
   TemplateComSmsEntity,
   TemplateDocEntity,
   TemplatesEntity,
-} from '@hsm-lib/database/entities/modules/core/template';
-import { DatabasesEnum } from '@hsm-lib/database/sources';
+} from '@hsm/database/entities/modules/core/template';
+import { DatabasesEnum } from '@hsm/database/sources';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';

@@ -1,4 +1,4 @@
-//import { ValidateEmailTemplateData } from '@hsm-lib/common/validators';
+//import { ValidateEmailTemplateData } from '@hsm/common/validators';
 
 import { ApiProperty, ApiSchema, PartialType } from '@nestjs/swagger';
 import {

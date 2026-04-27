@@ -1,10 +1,10 @@
 import {
   CreateUserIntegrationPayloadDto,
   CreateUserPayloadDto,
-} from '@hsm-lib/common/dtos';
-import { PinPurposeEnum, RolesEnum } from '@hsm-lib/common/enums';
-import { ITokens } from '@hsm-lib/common/interfaces';
-import { RolesType } from '@hsm-lib/common/types';
+} from '@hsm/common/dtos';
+import { PinPurposeEnum, RolesEnum } from '@hsm/common/enums';
+import { ITokens } from '@hsm/common/interfaces';
+import { RolesType } from '@hsm/common/types';
 import { ApiProperty, ApiSchema } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsNumber, IsString } from 'class-validator';
 

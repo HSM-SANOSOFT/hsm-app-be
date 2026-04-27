@@ -1,8 +1,8 @@
 import {
   OracleIndex,
   OracleIndexQuery,
-} from '@hsm-lib/database/generator/definitions';
-import { normalize } from '@hsm-lib/database/generator/utils';
+} from '@hsm/database/generator/definitions';
+import { normalize } from '@hsm/database/generator/utils';
 import oracledb from 'oracledb';
 
 export function oracleIndexMapping(

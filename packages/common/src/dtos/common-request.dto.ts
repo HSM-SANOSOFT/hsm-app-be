@@ -1,4 +1,4 @@
-import { FilterEnum, SortEnum } from '@hsm-lib/common/enums';
+import { FilterEnum, SortEnum } from '@hsm/common/enums';
 import { ApiProperty, ApiSchema } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
 

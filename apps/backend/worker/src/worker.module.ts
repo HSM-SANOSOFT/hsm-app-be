@@ -1,5 +1,5 @@
-import { DatabaseModule } from '@hsm-lib/database';
-import { QueueModule } from '@hsm-lib/queue/queue.module';
+import { DatabaseModule } from '@hsm/database';
+import { QueueModule } from '@hsm/queue/queue.module';
 import { Module } from '@nestjs/common';
 import { CoreModule } from './modules/core/core.module';
 import { WorkerController } from './worker.controller';

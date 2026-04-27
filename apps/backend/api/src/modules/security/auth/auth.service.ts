@@ -3,8 +3,8 @@ import {
   PinValidationPayloadDto,
   SignupIntegrationTokenPayloadDto,
   SignupPayloadDto,
-} from '@hsm-lib/common/dtos';
-import { RolesEnum } from '@hsm-lib/common/enums';
+} from '@hsm/common/dtos';
+import { RolesEnum } from '@hsm/common/enums';
 import {
   IJwtPayloadUser,
   IJwtPayloadUserIntegration,
@@ -14,13 +14,13 @@ import {
   ITokens,
   IUnsignedUser,
   IUnsignedUserIntegration,
-} from '@hsm-lib/common/interfaces';
-import { envs } from '@hsm-lib/config';
+} from '@hsm/common/interfaces';
+import { envs } from '@hsm/config';
 import {
   RefreshTokenUserEntity,
   RefreshTokenUserIntegrationEntity,
-} from '@hsm-lib/database/entities';
-import { DatabasesEnum } from '@hsm-lib/database/sources';
+} from '@hsm/database/entities';
+import { DatabasesEnum } from '@hsm/database/sources';
 import {
   BadRequestException,
   Injectable,

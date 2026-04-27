@@ -3,12 +3,12 @@ import {
   OracleConstrains,
   OracleEntityHbsData,
   OracleIndex,
-} from '@hsm-lib/database/generator/definitions';
+} from '@hsm/database/generator/definitions';
 import {
   normalize,
   toCamelCase,
   toPascalCase,
-} from '@hsm-lib/database/generator/utils';
+} from '@hsm/database/generator/utils';
 import { Logger } from '@nestjs/common';
 
 const logger = new Logger('oracleEntityMapping');

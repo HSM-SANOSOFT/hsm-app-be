@@ -1,5 +1,5 @@
 //import { EmailTemplateDataPipe } from '@hsm-app/server/pipes';
-import { SendEmailPayloadDto } from '@hsm-lib/common/dtos';
+import { SendEmailPayloadDto } from '@hsm/common/dtos';
 import { Body, Controller, Post } from '@nestjs/common';
 import { ApiDocumentation, Public } from '../../../decorator';
 import { Roles } from '../../security/roles/roles.decorator';

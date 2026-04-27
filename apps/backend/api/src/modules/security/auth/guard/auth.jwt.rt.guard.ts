@@ -1,6 +1,6 @@
 // noinspection JSUnusedGlobalSymbols
 
-import { envs } from '@hsm-lib/config';
+import { envs } from '@hsm/config';
 import {
   type ExecutionContext,
   Injectable,

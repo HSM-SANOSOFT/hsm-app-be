@@ -1,8 +1,8 @@
 import {
   OracleEntityHbsData,
   OracleSchemaHbsData,
-} from '@hsm-lib/database/generator/definitions';
-import { loadTemplate } from '@hsm-lib/database/generator/utils';
+} from '@hsm/database/generator/definitions';
+import { loadTemplate } from '@hsm/database/generator/utils';
 
 export const oracleSchemaTemplate = loadTemplate<OracleSchemaHbsData>(
   'oracle/oracle.template.schema.hbs',

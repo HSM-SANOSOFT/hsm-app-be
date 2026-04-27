@@ -1,5 +1,5 @@
-import { TemplateCategoriesEnum } from '@hsm-lib/common/enums';
-import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres';
+import { TemplateCategoriesEnum } from '@hsm/common/enums';
+import { DatabasePostgresSchemasEnum } from '@hsm/database/sources/postgres';
 import {
   Check,
   Column,

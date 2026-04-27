@@ -1,4 +1,4 @@
-import { OracleColumnsQuery } from '@hsm-lib/database/generator/definitions';
+import { OracleColumnsQuery } from '@hsm/database/generator/definitions';
 import oracledb from 'oracledb';
 
 export async function oracleColumnsQuery(

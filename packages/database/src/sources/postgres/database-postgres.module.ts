@@ -1,4 +1,4 @@
-import { envs } from '@hsm-lib/config';
+import { envs } from '@hsm/config';
 import { Logger, Module, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource, TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';

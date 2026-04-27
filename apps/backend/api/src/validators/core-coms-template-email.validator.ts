@@ -1,4 +1,4 @@
-//import type { DtoClass } from '@hsm-lib/common/types';
+//import type { DtoClass } from '@hsm/common/types';
 
 import { Injectable /*Logger */ } from '@nestjs/common';
 //import { plainToInstance } from 'class-transformer';

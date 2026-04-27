@@ -8,9 +8,9 @@ import {
   SignupIntegrationTokenPayloadDto,
   SignupPayloadDto,
   TokensDto,
-} from '@hsm-lib/common/dtos';
-import { RolesEnum } from '@hsm-lib/common/enums';
-import type { IRefreshUser, ISignedUser } from '@hsm-lib/common/interfaces';
+} from '@hsm/common/dtos';
+import { RolesEnum } from '@hsm/common/enums';
+import type { IRefreshUser, ISignedUser } from '@hsm/common/interfaces';
 import {
   Body,
   Controller,

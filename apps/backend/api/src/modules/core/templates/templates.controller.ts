@@ -1,4 +1,4 @@
-import { GetTemplateRequestDto } from '@hsm-lib/common/dtos';
+import { GetTemplateRequestDto } from '@hsm/common/dtos';
 import {
   Body,
   Controller,

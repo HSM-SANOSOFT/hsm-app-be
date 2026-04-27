@@ -1,4 +1,4 @@
-import { RolesEnum } from '@hsm-lib/common/enums';
+import { RolesEnum } from '@hsm/common/enums';
 
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiDocumentation } from '../../../../decorator';

@@ -1,4 +1,4 @@
-import { normalize } from '@hsm-lib/database/generator/utils/normalize.util';
+import { normalize } from '@hsm/database/generator/utils/normalize.util';
 
 export function toPascalCase(v: string | null | undefined): string;
 export function toPascalCase(v: string | null | undefined): string | undefined {

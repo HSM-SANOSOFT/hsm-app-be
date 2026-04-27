@@ -1,4 +1,4 @@
-import { OracleConstrainsQuery } from '@hsm-lib/database/generator/definitions';
+import { OracleConstrainsQuery } from '@hsm/database/generator/definitions';
 import oracledb from 'oracledb';
 
 export async function oracleConstrainsQuery(

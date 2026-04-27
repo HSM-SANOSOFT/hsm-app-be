@@ -1,4 +1,4 @@
-import { TypeormRelationshipTypeEnum } from '@hsm-lib/database/generator/definitions';
+import { TypeormRelationshipTypeEnum } from '@hsm/database/generator/definitions';
 
 export interface OracleConstrainsQuery {
   OWNER: string | null;

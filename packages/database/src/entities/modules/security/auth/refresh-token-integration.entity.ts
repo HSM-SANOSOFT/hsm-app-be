@@ -1,5 +1,5 @@
-import { UserIntegrationEntity } from '@hsm-lib/database/entities/modules/core/users';
-import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres';
+import { UserIntegrationEntity } from '@hsm/database/entities/modules/core/users';
+import { DatabasePostgresSchemasEnum } from '@hsm/database/sources/postgres';
 import {
   Column,
   CreateDateColumn,

@@ -1,20 +1,20 @@
-import { getOracleConnection } from '@hsm-lib/database/generator/datasources';
-import { OracleTablesToGenerate } from '@hsm-lib/database/generator/tables';
+import { getOracleConnection } from '@hsm/database/generator/datasources';
+import { OracleTablesToGenerate } from '@hsm/database/generator/tables';
 import {
   indexTemplate,
   oracleEntityTemplate,
-} from '@hsm-lib/database/generator/templates';
-import { oracleTemplatesHelpers } from '@hsm-lib/database/generator/templates/oracle/oracle.templates.helpers';
+} from '@hsm/database/generator/templates';
+import { oracleTemplatesHelpers } from '@hsm/database/generator/templates/oracle/oracle.templates.helpers';
 import {
   oracleColumnsMapping,
   oracleColumnsQuery,
   oracleConstrainsMapping,
   oracleConstrainsQuery,
   toCamelCase,
-} from '@hsm-lib/database/generator/utils';
-import { oracleEntityHbsMapping } from '@hsm-lib/database/generator/utils/oracle/oracle.mapping.hbs.entity.util';
-import { oracleIndexMapping } from '@hsm-lib/database/generator/utils/oracle/oracle.mapping.indexes.util';
-import { oracleIndexQuery } from '@hsm-lib/database/generator/utils/oracle/oracle.query.indexes.util';
+} from '@hsm/database/generator/utils';
+import { oracleEntityHbsMapping } from '@hsm/database/generator/utils/oracle/oracle.mapping.hbs.entity.util';
+import { oracleIndexMapping } from '@hsm/database/generator/utils/oracle/oracle.mapping.indexes.util';
+import { oracleIndexQuery } from '@hsm/database/generator/utils/oracle/oracle.query.indexes.util';
 import { Logger } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';

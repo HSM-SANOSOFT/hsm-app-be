@@ -1,13 +1,13 @@
-import { getOracleConnection } from '@hsm-lib/database/generator/datasources';
-import { OracleTablesToGenerate } from '@hsm-lib/database/generator/tables';
-import { oracleSchemaTemplate } from '@hsm-lib/database/generator/templates';
-import { oracleTemplatesHelpers } from '@hsm-lib/database/generator/templates/oracle/oracle.templates.helpers';
+import { getOracleConnection } from '@hsm/database/generator/datasources';
+import { OracleTablesToGenerate } from '@hsm/database/generator/tables';
+import { oracleSchemaTemplate } from '@hsm/database/generator/templates';
+import { oracleTemplatesHelpers } from '@hsm/database/generator/templates/oracle/oracle.templates.helpers';
 import {
   oracleColumnsMapping,
   oracleColumnsQuery,
   oracleConstrainsMapping,
   oracleConstrainsQuery,
-} from '@hsm-lib/database/generator/utils';
+} from '@hsm/database/generator/utils';
 import { Logger } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';

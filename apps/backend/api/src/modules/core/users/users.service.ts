@@ -3,13 +3,13 @@ import {
   CreateUserPayloadDto,
   DeleteUserPayloadDto,
   UpdateUserPayloadDto,
-} from '@hsm-lib/common/dtos';
+} from '@hsm/common/dtos';
 import {
   UserEntity,
   UserIntegrationEntity,
   UserRoleEntity,
-} from '@hsm-lib/database/entities';
-import { DatabasesEnum } from '@hsm-lib/database/sources';
+} from '@hsm/database/entities';
+import { DatabasesEnum } from '@hsm/database/sources';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import type { QueryRunner } from 'typeorm';

@@ -1,4 +1,4 @@
-import { DatabasePostgresSchemasEnum } from '@hsm-lib/database/sources/postgres';
+import { DatabasePostgresSchemasEnum } from '@hsm/database/sources/postgres';
 import {
   Column,
   Entity,

@@ -1,5 +1,5 @@
-import { OracleColumns } from '@hsm-lib/database/generator/definitions';
-import { oracleDataTypeSchemaMapping } from '@hsm-lib/database/generator/utils';
+import { OracleColumns } from '@hsm/database/generator/definitions';
+import { oracleDataTypeSchemaMapping } from '@hsm/database/generator/utils';
 import Handlebars from 'handlebars';
 
 let oracleTemplatesHelpersRegistered = false;

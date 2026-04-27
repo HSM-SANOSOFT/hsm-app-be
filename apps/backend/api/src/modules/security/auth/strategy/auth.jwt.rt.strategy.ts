@@ -2,9 +2,9 @@ import type {
   IJwtPayloadUser,
   IJwtPayloadUserIntegration,
   IRefreshUser,
-} from '@hsm-lib/common/interfaces';
+} from '@hsm/common/interfaces';
 
-import { envs } from '@hsm-lib/config';
+import { envs } from '@hsm/config';
 import { Injectable, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Request } from 'express';

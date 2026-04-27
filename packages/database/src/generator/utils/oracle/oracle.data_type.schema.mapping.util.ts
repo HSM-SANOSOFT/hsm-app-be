@@ -1,4 +1,4 @@
-import { OracleColumns } from '@hsm-lib/database/generator/definitions';
+import { OracleColumns } from '@hsm/database/generator/definitions';
 
 export function oracleDataTypeSchemaMapping(column: OracleColumns): string {
   const type = column.DATA_TYPE;
