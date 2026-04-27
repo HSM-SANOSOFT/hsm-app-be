@@ -12,17 +12,11 @@ RUN pnpm dlx turbo prune @hsm/api --docker
 FROM node:24-bookworm-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    bash unzip libaio1 libnsl2 ca-certificates \
+    libaio1 libnsl2 ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
-ADD docker/oracle/instantclient-basic-linux.x64-12.1.0.2.0.zip /tmp/
-RUN set -eux; \
-    install -d /usr/lib/oracle/12.1/client64/lib /tmp/ic; \
-    unzip -q /tmp/instantclient-basic-linux.x64-12.1.0.2.0.zip -d /tmp/ic; \
-    mv /tmp/ic/instantclient_*/** /usr/lib/oracle/12.1/client64/lib/ 2>/dev/null \
-      || mv /tmp/ic/instantclient_*/* /usr/lib/oracle/12.1/client64/lib/; \
-    rm -rf /tmp/ic /tmp/instantclient-basic-linux.x64-12.1.0.2.0.zip; \
-    ln -sfn /usr/lib/oracle/12.1/client64/lib/libclntsh.so.12.1 \
+COPY docker/oracle/instantclient_12_1 /usr/lib/oracle/12.1/client64/lib/
+RUN ln -sfn /usr/lib/oracle/12.1/client64/lib/libclntsh.so.12.1 \
             /usr/lib/oracle/12.1/client64/lib/libclntsh.so || true
 RUN echo "/usr/lib/oracle/12.1/client64/lib" \
       > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig
