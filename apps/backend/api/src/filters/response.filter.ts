@@ -1,7 +1,13 @@
 import { MetadataDto, UnsuccessResponseDto } from '@hsm/common/dtos';
 import { IUnsuccessResponse } from '@hsm/common/interfaces';
 
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, Logger } from '@nestjs/common';
+import {
+  ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpException,
+  Logger,
+} from '@nestjs/common';
 
 import { Request, Response } from 'express';
 import { extractApiVersion } from '../utils';

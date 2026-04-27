@@ -8,10 +8,7 @@ import {
   S3ServiceException,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import {
-  DocumentsPayloadDto,
-  S3FileUploadPayloadDto,
-} from '@hsm/common/dtos';
+import { DocumentsPayloadDto, S3FileUploadPayloadDto } from '@hsm/common/dtos';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { S3_CLIENT, S3_CLIENT_PRESIGNED } from './s3.symbols';
