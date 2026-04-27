@@ -41,9 +41,9 @@ pnpm --filter @hsm/worker build
 # Or build everything via Turborepo:
 pnpm build
 
-# Entity/schema generators (run from monorepo root inside container)
-pnpm generator:entity -- --driver=oracle --host=... --user=... --pass=... --db=... --table=... --schema=... --save
-pnpm generator:schema
+# Entity/schema generators (run inside container)
+pnpm --filter @hsm/database generator:entity -- --driver=oracle --host=... --user=... --pass=... --db=... --table=... --schema=... --save
+pnpm --filter @hsm/database generator:schema
 ```
 
 ### Port map

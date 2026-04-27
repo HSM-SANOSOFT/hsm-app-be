@@ -4,7 +4,10 @@
   "private": true,
   "main": "./src/index.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.lib.json"
+    "build": "tsc -p tsconfig.lib.json",
+    "generator:entity": "ts-node -r tsconfig-paths/register src/generator/generators/entity.generator.ts",
+    "generator:schema": "ts-node -r tsconfig-paths/register src/generator/generators/schema.generator.ts",
+    "generator:test:query": "ts-node -r tsconfig-paths/register src/generator/tests/query.test.ts"
   },
   "dependencies": {
     "@hsm/common": "workspace:*",

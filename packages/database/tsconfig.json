@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@hsm/database": ["src"],
+      "@hsm/database/*": ["src/*"]
+    }
+  }
+}

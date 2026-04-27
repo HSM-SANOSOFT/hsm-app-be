@@ -28,9 +28,16 @@
       "label": "Angular"
     }
   },
-  "postCreateCommand": "pnpm install && pnpm dlx puppeteer browsers install chrome-headless-shell",
+  "containerEnv": {
+    "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"
+  },
+  "postCreateCommand": "pnpm install --force && pnpm dlx puppeteer browsers install chrome-headless-shell",
   "customizations": {
     "vscode": {
+      "settings": {
+        "task.allowAutomaticTasks": "on",
+        "terminal.integrated.showExitAlert": false
+      },
       "extensions": [
         "biomejs.biome",
         "ms-vscode.vscode-typescript-next",
@@ -49,7 +56,9 @@
         "firsttris.vscode-jest-runner",
         "christian-kohler.path-intellisense",
         "yoavbls.pretty-ts-errors",
-        "ms-vscode.test-adapter-converter"
+        "ms-vscode.test-adapter-converter",
+        "anthropic.claude-code",
+        "usernamehw.errorlens"
       ]
     }
   }
