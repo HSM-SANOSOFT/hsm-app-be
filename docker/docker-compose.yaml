@@ -13,21 +13,13 @@ volumes:
   miniodata:
     name: hsm-app-minio-data
 services:
-  hsm-app-be-base:
-    container_name: hsm-app-be-base
-    image: hsm-app-be-base
+  hsm-app-be-api:
+    container_name: hsm-app-be-api
+    image: hsm-app-be-api
     build:
       context: ../
-      dockerfile: ./docker/dockerFile.base
-
-  hsm-app-be-server:
-    container_name: hsm-app-be-server
-    image: hsm-app-be-server
-    build:
-      context: ../
-      args:
-        - APP_TYPE=api
-      dockerfile: ./docker/dockerFile.dev
+      dockerfile: apps/backend/api/Dockerfile
+      target: dev
     networks:
       - hsm-app-network
     ports:
@@ -37,13 +29,10 @@ services:
       - /app/node_modules
     env_file:
       - ../.env
-    environment:
-      SECRET_PATH: /app/be
     restart: unless-stopped
     stop_signal: SIGTERM
     stop_grace_period: 15s
     depends_on:
-      - hsm-app-be-base
       - hsm-app-db-postgres
       - hsm-app-db-redis
       - hsm-app-db-minio
@@ -54,9 +43,8 @@ services:
     image: hsm-app-be-worker
     build:
       context: ../
-      args:
-        - APP_TYPE=worker
-      dockerfile: ./docker/dockerFile.dev
+      dockerfile: apps/backend/worker/Dockerfile
+      target: dev
     networks:
       - hsm-app-network
     ports:
@@ -66,10 +54,7 @@ services:
       - /app/node_modules
     env_file:
       - ../.env
-    environment:
-      SECRET_PATH: /app/be
     depends_on:
-      - hsm-app-be-base
       - hsm-app-db-postgres
       - hsm-app-db-redis
       - hsm-app-db-minio

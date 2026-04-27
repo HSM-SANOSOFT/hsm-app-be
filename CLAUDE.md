@@ -17,7 +17,7 @@ docker compose -f docker/docker-compose.yaml up
 docker compose -f docker/docker-compose.yaml up hsm-app-db-postgres hsm-app-db-redis hsm-app-db-minio
 
 # Exec into running containers
-docker exec -it hsm-app-be-server sh   # api container
+docker exec -it hsm-app-be-api sh      # api container
 docker exec -it hsm-app-be-worker sh   # worker container
 
 # Install deps (run inside container — regenerates pnpm-lock.yaml)
@@ -65,7 +65,7 @@ Turborepo monorepo. Backend: two NestJS apps. Frontend: placeholder (Angular com
 
 ### Structure
 
-```
+```text
 apps/
   backend/
     api/      (@hsm/api)     HTTP API — port 3000, URI versioning (default v1), Swagger at /api
@@ -93,7 +93,7 @@ packages/
 
 ### API module tree (`apps/backend/api`)
 
-```
+```text
 MainModule
 ├── CoreModule
 │   ├── UsersModule
