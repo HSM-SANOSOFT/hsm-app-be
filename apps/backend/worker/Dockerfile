@@ -33,6 +33,11 @@ RUN pnpm dlx puppeteer browsers install chrome-headless-shell
 COPY --from=pruner /app/out/full/ .
 RUN pnpm --filter @hsm/worker build
 
+# ── Dev (hot-reload) ─────────────────────────────────────────────────────────
+FROM builder AS dev
+
+CMD ["pnpm", "--filter", "@hsm/worker", "start:dev"]
+
 # ── Runtime ───────────────────────────────────────────────────────────────────
 FROM node:24-bookworm-slim AS runtime
 

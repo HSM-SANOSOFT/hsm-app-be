@@ -30,6 +30,11 @@ RUN pnpm install --frozen-lockfile
 COPY --from=pruner /app/out/full/ .
 RUN pnpm --filter @hsm/api build
 
+# ── Dev (hot-reload) ─────────────────────────────────────────────────────────
+FROM builder AS dev
+
+CMD ["pnpm", "--filter", "@hsm/api", "start:dev"]
+
 # ── Runtime ───────────────────────────────────────────────────────────────────
 FROM node:24-bookworm-slim AS runtime
 
