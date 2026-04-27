@@ -26,7 +26,7 @@ services:
     build:
       context: ../
       args:
-        - APP_TYPE=server
+        - APP_TYPE=api
       dockerfile: ./docker/dockerFile.dev
     networks:
       - hsm-app-network
