@@ -12,16 +12,13 @@ RUN pnpm dlx turbo prune @hsm/worker --docker
 FROM node:24-bookworm-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libaio1 libnsl2 ca-certificates \
+    unzip libaio1 libnsl2 ca-certificates \
     fonts-liberation libatk-bridge2.0-0 libatk1.0-0 libcups2 \
     libdbus-1-3 libdrm2 libgbm1 libnspr4 libnss3 libx11-6 libxext6 \
   && rm -rf /var/lib/apt/lists/*
 
-COPY docker/oracle/instantclient_12_1 /usr/lib/oracle/12.1/client64/lib/
-RUN ln -sfn /usr/lib/oracle/12.1/client64/lib/libclntsh.so.12.1 \
-            /usr/lib/oracle/12.1/client64/lib/libclntsh.so || true
-RUN echo "/usr/lib/oracle/12.1/client64/lib" \
-      > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig
+COPY docker/oracle /tmp/oracle
+RUN bash /tmp/oracle/install_oracle_client.sh && rm -rf /tmp/oracle
 
 RUN corepack enable
 

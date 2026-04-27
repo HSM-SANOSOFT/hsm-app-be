@@ -4,7 +4,7 @@
     {
       "label": "Get Secrets (infisical)",
       "type": "shell",
-      "command": "get-secrets-infisical",
+      "command": "${workspaceFolder}/script/get-secrets-infisical.sh",
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",

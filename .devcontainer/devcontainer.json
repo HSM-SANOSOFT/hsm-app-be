@@ -27,8 +27,8 @@
   "containerEnv": {
     "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"
   },
-  "postCreateCommand": "pnpm install --force && pnpm dlx puppeteer browsers install chrome-headless-shell",
-  "postStartCommand": "mkdir -p /root/.claude && [ -f /root/.claude.json ] && [ ! -L /root/.claude.json ] && mv /root/.claude.json /root/.claude/claude.json || true; [ -e /root/.claude/claude.json ] || touch /root/.claude/claude.json; ln -sfn /root/.claude/claude.json /root/.claude.json",
+  "postCreateCommand": "script/post-create.sh",
+  "postStartCommand": "script/post-start.sh",
   "customizations": {
     "vscode": {
       "settings": {
