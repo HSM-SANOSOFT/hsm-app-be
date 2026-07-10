@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 import {
   collectValidationDetails,
   flattenValidationMessages,
@@ -47,6 +48,10 @@ async function bootstrap() {
     customSiteTitle: envs.SWAGGER_SITE_TITLE,
     customfavIcon: envs.SWAGGER_FAVICON,
   });
+
+  // Parse cookies before guards/strategies run so the JWT strategies can read
+  // the httpOnly access/refresh cookies (dual-transport auth, browser/SSR).
+  app.use(cookieParser());
 
   app.useGlobalGuards();
   app.useGlobalFilters();

@@ -28,6 +28,12 @@ export const FIELDS = {
   JWT_AT_SECRET: joi.string().required(),
   JWT_RT_SECRET: joi.string().required(),
 
+  // Browser session cookies (dual-transport auth). `secure` is off in dev
+  // (plain http on :4200) and on in prod; `domain` is optional (unset = the
+  // request host). httpOnly + SameSite=Strict are code constants, not env.
+  COOKIE_SECURE: joi.boolean().default(false),
+  COOKIE_DOMAIN: joi.string().allow('').optional(),
+
   DB_POSTGRES_HOST: joi.string().required(),
   DB_POSTGRES_PORT: joi.number().default(5432),
   DB_POSTGRES_USER: joi.string().required(),
