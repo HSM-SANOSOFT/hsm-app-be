@@ -51,11 +51,12 @@ function bootLocaleId(): string {
  *
  * - Zoneless change detection (Angular 21 default, declared explicitly).
  * - `provideHttpClient(withFetch(), withInterceptors([authInterceptor]))` —
- *   the U8 auth interceptor attaches the AT and performs the single-in-flight
- *   refresh (KTD2).
- * - `provideAppInitializer` rehydrates the session on boot: if a token is
- *   persisted, the profile is loaded before the first route resolves so guards
- *   see the correct auth state.
+ *   the auth interceptor sends the session cookie (`withCredentials`), attaches
+ *   the CSRF header on authenticated mutations, and performs the single-in-
+ *   flight cookie refresh on 401 (KTD2).
+ * - `provideAppInitializer` rehydrates the session on boot by probing the
+ *   profile from the httpOnly session cookie before the first route resolves,
+ *   so guards see the correct auth state.
  * - PrimeNG with the Aura theme preset.
  */
 export const appConfig: ApplicationConfig = {
