@@ -28,9 +28,12 @@ export const FIELDS = {
   JWT_AT_SECRET: joi.string().required(),
   JWT_RT_SECRET: joi.string().required(),
 
-  // Browser session cookies (dual-transport auth). `secure` is off in dev
-  // (plain http on :4200) and on in prod; `domain` is optional (unset = the
-  // request host). httpOnly + SameSite=Strict are code constants, not env.
+  // Browser session cookies (dual-transport auth). `secure` defaults off for
+  // local dev/test (plain http on :4200) and is forced on in prod/staging by
+  // the @hsm/config/api boot invariant (assertCookieSecureForEnv); `domain`
+  // (COOKIE_DOMAIN) is the shared parent registrable domain so the cookie is
+  // first-party to the web + API subdomains (unset = request host). httpOnly is
+  // a code constant; SameSite is Lax on the access cookie, Strict on refresh.
   COOKIE_SECURE: joi.boolean().default(false),
   COOKIE_DOMAIN: joi.string().allow('').optional(),
 

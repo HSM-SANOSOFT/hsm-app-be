@@ -39,12 +39,16 @@ type MockRes = Response & {
 const makeRes = (): MockRes =>
   ({ cookie: jest.fn(), clearCookie: jest.fn() }) as unknown as MockRes;
 
-/** Asserts both httpOnly auth cookies were set as httpOnly + SameSite=Strict. */
+/**
+ * Asserts both httpOnly auth cookies were set: the access cookie SameSite=Lax
+ * (rides top-level document navigations for SSR first paint), the refresh
+ * cookie SameSite=Strict (path-scoped to the auth routes).
+ */
 const expectAuthCookiesSet = (res: MockRes): void => {
   expect(res.cookie).toHaveBeenCalledWith(
     ACCESS_COOKIE,
     mockTokens.access_token,
-    expect.objectContaining({ httpOnly: true, sameSite: 'strict' }),
+    expect.objectContaining({ httpOnly: true, sameSite: 'lax' }),
   );
   expect(res.cookie).toHaveBeenCalledWith(
     REFRESH_COOKIE,

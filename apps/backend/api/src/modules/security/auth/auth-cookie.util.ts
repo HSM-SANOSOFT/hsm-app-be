@@ -6,8 +6,11 @@ import type { CookieOptions, Request, Response } from 'express';
  * Dual-transport auth cookies. The API keeps returning `{ access_token,
  * refresh_token }` in the body (integrations / direct-API clients are
  * unchanged); browser clients additionally receive these httpOnly cookies so
- * the session rides the document request (the SSR prerequisite). httpOnly +
- * SameSite=Strict are code constants; `secure`/`domain` come from env.
+ * the session rides the document request (the SSR prerequisite). httpOnly is a
+ * code constant; the access cookie is SameSite=Lax (it must ride top-level
+ * document navigations so SSR renders an authenticated first paint) while the
+ * refresh cookie is SameSite=Strict + path-scoped. `secure`/`domain` come from
+ * env (`COOKIE_SECURE` is forced on in prod/staging by @hsm/config/api).
  */
 export const ACCESS_COOKIE = 'access_token';
 export const REFRESH_COOKIE = 'refresh_token';
@@ -29,7 +32,6 @@ function baseCookieOptions(): CookieOptions {
   return {
     httpOnly: true,
     secure: envs.COOKIE_SECURE,
-    sameSite: 'strict',
     ...(envs.COOKIE_DOMAIN ? { domain: envs.COOKIE_DOMAIN } : {}),
   };
 }
@@ -38,11 +40,13 @@ function baseCookieOptions(): CookieOptions {
 export function setAuthCookies(res: Response, tokens: ITokens): void {
   res.cookie(ACCESS_COOKIE, tokens.access_token, {
     ...baseCookieOptions(),
+    sameSite: 'lax',
     path: '/',
     maxAge: ACCESS_COOKIE_MAX_AGE_MS,
   });
   res.cookie(REFRESH_COOKIE, tokens.refresh_token, {
     ...baseCookieOptions(),
+    sameSite: 'strict',
     path: REFRESH_COOKIE_PATH,
     maxAge: REFRESH_COOKIE_MAX_AGE_MS,
   });
@@ -50,9 +54,14 @@ export function setAuthCookies(res: Response, tokens: ITokens): void {
 
 /** Clears both auth cookies (must match the paths used when setting them). */
 export function clearAuthCookies(res: Response): void {
-  res.clearCookie(ACCESS_COOKIE, { ...baseCookieOptions(), path: '/' });
+  res.clearCookie(ACCESS_COOKIE, {
+    ...baseCookieOptions(),
+    sameSite: 'lax',
+    path: '/',
+  });
   res.clearCookie(REFRESH_COOKIE, {
     ...baseCookieOptions(),
+    sameSite: 'strict',
     path: REFRESH_COOKIE_PATH,
   });
 }
