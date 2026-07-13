@@ -40,9 +40,6 @@ export class ConfigService {
   get apiBaseUrl(): string {
     return this.value.apiBaseUrl;
   }
-  get appVersion(): string {
-    return this.value.appVersion;
-  }
   get production(): boolean {
     return this.value.production;
   }

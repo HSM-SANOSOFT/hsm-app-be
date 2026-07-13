@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map, type Observable, shareReplay, tap } from 'rxjs';
+import { apiUrl } from '../api/api-url';
 import type { SuccessResponse } from '../api/response';
 import { ConfigService } from '../config/config.service';
 
@@ -30,7 +31,7 @@ export class CsrfService {
     if (!this.token$) {
       this.token$ = this.http
         .get<SuccessResponse<{ csrfToken: string }>>(
-          `${this.config.apiBaseUrl}${CSRF_PATH}`,
+          apiUrl(this.config.apiBaseUrl, CSRF_PATH),
           { withCredentials: true },
         )
         .pipe(

@@ -18,6 +18,7 @@ import {
   take,
   throwError,
 } from 'rxjs';
+import { apiUrl } from '../api/api-url';
 import type { SuccessResponse, Tokens } from '../api/response';
 import { ConfigService } from '../config/config.service';
 import { AuthService } from './auth.service';
@@ -60,7 +61,7 @@ export class AuthRefreshClient {
   private readonly http = inject(HttpClient);
   private readonly config = inject(ConfigService);
   private get url(): string {
-    return `${this.config.apiBaseUrl}${REFRESH_SUFFIX}`;
+    return apiUrl(this.config.apiBaseUrl, REFRESH_SUFFIX);
   }
 
   refresh(): Observable<Tokens> {

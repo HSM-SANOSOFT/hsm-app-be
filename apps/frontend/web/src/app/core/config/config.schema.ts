@@ -12,10 +12,8 @@ export const CONFIG_STATE_KEY: StateKey<AppConfig> =
 
 /** Runtime app config, seeded from the SSR server's env via transfer state. */
 export interface AppConfig {
-  /** API base URL, e.g. `http://localhost:4201/v1`. */
+  /** Host-only API base, e.g. `http://localhost:4201` (version per-endpoint). */
   apiBaseUrl: string;
-  /** Build/version label shown in the UI. */
-  appVersion: string;
   /** Production flag (enables the service worker, etc.). */
   production: boolean;
 }
@@ -23,7 +21,6 @@ export interface AppConfig {
 const schema = joi
   .object<AppConfig>({
     apiBaseUrl: joi.string().uri({ allowRelative: true }).required(),
-    appVersion: joi.string().default('dev'),
     production: joi.boolean().default(false),
   })
   .required();

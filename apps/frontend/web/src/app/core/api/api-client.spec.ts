@@ -161,6 +161,16 @@ describe('ApiClient', () => {
     expect(caught?.field).toEqual(['email', 'password']);
   });
 
+  it('composes host + per-endpoint version (v1 default, v2 override) — R12', () => {
+    client.get('/widgets').subscribe();
+    httpMock.expectOne(`${base}/widgets`).flush({ data: null, metadata: {} });
+
+    client.get('/widgets', { version: 'v2' }).subscribe();
+    httpMock
+      .expectOne('http://localhost:4201/v2/widgets')
+      .flush({ data: null, metadata: {} });
+  });
+
   it('normalizes transport failures into an ApiError with status 0', () => {
     let caught: ApiError | undefined;
     client.get('/health').subscribe({

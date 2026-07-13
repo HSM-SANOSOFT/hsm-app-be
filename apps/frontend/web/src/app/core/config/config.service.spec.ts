@@ -2,7 +2,7 @@ import { TransferState } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { type AppConfig, CONFIG_STATE_KEY } from './config.schema';
 import { ConfigService } from './config.service';
-import { provideTestConfig, TEST_API_BASE_URL } from './config-testing';
+import { provideTestConfig, TEST_API_HOST } from './config-testing';
 
 /**
  * ConfigService sources its value from transfer state (U10): the SSR server
@@ -14,15 +14,13 @@ describe('ConfigService', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     TestBed.configureTestingModule({});
     TestBed.inject(TransferState).set(CONFIG_STATE_KEY, {
-      apiBaseUrl: 'http://api.example/v1',
-      appVersion: '1.2.3',
+      apiBaseUrl: 'http://api.example',
       production: true,
     });
 
     const config = TestBed.inject(ConfigService);
 
-    expect(config.apiBaseUrl).toBe('http://api.example/v1');
-    expect(config.appVersion).toBe('1.2.3');
+    expect(config.apiBaseUrl).toBe('http://api.example');
     expect(config.production).toBe(true);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
@@ -31,7 +29,7 @@ describe('ConfigService', () => {
     TestBed.configureTestingModule({});
     // Missing the required apiBaseUrl.
     TestBed.inject(TransferState).set(CONFIG_STATE_KEY, {
-      appVersion: 'x',
+      production: true,
     } as unknown as AppConfig);
 
     const config = TestBed.inject(ConfigService);
@@ -52,6 +50,6 @@ describe('ConfigService', () => {
 
     const config = TestBed.inject(ConfigService);
 
-    expect(config.apiBaseUrl).toBe(TEST_API_BASE_URL);
+    expect(config.apiBaseUrl).toBe(TEST_API_HOST);
   });
 });

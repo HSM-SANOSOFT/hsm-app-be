@@ -14,13 +14,12 @@ import { ConfigService } from './core/config/config.service';
 /**
  * Reads the non-secret runtime config from the SSR server's `process.env`
  * (U10). Mirrors the retired `gen-config.mjs`: env change → restart → new
- * config, no rebuild. `apiBaseUrl` stays a full base (with `/v1`) here; U11
- * splits it host-only with per-endpoint versions.
+ * config, no rebuild. `WEB_API_BASE_URL` is host-only (U11) — the version is
+ * chosen per-endpoint by the caller, not baked into the base.
  */
 function readServerConfig() {
   return validateConfig({
-    apiBaseUrl: process.env['WEB_API_BASE_URL'] ?? 'http://localhost:4201/v1',
-    appVersion: process.env['WEB_APP_VERSION'] ?? 'dev',
+    apiBaseUrl: process.env['WEB_API_BASE_URL'] ?? 'http://localhost:4201',
     production:
       (process.env['WEB_PRODUCTION'] ?? 'false').toLowerCase() === 'true',
   });

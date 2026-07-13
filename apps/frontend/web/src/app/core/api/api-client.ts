@@ -9,6 +9,7 @@ import { catchError, map, type Observable, throwError } from 'rxjs';
 
 import { ConfigService } from '../config/config.service';
 import { ApiError, issueToMessage } from './api-error';
+import { apiUrl } from './api-url';
 import type {
   Pagination,
   SuccessResponse,
@@ -18,6 +19,8 @@ import type {
 /** Options accepted by every {@link ApiClient} verb. */
 export interface ApiRequestOptions {
   params?: HttpParams | Record<string, string | number | boolean>;
+  /** API version segment for this call (KTD6). Defaults to `v1`. */
+  version?: string;
 }
 
 /** A list payload plus its pagination metadata. */
@@ -29,7 +32,8 @@ export interface PaginatedResult<T> {
 /**
  * Thin typed wrapper around Angular's `HttpClient`.
  *
- * - Prefixes every request with `environment.apiBaseUrl`.
+ * - Composes each request URL from the host-only base + a per-call version
+ *   segment (`v1` by default) + the path (KTD6).
  * - On success, unwraps `SuccessResponse.data` so callers receive the inner
  *   payload directly (typed via generics).
  * - {@link getPaginated} additionally surfaces `metadata.extra.pagination`.
@@ -48,7 +52,7 @@ export class ApiClient {
 
   get<T>(path: string, options?: ApiRequestOptions): Observable<T> {
     return this.unwrap(
-      this.http.get<SuccessResponse<T>>(this.url(path), {
+      this.http.get<SuccessResponse<T>>(this.url(path, options?.version), {
         params: options?.params,
       }),
     );
@@ -63,7 +67,7 @@ export class ApiClient {
     options?: ApiRequestOptions,
   ): Observable<PaginatedResult<T>> {
     return this.http
-      .get<SuccessResponse<T[]>>(this.url(path), {
+      .get<SuccessResponse<T[]>>(this.url(path, options?.version), {
         params: options?.params,
       })
       .pipe(
@@ -81,9 +85,13 @@ export class ApiClient {
     options?: ApiRequestOptions,
   ): Observable<T> {
     return this.unwrap(
-      this.http.post<SuccessResponse<T>>(this.url(path), body, {
-        params: options?.params,
-      }),
+      this.http.post<SuccessResponse<T>>(
+        this.url(path, options?.version),
+        body,
+        {
+          params: options?.params,
+        },
+      ),
     );
   }
 
@@ -93,9 +101,13 @@ export class ApiClient {
     options?: ApiRequestOptions,
   ): Observable<T> {
     return this.unwrap(
-      this.http.put<SuccessResponse<T>>(this.url(path), body, {
-        params: options?.params,
-      }),
+      this.http.put<SuccessResponse<T>>(
+        this.url(path, options?.version),
+        body,
+        {
+          params: options?.params,
+        },
+      ),
     );
   }
 
@@ -105,24 +117,25 @@ export class ApiClient {
     options?: ApiRequestOptions,
   ): Observable<T> {
     return this.unwrap(
-      this.http.patch<SuccessResponse<T>>(this.url(path), body, {
-        params: options?.params,
-      }),
+      this.http.patch<SuccessResponse<T>>(
+        this.url(path, options?.version),
+        body,
+        { params: options?.params },
+      ),
     );
   }
 
   delete<T>(path: string, options?: ApiRequestOptions): Observable<T> {
     return this.unwrap(
-      this.http.delete<SuccessResponse<T>>(this.url(path), {
+      this.http.delete<SuccessResponse<T>>(this.url(path, options?.version), {
         params: options?.params,
       }),
     );
   }
 
-  /** Joins the configured base URL with a request path. */
-  private url(path: string): string {
-    const normalized = path.startsWith('/') ? path : `/${path}`;
-    return `${this.config.apiBaseUrl}${normalized}`;
+  /** Composes the host-only base with a version segment and request path. */
+  private url(path: string, version?: string): string {
+    return apiUrl(this.config.apiBaseUrl, path, version);
   }
 
   /** Maps a `SuccessResponse<T>` stream to its inner `data`. */

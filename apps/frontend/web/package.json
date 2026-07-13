@@ -10,7 +10,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "predev": "node scripts/gen-config.mjs public/config.json",
-    "gen-config": "node scripts/gen-config.mjs"
+    "gen-config": "node scripts/gen-config.mjs",
+    "gen-version": "node scripts/gen-version.mjs"
   },
   "dependencies": {
     "@angular/animations": "^21.2.0",

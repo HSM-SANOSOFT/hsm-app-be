@@ -16,6 +16,7 @@ import {
   TEST_API_BASE_URL,
 } from '../../../core/config/config-testing';
 import { provideTranslocoTestingModule } from '../../../core/i18n/transloco-testing';
+import { BUILD_VERSION } from '../../../core/version/build-version';
 import { Login } from './login';
 
 const base = TEST_API_BASE_URL;
@@ -105,7 +106,7 @@ describe('Login component', () => {
     const footer = (fixture.nativeElement as HTMLElement).querySelector(
       '.auth-version',
     );
-    expect(footer?.textContent).toContain(`UI v${'test'}`);
+    expect(footer?.textContent).toContain(`UI v${BUILD_VERSION}`);
     expect(footer?.textContent).toContain('API v2.5.0');
   });
 
