@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { Injectable, inject, PLATFORM_ID, signal } from '@angular/core';
 
 /**
  * The `beforeinstallprompt` event, typed minimally for our use.
@@ -41,6 +42,12 @@ export class PwaInstallService {
   readonly installAvailable = this.installAvailableSignal.asReadonly();
 
   constructor() {
+    // `beforeinstallprompt` is a browser-only event; under SSR (R8) this
+    // root service can be constructed while rendering the authenticated shell
+    // (U8), where `window` is undefined. Skip listener wiring server-side.
+    if (!isPlatformBrowser(inject(PLATFORM_ID))) {
+      return;
+    }
     window.addEventListener('beforeinstallprompt', event => {
       // Stop the browser's default install infobar; we drive it ourselves.
       event.preventDefault();

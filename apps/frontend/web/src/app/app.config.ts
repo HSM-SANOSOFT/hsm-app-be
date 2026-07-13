@@ -1,4 +1,4 @@
-import { registerLocaleData } from '@angular/common';
+import { isPlatformBrowser, registerLocaleData } from '@angular/common';
 import {
   provideHttpClient,
   withFetch,
@@ -12,10 +12,15 @@ import {
   inject,
   isDevMode,
   LOCALE_ID,
+  PLATFORM_ID,
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection,
 } from '@angular/core';
+import {
+  provideClientHydration,
+  withIncrementalHydration,
+} from '@angular/platform-browser';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { provideRouter } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
@@ -37,8 +42,18 @@ import { TranslocoHttpLoader } from './core/i18n/transloco-loader';
 registerLocaleData(localeEsEc, 'es-EC');
 registerLocaleData(localeEn, 'en');
 
-/** The persisted UI language at boot, normalized to an Angular LOCALE_ID. */
-function bootLocaleId(): string {
+/**
+ * The persisted UI language at boot, normalized to an Angular LOCALE_ID.
+ *
+ * Runs at provider-construction time during BOTH the browser and the SSR
+ * bootstrap, so the `localStorage` read is platform-guarded (R8): on the server
+ * there is no persisted preference — fall back to the default locale. The
+ * client re-applies the persisted language after hydration via `LanguageService`.
+ */
+function bootLocaleId(platformId: object): string {
+  if (!isPlatformBrowser(platformId)) {
+    return 'es-EC';
+  }
   try {
     return localStorage.getItem(LANG_STORAGE_KEY) === 'en' ? 'en' : 'es-EC';
   } catch {
@@ -63,6 +78,10 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideZonelessChangeDetection(),
+    // Client hydration with incremental hydration — reuse the server-rendered
+    // DOM instead of destroying+recreating it, and defer hydrating (and thus
+    // loading JS for) below-the-fold blocks until they are needed (Track 2, U6).
+    provideClientHydration(withIncrementalHydration()),
     provideRouter(routes),
     provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
     provideTransloco({
@@ -76,21 +95,41 @@ export const appConfig: ApplicationConfig = {
       },
       loader: TranslocoHttpLoader,
     }),
-    { provide: LOCALE_ID, useValue: bootLocaleId() },
+    {
+      provide: LOCALE_ID,
+      useFactory: bootLocaleId,
+      deps: [PLATFORM_ID],
+    },
     { provide: DEFAULT_CURRENCY_CODE, useValue: 'USD' },
     // FIRST initializer: load runtime config from /config.json (generated from
     // env) before anything reads it. Native fetch bypasses the auth interceptor
     // (which would otherwise read config before it's set).
+    //
+    // Browser-only (R8/R9, model a): during SSR the config is not fetched — it
+    // arrives via transfer state (U10) and no server-render path reads it yet.
+    // A relative `fetch('/config.json')` would throw on Node anyway.
     provideAppInitializer(async () => {
+      const platformId = inject(PLATFORM_ID);
       const config = inject(ConfigService);
+      if (!isPlatformBrowser(platformId)) {
+        return;
+      }
       const res = await fetch('/config.json', { cache: 'no-store' });
       if (!res.ok) {
         throw new Error(`Failed to load /config.json (HTTP ${res.status})`);
       }
       config.set(validateConfig(await res.json()));
     }),
+    // Session restore probes the profile from the httpOnly cookie. Browser-only
+    // here (R9, model a): SSR renders a neutral authenticated shell and the
+    // client restores after hydration. U8 adds the server-side, request-scoped
+    // forwarded-cookie probe as a read-only render input.
     provideAppInitializer(() => {
+      const platformId = inject(PLATFORM_ID);
       const auth = inject(AuthService);
+      if (!isPlatformBrowser(platformId)) {
+        return;
+      }
       return firstValueFrom(auth.restoreSession());
     }),
     provideAppInitializer(() => {
