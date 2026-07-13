@@ -43,7 +43,7 @@ The gating constraint is auth: the app stores access + refresh JWTs in `localSto
 
 - R1. `/auth/login` and `/auth/signup`/`/auth/onboarding` continue to return `{ access_token, refresh_token }` in the body unchanged (integrations / direct-API clients keep working).
 - R2. The same login/signup/onboarding responses also set `httpOnly` access + refresh cookies. `/auth/refresh` reads and rotates the refresh cookie; `/auth/logout` clears both cookies.
-- R3. Cookie attributes: `httpOnly`, `secure`, `SameSite=Strict`; the refresh cookie is path-scoped to the refresh route. Access-cookie lifetime mirrors the current AT expiry (`15m` user), refresh-cookie mirrors the current RT expiry (`1d` user) and rotation semantics.
+- R3. Cookie attributes: `httpOnly`, `secure`, and `Domain` set to the **shared parent registrable domain** via `COOKIE_DOMAIN` (so the cookie is first-party to both the web and API subdomains and rides the SSR document request to the web origin). The web and API subdomain labels and the TLD are deployment config, not hardcoded — the only invariant is that both are subdomains of one shared parent. `SameSite=Lax` on the **access** cookie — it must accompany top-level document navigations (including external-referral entry) so SSR renders an authenticated first paint; `SameSite=Strict` on the **refresh** cookie, which is path-scoped to the refresh route. Access-cookie lifetime mirrors the current AT expiry (`15m` user), refresh-cookie mirrors the current RT expiry (`1d` user) and rotation semantics. Because a parent-domain cookie is shared with every subdomain of that parent, all subdomains under it must be trusted/controlled, and the double-submit CSRF token (R5) remains the guard against same-site abuse.
 - R4. The JWT access strategy extracts the token from the `Authorization` bearer header **or** the access cookie; the refresh strategy extracts from the bearer header **or** the refresh cookie; `/auth/logout` accepts the token from either source.
 - R5. CSRF protection on state-changing requests: `SameSite=Strict` plus a double-submit CSRF token required on mutations from the browser transport.
 - R6. The frontend stops persisting tokens in `localStorage`; the HTTP layer sends the cookie automatically (`withCredentials`) instead of attaching a Bearer from JS. `restoreSession` and guards derive from the cookie-backed session.
@@ -52,7 +52,7 @@ The gating constraint is auth: the app stores access + refresh JWTs in `localSto
 
 - R7. `@angular/ssr` is enabled (Angular 21, zoneless SSR) with server routes and incremental hydration.
 - R8. Browser-only code is platform-guarded so SSR bootstrap does not touch `window`/`document`/`localStorage`: Monaco, the Handlebars client preview, the `hsm.lang`/`hsm.lastUsername` reads, and the `bootLocaleId` provider-time `localStorage` read. The Transloco loader resolves an absolute URL server-side.
-- R9. On server-side data calls the SSR server forwards the incoming cookie to the API; refresh and guards run server-side off the cookie.
+- R9. On server-side data calls the SSR server forwards the incoming cookie to the API; guards run server-side off the **access** cookie as a **read-only probe** — SSR never refreshes or rotates the RT. When the access cookie is absent/expired, SSR renders a neutral authenticated shell (not a hard login redirect) and the client performs the refresh immediately after hydration.
 - R10. The web image entrypoint runs the SSR Node server instead of a static file server.
 
 **Config (Track 3)**
@@ -77,7 +77,7 @@ The gating constraint is auth: the app stores access + refresh JWTs in `localSto
 
 - Prerendering / static server routes for public pages (SSR is dynamic-render first).
 - Server-side data-fetch resolvers for individual features beyond what R9 needs to render authenticated shells.
-- Broader secret-reference cleanup in Infisical beyond the four-folder partition.
+- Broader secret-reference cleanup in Infisical beyond the seven-folder partition (`/shared`, `/database`, `/queue`, `/storage`, `/api`, `/worker`, `/web`).
 
 ---
 
@@ -101,13 +101,13 @@ The gating constraint is auth: the app stores access + refresh JWTs in `localSto
 
 ### Assumptions
 
-- The API and web run same-origin or CORS-with-credentials in every environment; `main.ts` already sets `credentials: true` / `origin: envs.APP_BASE_URL`, so cookies can ride once set. Server-to-server SSR→API base URL may differ from the browser's base URL (Open Question).
+- **Deployment is same-site (decided).** Web and API are served as two subdomains of a single shared registrable domain — `<web>.<domain>` and `<api>.<domain>` (subdomain labels and TLD are deployment config, not hardcoded; the invariant is the shared parent). Browser↔API requests are therefore same-site (different origin → CORS-with-credentials still required; `main.ts` already sets `credentials: true` / `origin: envs.APP_BASE_URL`). The session cookie is issued with `Domain` = the shared parent (`COOKIE_DOMAIN`) so it is first-party to both subdomains and rides the SSR document request. No BFF/proxy and no `SameSite=None` third-party-cookie exposure. Dev (`localhost:4200`/`:4201`) is same-site (`localhost`), so it faithfully represents the prod topology. Server-to-server SSR→API base URL may differ from the browser's base URL (Open Question).
 - The refresh-cookie path scope (`/v1/auth/refresh` vs `/auth/refresh`) follows the API's URI versioning (`v1`). Confirm the exact path during U1.
 - Transloco catalogs stay served from `public/i18n/{es,en}.json`; SSR resolves an absolute URL to them server-side.
 
 ### Sequencing
 
-Track 1 (U1–U5) → Track 2 (U6–U9) → Track 3 (U10–U12) → Track 4 (U13). Within Track 1, backend (U1–U3) precedes frontend (U4–U5). Track 3's host-only refactor (U11) depends on SSR transfer state (U10) existing.
+Track 1 (U1–U5) → Track 2 (U6–U9) → Track 3 (U10–U12) → Track 4 (U13→U14→U15). Within Track 1, backend (U1–U3) precedes frontend (U4–U5). Track 3's host-only refactor (U11) depends on SSR transfer state (U10) existing.
 
 ---
 
@@ -159,7 +159,7 @@ sequenceDiagram
 - **Requirements:** R2, R3, R1 (must not change the existing body).
 - **Dependencies:** none.
 - **Files:** `apps/backend/api/src/main.ts` (register `cookie-parser`), `apps/backend/api/src/modules/security/auth/auth.controller.ts` (`@Res({ passthrough: true })`, `res.cookie`/`res.clearCookie`), `apps/backend/api/src/modules/security/auth/auth.service.ts` (cookie-options helper), `packages/config/src/fields.ts` + `packages/config/src/api.ts` (new `COOKIE_*` group — secure flag, domain, refresh path), `apps/backend/api/src/test-setup.ts` (dummy values for new required vars), `package.json`/api deps (`cookie-parser`, `@types/cookie-parser`), `apps/backend/api/src/modules/security/auth/auth.controller.spec.ts` (test), `apps/backend/api/src/modules/security/auth/auth.service.spec.ts` (test).
-- **Approach:** Keep `generateTokens()`/`login()` returning `ITokens` unchanged; add a helper that maps AT/RT to cookie options (attributes per R3, access lifetime = AT exp, refresh = RT exp, refresh path-scoped to the versioned refresh route). Set both cookies alongside the existing body via `passthrough` so the global `ResponseInterceptor` envelope is preserved (KTD2). Add `COOKIE_*` to `fields.ts` (single Joi source), the key list + interface in `api.ts`, and dummy values in `test-setup.ts` per the api `CLAUDE.md`.
+- **Approach:** Keep `generateTokens()`/`login()` returning `ITokens` unchanged; add a helper that maps AT/RT to cookie options (attributes per R3, access lifetime = AT exp, refresh = RT exp, refresh path-scoped to the versioned refresh route). Set both cookies alongside the existing body via `passthrough` so the global `ResponseInterceptor` envelope is preserved (KTD2). Add `COOKIE_*` to `fields.ts` (single Joi source), the key list + interface in `api.ts`, and dummy values in `test-setup.ts` per the api `CLAUDE.md`. **`COOKIE_SECURE` must be pinned by a Joi cross-field rule (or a boot assertion): when `ENVIRONMENT` is `staging`/`prod`, `secure` must be `true` — a misconfigured `COOKIE_SECURE=false` in prod would emit the httpOnly session cookies over cleartext HTTP and must fail boot rather than silently downgrade.**
 - **Patterns to follow:** existing `JWT_AT_*`/`JWT_RT_*` config grouping in `packages/config/src/fields.ts`; existing controller endpoint tests in `auth.controller.spec.ts`.
 - **Test scenarios:**
   - Covers R1. `POST /auth/login` response body still equals `{ access_token, refresh_token }` and the `ResponseInterceptor` envelope is unchanged.
@@ -175,7 +175,7 @@ sequenceDiagram
 - **Requirements:** R4.
 - **Dependencies:** U1.
 - **Files:** `apps/backend/api/src/modules/security/auth/auth.strategy.ts` (`ExtractJwt.fromExtractors`, cookie extractor for `jwt-at` and `jwt-rt`; RT `validate()` cookie fallback), `apps/backend/api/src/modules/security/auth/auth.controller.ts` (logout reads token from cookie when the `Authorization` header is absent), a small cookie-extractor util (e.g. `apps/backend/api/src/modules/security/auth/cookie-extractor.ts`), strategy/guard spec coverage under `apps/backend/api/src/modules/security/auth/` and `apps/backend/api/src/modules/security/roles/`.
-- **Approach:** Replace `fromAuthHeaderAsBearerToken()` with `fromExtractors([cookieExtractor, fromAuthHeaderAsBearerToken()])` in both strategies so bearer clients are unaffected and cookie clients resolve. In `AuthJwtRTStrategy.validate()` the raw RT is currently re-read from the `Authorization` header — add a cookie fallback so rotation works cookie-only. `logout` reads the token from `req.cookies` when no bearer header is present.
+- **Approach:** Replace `fromAuthHeaderAsBearerToken()` with `fromExtractors([cookieExtractor, fromAuthHeaderAsBearerToken()])` in both strategies so bearer clients are unaffected and cookie clients resolve. In `AuthJwtRTStrategy.validate()` the raw RT is currently re-read from the `Authorization` header — add a cookie fallback so rotation works cookie-only. `logout` reads the token from `req.cookies` when no bearer header is present. **In the same edit, remove/redact the raw refresh token from `AuthJwtRTStrategy.validate()`'s `logger.debug('jwt-rt strategy validate user:', refreshUser)` call — `refreshUser` carries the 1d RT, and a plaintext token in logs is a replayable long-lived credential. Log a subject id only, never the token.**
 - **Patterns to follow:** existing strategy definitions in `auth.strategy.ts`; existing guard specs.
 - **Test scenarios:**
   - Covers R4. A request with only the access cookie (no bearer) authenticates through `jwt-at`.
@@ -191,7 +191,7 @@ sequenceDiagram
 - **Requirements:** R5.
 - **Dependencies:** U1.
 - **Files:** `apps/backend/api/src/main.ts` (CSRF middleware wiring), a CSRF guard/middleware (e.g. `apps/backend/api/src/modules/security/csrf/`), `packages/config/src/fields.ts` + `api.ts` (`CSRF_*` if a secret is needed), `apps/backend/api/src/test-setup.ts`, spec for the CSRF guard, `apps/backend/api/test/` e2e if the mutation path warrants it.
-- **Approach:** Issue a non-httpOnly CSRF cookie on session start; require its value echoed in a request header on mutating methods. Enforce only when the request authenticates via cookie (bearer/integration requests are exempt — they cannot be CSRF'd). **Confirm hand-rolled vs. `csrf-csrf` at the start of this unit** (KTD3 / Open Question); if hand-rolling is fragile for the Express layer, adopt the library.
+- **Approach:** Issue a non-httpOnly CSRF cookie on session start; require its value echoed in a request header on mutating methods. Enforce only when the request authenticates via cookie (bearer/integration requests are exempt — they cannot be CSRF'd). **Confirm hand-rolled vs. `csrf-csrf` at the start of this unit** (KTD3 / Open Question); if hand-rolling is fragile for the Express layer, adopt the library. **Security invariant (non-negotiable): the token must be integrity-bound to the session — an HMAC over the session/user identity verified server-side, NOT a raw `cookie == header` equality check.** A plain double-submit is forgeable whenever an attacker can plant a cookie (sibling subdomain, MITM on an http subdomain), since they then control both halves. "Hand-rolled" therefore means *signed* double-submit; with the invariant fixed, hand-rolled-vs-`csrf-csrf` is a genuinely ergonomic choice. **The CSRF cookie itself is `Secure`, `SameSite` matching the auth cookies, and non-httpOnly by design (JS must read it); it shares the same prod-`Secure` guard as the auth cookies.**
 - **Execution note:** Start with a failing test asserting a cookie-authenticated POST without the CSRF header is rejected, then implement to green.
 - **Test scenarios:**
   - Covers R5. Cookie-authenticated mutation without a matching CSRF header → rejected.
@@ -255,15 +255,15 @@ sequenceDiagram
 
 ### U8. SSR — forward cookies to the API on server-side calls
 
-- **Goal:** On server-side data calls the SSR server forwards the incoming request's cookie to the API; guards and refresh run server-side off the cookie. (R9)
+- **Goal:** On server-side data calls the SSR server forwards the incoming request's cookie to the API; guards run server-side off the access cookie as a read-only probe (SSR does not refresh/rotate). (R9)
 - **Requirements:** R9.
 - **Dependencies:** U7, U2.
 - **Files:** `apps/frontend/web/src/server.ts` (capture the request), an SSR request-context provider + an HTTP interceptor branch that, when running server-side, attaches the forwarded `Cookie` header (`apps/frontend/web/src/app/core/auth/auth.interceptor.ts` or a new server interceptor), `apps/frontend/web/src/app/app.config.server.ts` (provide the request token).
-- **Approach:** Provide the incoming `Cookie` header via an injection token available only in the server config; the HTTP layer attaches it to outbound API calls during server render so the API's cookie extractor (U2) authenticates the SSR render. Refresh during SSR is handled server-side; a failed refresh renders the anonymous/redirect state.
+- **Approach:** Provide the incoming `Cookie` header via an injection token available only in the server config; the HTTP layer attaches it to outbound API calls during server render so the API's cookie extractor (U2) authenticates the SSR render. **SSR is a read-only session probe: it renders off the access cookie only and never refreshes or rotates the RT server-side (model (a), decided 2026-07-10). When the access cookie is absent/expired, SSR renders a neutral authenticated shell — not a hard login redirect — and the client performs the refresh immediately after hydration.** This keeps the refresh token scoped to `/v1/auth` (no `path=/` broadening) and avoids re-emitting a rotated `Set-Cookie` from the document response. **Isolation invariant (non-negotiable): the inbound `Cookie` must be bound to a request-scoped injection token — never a shared/singleton provider or module-level variable — because the long-lived SSR Node process serves many users' requests concurrently, and a shared provider would bleed one user's session cookie into another render's outbound calls or HTML (cross-account exposure). Add a test asserting two concurrent renders with different session cookies never cross outbound `Cookie` headers, and constrain the SSR→API base URL to a trusted internal host (do not forward httpOnly tokens to an untrusted origin; see Open Questions).**
 - **Test scenarios:**
   - Covers R9. During server render, outbound API calls carry the forwarded `Cookie` header.
   - A valid session cookie renders the authenticated shell server-side (no post-hydration login flash).
-  - A missing/expired cookie renders the login redirect server-side.
+  - A missing/expired access cookie renders a neutral authenticated shell server-side (no hard login redirect); the client refreshes after hydration. SSR never rotates the RT.
 - **Verification:** curl with a valid session cookie against the SSR server returns the authenticated shell in the initial HTML.
 
 ### U9. SSR — web image runs the Node server
@@ -322,7 +322,7 @@ sequenceDiagram
 - **Dependencies:** none in Track 4 (can land independently; do after Track 1 to avoid churn on shared config mid-auth). Note U1 added `COOKIE_*` to `api.ts` — those stay api-owned.
 - **Files:** `packages/config/src/fields.ts` (keep the Joi rules; may split per-owner), `packages/config/src/base.ts` (reduce to `ENVIRONMENT`), `packages/config/src/api.ts` (owns `JWT_*`, `COOKIE_*`, `APP_BASE_URL`, `SWAGGER_*`, `SMTP_WEBHOOK_KEY`, `DEFAULT_ADMIN_*`), `packages/config/src/worker.ts` (owns `SMTP_*`), new per-package config surfaces for `@hsm/database` (`DB_POSTGRES_*`), `@hsm/queue` (`DB_REDIS_*`), `@hsm/storage` (`STRG_S3_*`), plus every `envs` import site that must repoint to the new owner. `apps/backend/api/src/test-setup.ts` + `apps/backend/worker/src/test-setup.ts`.
 - **Approach:** Each package exports a validated `envs` for its own slice; the shared packages stop importing `base` for vars they own. Retain Joi validation everywhere (no raw `process.env`). Guard against DI/boot regressions — a moved var that a package no longer validates but still reads will fail at runtime, so `start:dev` both api and worker.
-- **Execution note:** Cross-cutting; boot **both** api and worker (`start:dev`) after — Joi errors name the exact misplaced var. Characterize current `envs` consumers before moving (grep each var).
+- **Execution note:** Cross-cutting. Do **not** rely on `start:dev` alone to catch a misplaced var — Joi only validates the keys a package *declares*, so a var removed from a package's slice but still read via `envs.X` throws only when that code path runs, and several owned vars are lazily read (`SMTP_*` on send, `APP_BASE_URL` in `account-recovery` on password reset, the webhook key on inbound webhook) so a clean boot proves nothing. **Statically characterize every `envs.<VAR>` read site (grep each var) and assert its owning package still declares that key** (the companion doc already did this grep for the base set); add coverage for the lazily-read paths. Boot **both** api and worker (`start:dev`) after as a secondary check.
 - **Test scenarios:**
   - Covers R15. `@hsm/api` boots validating only its owned vars + the packages it imports; omitting a worker-only var (SMTP) does **not** break api boot.
   - `@hsm/worker` boots without api-only vars (JWT/COOKIE/SWAGGER) present.
@@ -368,7 +368,7 @@ sequenceDiagram
 
 ## Definition of Done
 
-- **Global.** All four tracks land dependency-ordered; the existing Bearer contract is byte-for-byte unchanged (R1) and integration clients are proven working alongside cookie clients. Every referenced requirement (R1–R14) is satisfied or explicitly deferred. Abandoned/experimental code from the SSR spike is removed from the diff. `pnpm lint` and the per-workspace test suites are green.
+- **Global.** All four tracks land dependency-ordered; the existing Bearer contract is byte-for-byte unchanged (R1) and integration clients are proven working alongside cookie clients. Every referenced requirement (R1–R16) is satisfied or explicitly deferred. Abandoned/experimental code from the SSR spike is removed from the diff. `pnpm lint` and the per-workspace test suites are green.
 - **Track 1 (U1–U5).** Dual transport works both ways; CSRF blocks cookie mutations lacking the token and exempts bearer clients; the SPA runs with no `localStorage` tokens.
 - **Track 2 (U6–U9).** SSR renders the authenticated shell server-side using the forwarded cookie; no browser-only code executes during server render; the web image runs the SSR Node server.
 - **Track 3 (U10–U12).** Config comes from transfer state off `process.env`; API base is host-only with per-endpoint versions; `config.json`, `gen-config.mjs`, the config app-initializer, and `WEB_PRODUCTION` are gone; UI version is the build-time SHA.
@@ -382,3 +382,9 @@ sequenceDiagram
 - **SSR↔API base URL:** the server-to-server base URL in the dev container and compose may differ from the browser's base URL — resolve during U8/U10.
 - **Refresh-cookie path scope:** exact path (`/v1/auth/refresh`) confirmed against URI versioning during U1.
 - **Deploy topology:** SSR Node server sizing and the UI health/version endpoint shape — resolve before the web image ships (U9).
+
+### Raised by 2026-07-10 doc review — resolve before U1 / U8
+
+- **[P0 — RESOLVED] SameSite posture + deployment topology.** Deployment is **same-site**: web and API run as two subdomains of one shared registrable parent domain (`<web>.<domain>` + `<api>.<domain>`; subdomain labels and TLD are deployment config via `COOKIE_DOMAIN`, not hardcoded — the invariant is the shared parent). Session cookie is issued with `Domain` = the shared parent (first-party to both subdomains, rides the SSR document request); access cookie `SameSite=Lax`, refresh cookie `SameSite=Strict` (see R3). No BFF, no `SameSite=None`, no third-party-cookie exposure. **F2** dissolves (access cookie is `Lax`, so external-referral top-level navigation renders authenticated). **S4** is bounded: the parent-domain cookie is required for SSR and is acceptable *given all subdomains of that parent are controlled* — R3 records this trust assumption and the CSRF double-submit (R5) remains the same-site guard; still decide login-CSRF handling for the pre-session `/auth/login` POST during U3. **A2** dissolves: dev (`localhost`) is same-site like prod, so the Track 1 SPA gate faithfully exercises the real cookie topology.
+- **[P0 — RESOLVED] SSR-time refresh strategy (U8 / R9 / F1 + A3).** Model **(a) read-only probe** chosen. SSR renders off the access cookie only and never refreshes or rotates the RT server-side; on absent/expired access cookie it renders a neutral authenticated shell (not a hard login redirect) and the client refreshes after hydration. This sidesteps both defects — the path-scoped refresh cookie (F1) never needs to reach SSR, and there is no server-side rotation whose `Set-Cookie` could be lost (A3). Refresh token stays scoped to `/v1/auth`. R9/U8 updated; U8 test pins the neutral-shell + no-rotation behavior.
+- **[P2] Track 4 scope/independence (SC1 + SC4).** The Goal Capsule claims "each track is independently shippable," but U15 depends on U9/U10 (`/web` folder) and the companion doc describes the config-ownership + settings-seed inversion as "its own cross-cutting refactor beyond the SSR plan." **Decide:** either extract Track 4 (U13–U15) into a standalone plan referenced by this one (keeping this plan scoped to Tracks 1–3), or keep it bundled but drop the "independently shippable" framing for Track 4 and qualify the Goal Capsule (Tracks 1–3 independent; Track 4 depends on Track 2/3 for `/web`).
