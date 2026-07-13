@@ -1,10 +1,11 @@
+import { isPlatformServer } from '@angular/common';
 import {
   HttpClient,
   type HttpErrorResponse,
   type HttpEvent,
   type HttpInterceptorFn,
 } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, PLATFORM_ID, REQUEST } from '@angular/core';
 import { Router } from '@angular/router';
 import {
   BehaviorSubject,
@@ -86,6 +87,19 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const refreshClient = inject(AuthRefreshClient);
   const csrf = inject(CsrfService);
 
+  // SSR cookie forwarding (U8, model a). Under server render the browser cookie
+  // jar / `withCredentials` do not exist, so the incoming request's `Cookie`
+  // header is forwarded explicitly onto outbound API calls — letting the API's
+  // cookie extractor authenticate the render off the ACCESS cookie as a
+  // read-only probe. The `REQUEST` token is request-scoped (a fresh injector per
+  // render via `BootstrapContext`), so one user's cookie can never bleed into
+  // another concurrent render's outbound calls (S5).
+  const isServer = isPlatformServer(inject(PLATFORM_ID));
+  const request = inject(REQUEST, { optional: true });
+  const forwardedCookie = isServer
+    ? (request?.headers.get('cookie') ?? null)
+    : null;
+
   // Auth issuance/refresh endpoints manage their own auth; just ride the cookie.
   if (isAuthEndpoint(req.url)) {
     return next(req.clone({ withCredentials: true }));
@@ -94,7 +108,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const deps: RefreshDeps = { auth, router, refreshClient, csrf };
 
   // A re-runnable dispatch: cookies always ride; authenticated mutations also
-  // carry a freshly-resolved CSRF header. Re-run verbatim after a refresh.
+  // carry a freshly-resolved CSRF header. Under SSR the forwarded `Cookie`
+  // header rides too. Re-run verbatim after a refresh.
   const dispatch = (): Observable<HttpEvent<unknown>> => {
     const needsCsrf =
       MUTATING_METHODS.has(req.method.toUpperCase()) && auth.isAuthenticated();
@@ -102,20 +117,28 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       ? csrf.getToken()
       : of(null);
     return token$.pipe(
-      switchMap(token =>
-        next(
-          req.clone({
-            withCredentials: true,
-            setHeaders: token ? { [CSRF_HEADER]: token } : {},
-          }),
-        ),
-      ),
+      switchMap(token => {
+        const setHeaders: Record<string, string> = {};
+        if (token) {
+          setHeaders[CSRF_HEADER] = token;
+        }
+        if (forwardedCookie) {
+          setHeaders['Cookie'] = forwardedCookie;
+        }
+        return next(req.clone({ withCredentials: true, setHeaders }));
+      }),
     );
   };
 
   return dispatch().pipe(
     catchError((error: unknown) => {
       if (!isUnauthorized(error)) {
+        return throwError(() => error);
+      }
+      // Read-only probe (model a): SSR never rotates the RT. A 401 during server
+      // render surfaces as anonymous — the client refreshes after hydration and
+      // the neutral authenticated shell is rendered meanwhile.
+      if (isServer) {
         return throwError(() => error);
       }
       return handle401(dispatch, deps);

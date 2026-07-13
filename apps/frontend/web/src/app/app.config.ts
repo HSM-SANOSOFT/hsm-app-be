@@ -16,6 +16,7 @@ import {
   provideAppInitializer,
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection,
+  REQUEST,
 } from '@angular/core';
 import {
   provideClientHydration,
@@ -104,17 +105,23 @@ export const appConfig: ApplicationConfig = {
     // back at hydration. `ConfigService` resolves it lazily — no boot fetch, no
     // config app-initializer here.
     //
-    // Session restore probes the profile from the httpOnly cookie. Browser-only
-    // here (R9, model a): SSR renders a neutral authenticated shell and the
-    // client restores after hydration. U8 adds the server-side, request-scoped
-    // forwarded-cookie probe as a read-only render input.
+    // Session restore probes the profile from the httpOnly cookie (R9, model a).
+    // In the browser it always runs. During SSR it runs as a read-only probe
+    // ONLY when a session cookie was forwarded (the interceptor attaches it and
+    // never rotates the RT) — rendering the authenticated shell; with no cookie
+    // it is skipped, rendering the neutral shell without a pointless API call.
+    // Either way the client re-probes after hydration.
     provideAppInitializer(() => {
       const platformId = inject(PLATFORM_ID);
       const auth = inject(AuthService);
-      if (!isPlatformBrowser(platformId)) {
-        return;
+      if (isPlatformBrowser(platformId)) {
+        return firstValueFrom(auth.restoreSession());
       }
-      return firstValueFrom(auth.restoreSession());
+      const request = inject(REQUEST, { optional: true });
+      if (request?.headers.get('cookie')) {
+        return firstValueFrom(auth.restoreSession());
+      }
+      return;
     }),
     provideAppInitializer(() => {
       // Re-apply PrimeNG chrome copy on every Transloco language change.

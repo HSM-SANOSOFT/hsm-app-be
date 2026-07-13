@@ -7,6 +7,7 @@ import {
   HttpTestingController,
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
+import { PLATFORM_ID, REQUEST } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 
@@ -191,5 +192,104 @@ describe('authInterceptor (cookie transport + CSRF + single in-flight refresh)',
     expect(caught).toBeDefined();
     expect(authStub.onSessionLost).toHaveBeenCalled();
     expect(navigateSpy).toHaveBeenCalledWith(['/login']);
+  });
+
+  it('does not attach a Cookie header in the browser (no forwarded request)', () => {
+    http.get(`${base}/widgets`).subscribe();
+
+    const req = httpMock.expectOne(`${base}/widgets`);
+    expect(req.request.headers.has('Cookie')).toBe(false);
+    req.flush({});
+  });
+});
+
+/**
+ * SSR cookie forwarding (U8, model a). During server render the interceptor
+ * forwards the incoming request's `Cookie` header onto outbound API calls so the
+ * API authenticates the render off the ACCESS cookie, and NEVER rotates the RT
+ * on a 401 (read-only probe). The forwarded cookie is bound to the request-
+ * scoped `REQUEST` token, so concurrent renders can never cross cookies (S5).
+ */
+describe('authInterceptor SSR cookie forwarding (U8, read-only probe)', () => {
+  function configureServer(cookie: string | null): {
+    http: HttpClient;
+    httpMock: HttpTestingController;
+  } {
+    TestBed.resetTestingModule();
+    const request = new Request('http://ssr.internal/', {
+      headers: cookie ? { cookie } : {},
+    });
+    TestBed.configureTestingModule({
+      providers: [
+        provideTestConfig(),
+        ...provideTranslocoTestingModule(),
+        provideHttpClient(withInterceptors([authInterceptor])),
+        provideHttpClientTesting(),
+        {
+          provide: Router,
+          useValue: { navigate: vi.fn().mockResolvedValue(true) },
+        },
+        {
+          provide: AuthService,
+          useValue: {
+            isAuthenticated: vi.fn().mockReturnValue(true),
+            onSessionLost: vi.fn(),
+          },
+        },
+        { provide: PLATFORM_ID, useValue: 'server' },
+        { provide: REQUEST, useValue: request },
+      ],
+    });
+    return {
+      http: TestBed.inject(HttpClient),
+      httpMock: TestBed.inject(HttpTestingController),
+    };
+  }
+
+  it('forwards the incoming Cookie header on outbound API calls', () => {
+    const { http, httpMock } = configureServer('hsm_at=AAA; hsm_rt=BBB');
+
+    http.get(`${base}/auth/profile`).subscribe();
+
+    const req = httpMock.expectOne(`${base}/auth/profile`);
+    expect(req.request.headers.get('Cookie')).toBe('hsm_at=AAA; hsm_rt=BBB');
+    expect(req.request.withCredentials).toBe(true);
+    req.flush({});
+    httpMock.verify();
+  });
+
+  it('never refreshes on a 401 — renders anonymous instead (no RT rotation)', () => {
+    const { http, httpMock } = configureServer('hsm_at=EXPIRED');
+    let caught: unknown;
+
+    http.get(`${base}/auth/profile`).subscribe({
+      error: (err: unknown) => {
+        caught = err;
+      },
+    });
+
+    httpMock
+      .expectOne(`${base}/auth/profile`)
+      .flush(UNAUTHORIZED.body, UNAUTHORIZED.opts);
+    // Model (a): no server-side refresh round-trip.
+    httpMock.expectNone(`${base}/auth/refresh`);
+    expect(caught).toBeDefined();
+    httpMock.verify();
+  });
+
+  it('binds the forwarded cookie per render — no cross-bleed (S5)', () => {
+    const a = configureServer('session=USER_A');
+    a.http.get(`${base}/auth/profile`).subscribe();
+    const reqA = a.httpMock.expectOne(`${base}/auth/profile`);
+    expect(reqA.request.headers.get('Cookie')).toBe('session=USER_A');
+    reqA.flush({});
+    a.httpMock.verify();
+
+    const b = configureServer('session=USER_B');
+    b.http.get(`${base}/auth/profile`).subscribe();
+    const reqB = b.httpMock.expectOne(`${base}/auth/profile`);
+    expect(reqB.request.headers.get('Cookie')).toBe('session=USER_B');
+    reqB.flush({});
+    b.httpMock.verify();
   });
 });
