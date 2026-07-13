@@ -10,7 +10,7 @@ import type {
   Tokens,
   UserProfile,
 } from '../api/response';
-import { TokenStorage } from './token-storage';
+import { CsrfService } from './csrf.service';
 
 /** Backend auth endpoints (relative to the `/v1` base URL). */
 export const AUTH_LOGIN_PATH = '/auth/login';
@@ -41,13 +41,13 @@ const PATIENT_ROLES: ReadonlySet<string> = new Set([
  *   `RolesEnum.System.Admin` (the string `'admin'`).
  *
  * The refresh interceptor (`auth.interceptor.ts`) performs the transparent
- * access-token refresh; on a dead refresh token it calls {@link onSessionLost}
- * to clear state. Token persistence lives in {@link TokenStorage}.
+ * cookie refresh; on a dead refresh cookie it calls {@link onSessionLost} to
+ * clear state. The session lives in httpOnly cookies — no client-side storage.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly api = inject(ApiClient);
-  private readonly tokenStorage = inject(TokenStorage);
+  private readonly csrf = inject(CsrfService);
 
   private readonly currentUserSignal = signal<UserProfile | null>(null);
 
@@ -110,58 +110,49 @@ export class AuthService {
     return roles.some(role => userRoles.includes(role));
   }
 
-  /** True when an access token is persisted (even if no profile loaded yet). */
-  hasToken(): boolean {
-    return this.tokenStorage.getAccessToken() !== null;
-  }
-
   /**
-   * Authenticates with username + password, stores the returned token pair,
-   * then loads the profile. Emits the profile on success; errors with the
-   * `ApiError` thrown by {@link ApiClient} (e.g. invalid credentials).
+   * Authenticates with username + password. The response sets the httpOnly
+   * session cookies (no token is persisted client-side); then loads the
+   * profile. Emits the profile on success; errors with the `ApiError` thrown by
+   * {@link ApiClient} (e.g. invalid credentials).
    */
   login(payload: LoginPayload): Observable<UserProfile> {
-    return this.api.post<Tokens>(AUTH_LOGIN_PATH, payload).pipe(
-      tap(tokens => this.tokenStorage.save(tokens)),
-      // After storing tokens, load the profile and emit it.
-      switchMap(() => this.loadProfile()),
-    );
+    return this.api
+      .post<Tokens>(AUTH_LOGIN_PATH, payload)
+      .pipe(switchMap(() => this.loadProfile()));
   }
 
   /**
-   * Self-registers via `POST /v1/auth/signup`, which returns a token pair on
-   * success (the backend rejects privileged roles). Stores the tokens and loads
-   * the profile — same shape as {@link login}, so the new user lands
-   * authenticated. Errors with the `ApiError` thrown by {@link ApiClient}
-   * (e.g. a duplicate username).
+   * Self-registers via `POST /v1/auth/signup` (the backend rejects privileged
+   * roles). The response sets the session cookies; loads the profile — same
+   * shape as {@link login}, so the new user lands authenticated. Errors with
+   * the `ApiError` thrown by {@link ApiClient} (e.g. a duplicate username).
    */
   register(payload: SignupPayload): Observable<UserProfile> {
-    return this.api.post<Tokens>(AUTH_SIGNUP_PATH, payload).pipe(
-      tap(tokens => this.tokenStorage.save(tokens)),
-      switchMap(() => this.loadProfile()),
-    );
+    return this.api
+      .post<Tokens>(AUTH_SIGNUP_PATH, payload)
+      .pipe(switchMap(() => this.loadProfile()));
   }
 
   /**
    * Completes first-login onboarding for a pending staff member via
    * `POST /v1/auth/onboarding` (sets a new password + required contact info).
-   * The backend returns a REISSUED token pair so the cleared pending flag is
-   * reflected: store the new tokens, then reload the profile — mirroring
-   * {@link login}. After this emits, {@link needsOnboarding} is false (the
+   * The backend reissues the session cookies so the cleared pending flag is
+   * reflected: reload the profile — mirroring {@link login}. After this emits,
+   * {@link needsOnboarding} is false (the
    * reloaded profile carries a non-null `onboardingCompletedAt`). Errors with
    * the `ApiError` thrown by {@link ApiClient} (e.g. a 400 for a confirm-email
    * mismatch or a too-short password).
    */
   completeOnboarding(payload: OnboardingPayload): Observable<UserProfile> {
-    return this.api.post<Tokens>(AUTH_ONBOARDING_PATH, payload).pipe(
-      tap(tokens => this.tokenStorage.save(tokens)),
-      switchMap(() => this.loadProfile()),
-    );
+    return this.api
+      .post<Tokens>(AUTH_ONBOARDING_PATH, payload)
+      .pipe(switchMap(() => this.loadProfile()));
   }
 
   /**
-   * Fetches `GET /v1/auth/profile` with the access token and stores it as the
-   * current user. Used after login and on app init (token rehydration).
+   * Fetches `GET /v1/auth/profile` (session cookie rides automatically) and
+   * stores it as the current user. Used after login and on app init.
    */
   loadProfile(): Observable<UserProfile> {
     return this.api
@@ -170,13 +161,12 @@ export class AuthService {
   }
 
   /**
-   * Restores the session on app start: if an access token is persisted, load
-   * the profile. A failure (dead token) clears state and resolves to `null`.
+   * Restores the session on app start by probing `GET /v1/auth/profile`. The
+   * session cookie rides automatically; the interceptor transparently refreshes
+   * on an expired access cookie. A failure (no/dead session) clears state and
+   * resolves to `null` — anonymous, no token to inspect first.
    */
   restoreSession(): Observable<UserProfile | null> {
-    if (!this.hasToken()) {
-      return of(null);
-    }
     return this.loadProfile().pipe(
       catchError(() => {
         this.onSessionLost();
@@ -197,9 +187,10 @@ export class AuthService {
     );
   }
 
-  /** Clears tokens and resets auth state. Called on logout / dead refresh. */
+  /** Clears cached CSRF token and resets auth state. Called on logout / dead
+   * refresh (the server clears the httpOnly cookies). */
   onSessionLost(): void {
-    this.tokenStorage.clear();
+    this.csrf.clear();
     this.currentUserSignal.set(null);
   }
 }
