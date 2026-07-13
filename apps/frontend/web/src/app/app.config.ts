@@ -31,8 +31,6 @@ import { HsmPreset } from '../theme/hsm-preset';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth/auth.interceptor';
 import { AuthService } from './core/auth/auth.service';
-import { validateConfig } from './core/config/config.schema';
-import { ConfigService } from './core/config/config.service';
 import { LANG_STORAGE_KEY } from './core/i18n/language.service';
 import { primeNgTranslationFor } from './core/i18n/primeng-translations';
 import { TranslocoHttpLoader } from './core/i18n/transloco-loader';
@@ -101,25 +99,11 @@ export const appConfig: ApplicationConfig = {
       deps: [PLATFORM_ID],
     },
     { provide: DEFAULT_CURRENCY_CODE, useValue: 'USD' },
-    // FIRST initializer: load runtime config from /config.json (generated from
-    // env) before anything reads it. Native fetch bypasses the auth interceptor
-    // (which would otherwise read config before it's set).
+    // Runtime config is sourced from transfer state (U10): the SSR server reads
+    // `process.env` and seeds it (`app.config.server.ts`), the browser reads it
+    // back at hydration. `ConfigService` resolves it lazily — no boot fetch, no
+    // config app-initializer here.
     //
-    // Browser-only (R8/R9, model a): during SSR the config is not fetched — it
-    // arrives via transfer state (U10) and no server-render path reads it yet.
-    // A relative `fetch('/config.json')` would throw on Node anyway.
-    provideAppInitializer(async () => {
-      const platformId = inject(PLATFORM_ID);
-      const config = inject(ConfigService);
-      if (!isPlatformBrowser(platformId)) {
-        return;
-      }
-      const res = await fetch('/config.json', { cache: 'no-store' });
-      if (!res.ok) {
-        throw new Error(`Failed to load /config.json (HTTP ${res.status})`);
-      }
-      config.set(validateConfig(await res.json()));
-    }),
     // Session restore probes the profile from the httpOnly cookie. Browser-only
     // here (R9, model a): SSR renders a neutral authenticated shell and the
     // client restores after hydration. U8 adds the server-side, request-scoped
