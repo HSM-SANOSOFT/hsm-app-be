@@ -9,6 +9,7 @@ export interface ApiEnvs extends BaseEnvs {
   JWT_RT_SECRET: string;
   COOKIE_SECURE: boolean;
   COOKIE_DOMAIN?: string;
+  CSRF_SECRET: string;
   DEFAULT_ADMIN_USERNAME?: string;
   DEFAULT_ADMIN_PASSWORD?: string;
 }
@@ -20,6 +21,7 @@ interface ApiOnly {
   JWT_RT_SECRET: string;
   COOKIE_SECURE: boolean;
   COOKIE_DOMAIN?: string;
+  CSRF_SECRET: string;
   DEFAULT_ADMIN_USERNAME?: string;
   DEFAULT_ADMIN_PASSWORD?: string;
 }
@@ -31,6 +33,7 @@ const API_KEYS: readonly FieldName[] = [
   'JWT_RT_SECRET',
   'COOKIE_SECURE',
   'COOKIE_DOMAIN',
+  'CSRF_SECRET',
   'DEFAULT_ADMIN_USERNAME',
   'DEFAULT_ADMIN_PASSWORD',
 ];

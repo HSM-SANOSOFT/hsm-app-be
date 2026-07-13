@@ -31,15 +31,16 @@ import type { Request, Response } from 'express';
 import { AllowPending, ApiDocumentation, Public } from '../../../decorator';
 import { AuthJwtRtGuard, AuthLocalGuard } from '../../../guards';
 import { Roles } from '../../security/roles/roles.decorator';
+import { generateCsrfToken } from '../csrf/csrf.util';
 import { AccountRecoveryService } from './account-recovery.service';
+import { AuthService } from './auth.service';
 import {
   ACCESS_COOKIE,
   clearAuthCookies,
-  readCookie,
   REFRESH_COOKIE,
+  readCookie,
   setAuthCookies,
 } from './auth-cookie.util';
-import { AuthService } from './auth.service';
 
 /**
  * Generic, non-committal acknowledgement returned by the recovery endpoints
@@ -158,6 +159,21 @@ export class AuthController {
   @Get('profile')
   profile(@Req() req: Request) {
     return req.user;
+  }
+
+  /**
+   * Issues (or reuses) the signed double-submit CSRF token for the current
+   * cookie session and returns it so the browser can echo it in the
+   * `x-csrf-token` header on mutations. Safe GET — not itself CSRF-protected.
+   */
+  @ApiDocumentation()
+  @AllowPending()
+  @Get('csrf')
+  csrf(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): { csrfToken: string } {
+    return { csrfToken: generateCsrfToken(req, res) };
   }
 
   @ApiDocumentation()

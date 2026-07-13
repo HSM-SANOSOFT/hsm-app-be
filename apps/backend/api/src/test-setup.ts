@@ -12,6 +12,7 @@ process.env.SMTP_SECURE = 'false';
 process.env.JWT_AT_SECRET = 'test-at-secret-32-chars-padding!!';
 process.env.JWT_RT_SECRET = 'test-rt-secret-32-chars-padding!!';
 process.env.COOKIE_SECURE = 'false';
+process.env.CSRF_SECRET = 'test-csrf-secret-32-chars-padding!!';
 process.env.DB_POSTGRES_HOST = 'localhost';
 process.env.DB_POSTGRES_PORT = '5432';
 process.env.DB_POSTGRES_USER = 'test';

@@ -37,6 +37,11 @@ export const FIELDS = {
   COOKIE_SECURE: joi.boolean().default(false),
   COOKIE_DOMAIN: joi.string().allow('').optional(),
 
+  // Secret for the signed double-submit CSRF token (csrf-csrf HMAC). Required —
+  // a weak/absent secret would let an attacker forge a valid token, defeating
+  // the CSRF protection (S1). Min 32 chars.
+  CSRF_SECRET: joi.string().min(32).required(),
+
   DB_POSTGRES_HOST: joi.string().required(),
   DB_POSTGRES_PORT: joi.number().default(5432),
   DB_POSTGRES_USER: joi.string().required(),
