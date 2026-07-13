@@ -72,3 +72,15 @@ export function readCookie(req: Request, name: string): string | null {
     .cookies;
   return cookies?.[name] ?? null;
 }
+
+/**
+ * Builds a passport-jwt extractor that reads a named cookie off the request, so
+ * a JWT strategy composed with `ExtractJwt.fromExtractors` accepts either the
+ * bearer header (integrations / direct-API clients) or the httpOnly cookie
+ * (browser + SSR document requests).
+ */
+export function cookieTokenExtractor(
+  name: string,
+): (req: Request) => string | null {
+  return (req: Request) => readCookie(req, name);
+}

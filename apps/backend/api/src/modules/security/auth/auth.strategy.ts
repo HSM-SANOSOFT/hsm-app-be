@@ -10,8 +10,18 @@ import { envs } from '@hsm/config/api';
 import { Injectable, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Request } from 'express';
-import { ExtractJwt, Strategy as StrategyJwt } from 'passport-jwt';
+import {
+  ExtractJwt,
+  type JwtFromRequestFunction,
+  Strategy as StrategyJwt,
+} from 'passport-jwt';
 import { Strategy } from 'passport-local';
+import {
+  ACCESS_COOKIE,
+  REFRESH_COOKIE,
+  cookieTokenExtractor,
+  readCookie,
+} from './auth-cookie.util';
 import { AuthService } from './auth.service';
 
 /**
@@ -38,16 +48,37 @@ export class AuthLocalStrategy extends PassportStrategy(Strategy, 'local') {
 }
 
 /**
+ * Dual-transport JWT extractors (U2): try the httpOnly cookie first (browser +
+ * SSR document requests), then fall back to the `Authorization: Bearer` header
+ * (integrations / direct-API clients). Composing both keeps bearer clients
+ * working unchanged while cookie clients resolve with no JS-attached token.
+ */
+export function accessTokenExtractor(): JwtFromRequestFunction {
+  return ExtractJwt.fromExtractors([
+    cookieTokenExtractor(ACCESS_COOKIE),
+    ExtractJwt.fromAuthHeaderAsBearerToken(),
+  ]);
+}
+
+export function refreshTokenExtractor(): JwtFromRequestFunction {
+  return ExtractJwt.fromExtractors([
+    cookieTokenExtractor(REFRESH_COOKIE),
+    ExtractJwt.fromAuthHeaderAsBearerToken(),
+  ]);
+}
+
+/**
  * JWT Access Token Strategy
  * Validates JWT access tokens for protected routes.
- * Extracts the token from the Authorization header and verifies it using the secret key.
+ * Extracts the token from the access cookie or the Authorization header and
+ * verifies it using the secret key.
  * Returns the user information contained in the token payload if valid.
  */
 @Injectable()
 export class AuthJwtATStrategy extends PassportStrategy(StrategyJwt, 'jwt-at') {
   constructor() {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: accessTokenExtractor(),
       ignoreExpiration: false,
       secretOrKey: envs.JWT_AT_SECRET,
       passReqToCallback: false,
@@ -76,7 +107,7 @@ export class AuthJwtRTStrategy extends PassportStrategy(StrategyJwt, 'jwt-rt') {
   private readonly logger = new Logger(AuthJwtRTStrategy.name);
   constructor() {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: refreshTokenExtractor(),
       ignoreExpiration: false,
       secretOrKey: envs.JWT_RT_SECRET,
       passReqToCallback: true,
@@ -93,13 +124,14 @@ export class AuthJwtRTStrategy extends PassportStrategy(StrategyJwt, 'jwt-rt') {
     req: Request,
     payload: IJwtPayloadUser | IJwtPayloadUserIntegration,
   ) {
-    const refreshToken = req
-      .get('Authorization')
-      ?.replace('Bearer ', '')
-      .trim();
+    // Re-extract the raw RT the strategy authenticated with: bearer header for
+    // integrations, refresh cookie for browser/SSR clients (U2 dual transport).
+    const bearer = req.get('Authorization')?.replace('Bearer ', '').trim();
+    const refreshToken = bearer || readCookie(req, REFRESH_COOKIE) || undefined;
     const { sub, ...rest } = payload;
     const refreshUser = { id: sub, ...rest, refreshToken } as IRefreshUser;
-    this.logger.debug('jwt-rt strategy validate user:', refreshUser);
+    // S6: never log the refresh token (a replayable 1d credential) — id only.
+    this.logger.debug('jwt-rt strategy validate for user id:', sub);
     return refreshUser;
   }
 }
