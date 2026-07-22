@@ -15,22 +15,18 @@ describe('ConfigService', () => {
     TestBed.configureTestingModule({});
     TestBed.inject(TransferState).set(CONFIG_STATE_KEY, {
       apiBaseUrl: 'http://api.example',
-      production: true,
     });
 
     const config = TestBed.inject(ConfigService);
 
     expect(config.apiBaseUrl).toBe('http://api.example');
-    expect(config.production).toBe(true);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('fails loudly when the transferred config is invalid', () => {
     TestBed.configureTestingModule({});
     // Missing the required apiBaseUrl.
-    TestBed.inject(TransferState).set(CONFIG_STATE_KEY, {
-      production: true,
-    } as unknown as AppConfig);
+    TestBed.inject(TransferState).set(CONFIG_STATE_KEY, {} as AppConfig);
 
     const config = TestBed.inject(ConfigService);
 

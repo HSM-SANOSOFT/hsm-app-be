@@ -82,27 +82,34 @@ The dev server runs on **4200**. With the API run locally (`pnpm --filter
 URI version (Swagger UI at `http://localhost:4201/api`). Port **10001** is the
 API host port only under full-stack `docker compose up`.
 
-## Runtime config (env-driven, like the backend)
+## Runtime config (env-driven, via SSR transfer state)
 
-Config (`apiBaseUrl`, `appVersion`, `production`) is loaded at **runtime** from
-`/config.json`, generated from `WEB_*` env vars — NOT baked into the bundle (no
-`src/environments`, no `fileReplacements`). Change env → restart, no rebuild.
+The app runs with **`@angular/ssr`** (see "SSR" below). The single non-secret
+config value — the **host-only** API base (`apiBaseUrl`) — is read from
+`process.env` by the SSR Node server, seeded into Angular **transfer state**
+(`CONFIG_STATE_KEY`), and read back in the browser at hydration. No
+`config.json`, no boot fetch, no `src/environments`. Change env → restart, no
+rebuild (U10–U12).
 
-- `scripts/gen-config.mjs` reads `WEB_API_BASE_URL` / `WEB_APP_VERSION` /
-  `WEB_PRODUCTION` and writes `config.json`. Runs at **predev** (→
-  `public/config.json`, gitignored) and at **container start** (→
-  `dist/config.json`, the Dockerfile entrypoint). `public/config.json.example`
-  documents the shape.
-- `core/config/config.service.ts` — `ConfigService` (injectable getters
-  `apiBaseUrl`/`appVersion`/`production`). Seeded once by the FIRST
-  `provideAppInitializer` in `app.config.ts` (native `fetch('/config.json')` →
-  Joi-validated via `config.schema.ts`). **Never read `ConfigService` before
-  bootstrap**; reading unloaded throws.
-- Consume via `inject(ConfigService).apiBaseUrl` (see `core/api/api-client.ts`).
-  Do **not** hardcode the API URL. Specs seed it with
-  `provideTestConfig()` + `TEST_API_BASE_URL` (`core/config/config-testing.ts`).
-- Dev API URL default is `http://localhost:4201/v1` (the devcontainer-published
-  API port). The prod/compose mapping is `http://localhost:10001/v1`.
+- `app.config.server.ts` reads `WEB_API_BASE_URL` (host-only, e.g.
+  `http://localhost:4201`) and seeds `TransferState` + `ConfigService`.
+- `core/config/config.service.ts` — `ConfigService` (getter `apiBaseUrl`) sources
+  lazily from transfer state; `set()` (the test/server seam) wins. Reading with
+  no config provided throws.
+- **API version is per-endpoint, not in the base.** `core/api/api-url.ts`
+  `apiUrl(host, path, version='v1')` composes `${host}/${version}${path}`;
+  `ApiClient` takes an optional `version` (default `v1`), and `CsrfService` /
+  `AuthRefreshClient` build `/v1` explicitly. Do **not** hardcode the API URL.
+- **UI version** is a build-time constant (`core/version/build-version.ts`,
+  `BUILD_VERSION`), baked in — no runtime fetch. `scripts/gen-version.mjs` writes
+  the git short SHA in CI / the image build. `VersionService.apiVersion` still
+  fetches the public `GET /v1/health/version`.
+- Specs seed config with `provideTestConfig()` (host-only `TEST_API_HOST`) and
+  assert request URLs against the v1-composed `TEST_API_BASE_URL`
+  (`core/config/config-testing.ts`).
+- Dev API host default is `http://localhost:4201` (the devcontainer-published API
+  port); calls compose `/v1` per-endpoint. The prod/compose mapping is
+  `http://localhost:10001`.
 
 ## API contract reminders
 

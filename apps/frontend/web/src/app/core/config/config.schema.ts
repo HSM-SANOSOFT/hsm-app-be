@@ -14,14 +14,11 @@ export const CONFIG_STATE_KEY: StateKey<AppConfig> =
 export interface AppConfig {
   /** Host-only API base, e.g. `http://localhost:4201` (version per-endpoint). */
   apiBaseUrl: string;
-  /** Production flag (enables the service worker, etc.). */
-  production: boolean;
 }
 
 const schema = joi
   .object<AppConfig>({
     apiBaseUrl: joi.string().uri({ allowRelative: true }).required(),
-    production: joi.boolean().default(false),
   })
   .required();
 

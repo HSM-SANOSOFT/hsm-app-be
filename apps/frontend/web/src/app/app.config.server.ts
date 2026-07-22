@@ -20,8 +20,6 @@ import { ConfigService } from './core/config/config.service';
 function readServerConfig() {
   return validateConfig({
     apiBaseUrl: process.env['WEB_API_BASE_URL'] ?? 'http://localhost:4201',
-    production:
-      (process.env['WEB_PRODUCTION'] ?? 'false').toLowerCase() === 'true',
   });
 }
 

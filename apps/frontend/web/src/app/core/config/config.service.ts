@@ -40,7 +40,4 @@ export class ConfigService {
   get apiBaseUrl(): string {
     return this.value.apiBaseUrl;
   }
-  get production(): boolean {
-    return this.value.production;
-  }
 }

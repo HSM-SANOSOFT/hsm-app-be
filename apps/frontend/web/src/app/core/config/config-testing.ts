@@ -22,7 +22,6 @@ export function provideTestConfig(
 ): Provider {
   const config: AppConfig = {
     apiBaseUrl: TEST_API_HOST,
-    production: false,
     ...overrides,
   };
   return {
