@@ -1,10 +1,20 @@
+using Hsm.Application.System;
+using Hsm.Contracts.Ui;
 using Hsm.Web.Components;
+using Hsm.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// Application handlers.
+builder.Services.AddScoped<GetSystemStatusHandler>();
+
+// UI services: interfaces declared in Hsm.Contracts, implemented by this
+// host with in-process handler calls (client-isolation boundary, plan U8).
+builder.Services.AddScoped<ISystemStatusUiService, SystemStatusUiService>();
 
 var app = builder.Build();
 
@@ -25,3 +35,6 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+
+// Exposes the entry point to WebApplicationFactory-based tests.
+public partial class Program { }

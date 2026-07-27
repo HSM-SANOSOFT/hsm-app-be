@@ -1,0 +1,25 @@
+@using Hsm.Contracts.Ui
+@inject ISystemStatusUiService StatusService
+
+@* Proving component for the client-isolation boundary: reaches the
+   application layer only through the contracts-declared UI service. *@
+
+<div class="system-status">
+    @if (_status is null)
+    {
+        <span>Cargando…</span>
+    }
+    else
+    {
+        <span>@_status.Application @_status.Version</span>
+    }
+</div>
+
+@code {
+    private SystemStatusDto? _status;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _status = await StatusService.GetStatusAsync();
+    }
+}
