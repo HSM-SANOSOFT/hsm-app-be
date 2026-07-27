@@ -1,10 +1,15 @@
 name: Build and Push Image
 
+# Builds the application container image via `dotnet publish` inside the
+# Dockerfile. APP_TYPE selects the host project: web (Hsm.Web) or worker
+# (Hsm.Worker). The Dockerfile lands with the release-packaging work; until
+# then this reusable workflow has no caller on a path that exists.
+
 on:
   workflow_call:
     inputs:
       APP_TYPE:
-        description: Type of application to build (main or worker)
+        description: Type of application to build (web or worker)
         required: true
         type: string
 permissions:
@@ -32,9 +37,9 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./docker/dockerFile.prod
+          file: ./docker/app.Dockerfile
           push: true
-          tags: ${{vars.REGISTRY}}/${{vars.IMAGE_OWNER}}/hsm-app-be-${{inputs.APP_TYPE }}:latest
+          tags: ${{vars.REGISTRY}}/${{vars.IMAGE_OWNER}}/hsm-app-${{inputs.APP_TYPE }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |

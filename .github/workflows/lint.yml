@@ -8,16 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install pnpm
-        # No `version:` — let action-setup read `packageManager` from package.json
-        # (pnpm@11.9.0). Passing a conflicting `version` fails action-setup with
-        # "Multiple versions of pnpm specified".
-        uses: pnpm/action-setup@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v4
         with:
-          node-version: 24.x
-      - name: Install dependencies
-        run: pnpm install
-      - name: Run linter
-        run: pnpm lint:fix
+          dotnet-version: 10.0.x
+      - name: Verify formatting and analyzers
+        run: |
+          if [ ! -f Hsm.sln ]; then
+            echo "No Hsm.sln yet (pre-U7) — lint trivially green."
+            exit 0
+          fi
+          dotnet format Hsm.sln --verify-no-changes

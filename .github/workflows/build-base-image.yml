@@ -1,5 +1,10 @@
 name: Build and Push Base Image
 
+# Inert since the .NET retarget: the Node/Oracle base image this built is gone
+# and docker/dockerFile.base no longer exists, so the path trigger never fires.
+# Retained as the slot for a future .NET base image if one becomes necessary;
+# the official mcr.microsoft.com/dotnet images make that unlikely.
+
 on:
   push:
     branches:
@@ -33,6 +38,6 @@ jobs:
           context: .
           file: ./docker/dockerFile.base
           push: true
-          tags: ${{vars.REGISTRY}}/${{vars.IMAGE_OWNER}}/hsm-app-be-base:latest
+          tags: ${{vars.REGISTRY}}/${{vars.IMAGE_OWNER}}/hsm-app-base:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
