@@ -1,3 +1,4 @@
+using Hsm.Infrastructure;
 using Hsm.Worker;
 using Npgsql;
 using OpenTelemetry;
@@ -23,6 +24,15 @@ builder.Services.AddOpenTelemetry()
     .UseOtlpExporter(
         OtlpExportProtocol.HttpProtobuf,
         new Uri(builder.Configuration["Otlp:Endpoint"] ?? "http://localhost:4318"));
+
+// Store-port adapters plus the communications dispatch surface (plan U14).
+// AddHsmInfrastructure registers the ComsJobProcessor hosted service, so this
+// host runs the same background send processing as Hsm.Web. With the default
+// in-process channel adapter each process consumes only its own enqueues —
+// the web host serves HTTP-observable dispatch; this host is the seat for a
+// distributed-queue adapter should cross-process dispatch return (see
+// ChannelComsDispatcher for the topology decision).
+builder.Services.AddHsmInfrastructure(builder.Configuration);
 
 builder.Services.AddHostedService<Worker>();
 

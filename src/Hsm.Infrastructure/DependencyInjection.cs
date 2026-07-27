@@ -1,10 +1,13 @@
 using Amazon.Runtime;
 using Amazon.S3;
 using Hsm.Application.Auth;
+using Hsm.Application.Coms;
 using Hsm.Application.Ports;
 using Hsm.Application.Proving;
 using Hsm.Application.Settings;
+using Hsm.Application.Templates;
 using Hsm.Application.Users;
+using Hsm.Infrastructure.Coms;
 using Hsm.Infrastructure.Identity;
 using Hsm.Infrastructure.Persistence;
 using Hsm.Infrastructure.Search;
@@ -15,6 +18,7 @@ using Meilisearch;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using TemplateStore = Hsm.Infrastructure.Templates.TemplateStore;
 
 namespace Hsm.Infrastructure;
 
@@ -60,8 +64,56 @@ public static class DependencyInjection
 
         AddIdentity(services, configuration);
         AddUsersAndSettings(services);
+        AddTemplatesAndComs(services, configuration);
 
         return services;
+    }
+
+    /// <summary>
+    /// Template + communications adapters and handlers (plan U14). Dispatch
+    /// runs in-process (see <see cref="ChannelComsDispatcher"/> for the
+    /// worker-topology decision); SMTP delivery stays a port with a logging
+    /// adapter — real relays are deployment configuration.
+    /// </summary>
+    private static void AddTemplatesAndComs(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddScoped<ITemplateStore, TemplateStore>();
+        services.AddSingleton<ITemplateRenderer, Hsm.Infrastructure.Templates.HandlebarsTemplateRenderer>();
+
+        services.AddScoped<ListTemplatesHandler>();
+        services.AddScoped<GetTemplateHandler>();
+        services.AddScoped<CreateTemplateHandler>();
+        services.AddScoped<UpdateTemplateHandler>();
+        services.AddScoped<DeleteTemplateHandler>();
+        services.AddScoped<ValidateTemplateHandler>();
+        services.AddScoped<DraftRenderHandler>();
+        services.AddScoped<TemplateParser>();
+
+        services.AddScoped<IEmailBatchStore, EmailBatchStore>();
+        services.AddScoped<IEmailSuppressionStore, EmailSuppressionStore>();
+        services.AddScoped<IEmailWebhookEventStore, EmailWebhookEventStore>();
+        services.AddSingleton<IEmailTransport, LoggingEmailTransport>();
+
+        services.AddSingleton(new ComsQueueOptions
+        {
+            MaxAttempts = configuration.GetValue("Coms:MaxAttempts", defaultValue: 5),
+            RetryBaseDelay = TimeSpan.FromMilliseconds(
+                configuration.GetValue("Coms:RetryBaseDelayMs", defaultValue: 5000)),
+        });
+        services.AddSingleton<ChannelComsDispatcher>();
+        services.AddSingleton<IComsJobDispatcher>(sp => sp.GetRequiredService<ChannelComsDispatcher>());
+        services.AddHostedService<ComsJobProcessor>();
+
+        services.AddScoped<SendEmailHandler>();
+        services.AddScoped<ListEmailBatchesHandler>();
+        services.AddScoped<GetEmailBatchHandler>();
+        services.AddScoped<ResendEmailBatchHandler>();
+        services.AddScoped<ListEmailRecipientsHandler>();
+        services.AddScoped<GetEmailRecipientHandler>();
+        services.AddScoped<ResendEmailRecipientHandler>();
+        services.AddScoped<ReceiveWebhookHandler>();
+        services.AddScoped<SendEmailJobHandler>();
+        services.AddScoped<ProcessWebhookJobHandler>();
     }
 
     /// <summary>

@@ -1,7 +1,8 @@
 namespace Hsm.Worker;
 
-// Placeholder host loop; real background processing arrives with the
-// communications module (plan U14).
+// Heartbeat loop. The communications background dispatch (plan U14) is the
+// ComsJobProcessor hosted service registered by AddHsmInfrastructure — the
+// queue-hop topology decision is documented on ChannelComsDispatcher.
 public sealed partial class Worker(ILogger<Worker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

@@ -1,0 +1,488 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Hsm.Application.Auth;
+using Hsm.Application.Templates;
+using Hsm.Domain.Templates;
+using Hsm.Web.Api;
+using Hsm.Web.Auth;
+
+namespace Hsm.Web.Templates;
+
+/// <summary>
+/// The seven frozen /v1/templates operations (templates.controller.ts). Every
+/// route is @Roles() with no arguments — any authenticated, onboarded user.
+/// POST routes return 201 (the frozen runtime default; its OpenAPI snapshot
+/// under-documented these as 200).
+/// </summary>
+public static class TemplateEndpoints
+{
+    public static void MapTemplateEndpoints(this IEndpointRouteBuilder app)
+    {
+        var templates = app.MapGroup("/v1/templates");
+        templates.MapGet("", (Delegate)ListTemplates);
+        templates.MapPost("", (Delegate)CreateTemplate);
+        templates.MapPost("/validate", (Delegate)ValidateTemplate);
+        templates.MapPost("/draft-render", (Delegate)DraftRender);
+        templates.MapGet("/{identifier}", (Delegate)GetTemplate);
+        templates.MapPut("/{id}", (Delegate)UpdateTemplate);
+        templates.MapDelete("/{id}", (Delegate)DeleteTemplate);
+    }
+
+    private static async Task<IResult> ListTemplates(HttpContext ctx, ListTemplatesHandler handler)
+    {
+        await AuthorizeAsync(ctx);
+
+        var query = QueryValidator.Read(ctx);
+        var category = query.OptionalEnum("category", TemplateCategories.All);
+        query.RejectUnknownParams();
+        query.ThrowIfInvalid();
+
+        var templates = await handler.HandleAsync(category);
+        var data = new JsonArray([.. templates.Select(t => (JsonNode?)DetailJson(t))]);
+        return ApiEnvelope.Success(
+            ctx, StatusCodes.Status200OK, data, extra: SyntheticPagination(templates.Count));
+    }
+
+    private static async Task<IResult> GetTemplate(
+        HttpContext ctx, string identifier, GetTemplateHandler handler)
+    {
+        await AuthorizeAsync(ctx);
+        var template = await handler.HandleAsync(identifier);
+        return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, WithBaseJson(template));
+    }
+
+    private static async Task<IResult> CreateTemplate(HttpContext ctx, CreateTemplateHandler handler)
+    {
+        await AuthorizeAsync(ctx);
+        var command = await ReadTemplateBodyAsync(ctx, isCreate: true);
+        var created = await handler.HandleAsync(command);
+        return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, WithBaseJson(created));
+    }
+
+    private static async Task<IResult> UpdateTemplate(
+        HttpContext ctx, string id, UpdateTemplateHandler handler)
+    {
+        await AuthorizeAsync(ctx);
+        var templateId = ParseUuid(id);
+        var command = await ReadTemplateBodyAsync(ctx, isCreate: false);
+        var updated = await handler.HandleAsync(templateId, command);
+        return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, WithBaseJson(updated));
+    }
+
+    private static async Task<IResult> DeleteTemplate(
+        HttpContext ctx, string id, DeleteTemplateHandler handler)
+    {
+        await AuthorizeAsync(ctx);
+        var templateId = ParseUuid(id);
+        await handler.HandleAsync(templateId);
+        // Frozen controller: delete answers { id } (enveloped), 200.
+        return ApiEnvelope.Success(
+            ctx, StatusCodes.Status200OK, new JsonObject { ["id"] = templateId.ToString() });
+    }
+
+    private static async Task<IResult> ValidateTemplate(HttpContext ctx, ValidateTemplateHandler handler)
+    {
+        await AuthorizeAsync(ctx);
+
+        var body = await BodyValidator.ReadAsync(ctx);
+        var identifier = body.RequiredString("identifier");
+        var data = body.RequiredObject("data");
+        body.RejectUnknownFields();
+        body.ThrowIfInvalid();
+
+        var result = await handler.HandleAsync(identifier, data);
+        var json = new JsonObject { ["valid"] = result.Valid };
+        if (result.TemplateId is not null)
+        {
+            json["templateId"] = result.TemplateId.ToString();
+        }
+
+        if (result.Issues is not null)
+        {
+            json["issues"] = IssuesJson(result.Issues);
+        }
+
+        return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, json);
+    }
+
+    private static async Task<IResult> DraftRender(HttpContext ctx, DraftRenderHandler handler)
+    {
+        await AuthorizeAsync(ctx);
+
+        var body = await BodyValidator.ReadAsync(ctx);
+        var content = body.RequiredString("content");
+        var baseTemplateId = body.OptionalUuid("baseTemplateId");
+        var sampleData = body.OptionalObject("sampleData");
+        body.RejectUnknownFields();
+        body.ThrowIfInvalid();
+
+        var html = await handler.HandleAsync(content, baseTemplateId, sampleData);
+        return ApiEnvelope.Success(
+            ctx, StatusCodes.Status201Created, new JsonObject { ["html"] = html });
+    }
+
+    /// <summary>The frozen guard chain: authenticated, any role, onboarding complete.</summary>
+    private static async Task AuthorizeAsync(HttpContext ctx)
+    {
+        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
+        RequestAuth.RequireRoles(ctx, principal);
+        await RequestAuth.RequireOnboardingCompletedAsync(ctx, principal);
+    }
+
+    /// <summary>The frozen ParseUUIDPipe surface: a malformed id is a 400.</summary>
+    internal static Guid ParseUuid(string id) =>
+        Guid.TryParse(id, out var parsed)
+            ? parsed
+            : throw Hsm.Application.Errors.ApiException.BadRequest("Validation failed (uuid is expected)");
+
+    /// <summary>
+    /// The frozen response interceptor's synthesized pagination for bare-array
+    /// payloads: page 1, pageSize = totalItems = the returned length.
+    /// </summary>
+    internal static JsonObject SyntheticPagination(int count) => new()
+    {
+        ["pagination"] = new JsonObject
+        {
+            ["page"] = 1,
+            ["pageSize"] = count,
+            ["totalItems"] = count,
+            ["totalPages"] = 1,
+        },
+    };
+
+    internal static JsonArray IssuesJson(IReadOnlyList<TemplateSchemaIssue> issues) =>
+        new([.. issues.Select(issue => (JsonNode?)new JsonObject
+        {
+            ["path"] = issue.Path,
+            ["expected"] = issue.Expected,
+            ["received"] = issue.Received,
+        })]);
+
+    /// <summary>The frozen TemplateWithBaseResponseDto shape.</summary>
+    internal static JsonObject WithBaseJson(Template template) => new()
+    {
+        ["template"] = DetailJson(template),
+        ["baseTemplate"] = template.BaseTemplate is null ? null : DetailJson(template.BaseTemplate),
+    };
+
+    /// <summary>
+    /// The frozen TemplateDetailDto: metadata is the category-matching shape
+    /// (cc/bcc omitted when unset), null for BASE or when no child row exists.
+    /// </summary>
+    internal static JsonObject DetailJson(Template template)
+    {
+        JsonObject? metadata = null;
+        if (TemplateCategories.IsEmail(template.Category) && template.Email is not null)
+        {
+            metadata = new JsonObject
+            {
+                ["subject"] = template.Email.Subject,
+                ["fromEmail"] = template.Email.FromEmail,
+                ["fromName"] = template.Email.FromName,
+            };
+            if (template.Email.Cc is not null)
+            {
+                metadata["cc"] = new JsonArray([.. template.Email.Cc.Select(c => (JsonNode?)c)]);
+            }
+
+            if (template.Email.Bcc is not null)
+            {
+                metadata["bcc"] = new JsonArray([.. template.Email.Bcc.Select(b => (JsonNode?)b)]);
+            }
+
+            metadata["hasAttachment"] = template.Email.HasAttachment;
+        }
+        else if (template.Category == TemplateCategories.Docs && template.Doc is not null)
+        {
+            metadata = new JsonObject
+            {
+                ["documentCode"] = template.Doc.DocumentCode,
+                ["format"] = template.Doc.Format,
+                ["size"] = template.Doc.Size,
+                ["orientation"] = template.Doc.Orientation,
+            };
+        }
+        else if (TemplateCategories.IsSms(template.Category) && template.Sms is not null)
+        {
+            metadata = new JsonObject
+            {
+                ["provider"] = template.Sms.Provider,
+                ["templateName"] = template.Sms.TemplateName,
+                ["from"] = template.Sms.From,
+            };
+        }
+
+        return new JsonObject
+        {
+            ["id"] = template.Id.ToString(),
+            ["category"] = template.Category,
+            ["name"] = template.Name,
+            ["isActive"] = template.IsActive,
+            ["schema"] = JsonNode.Parse(template.SchemaJson),
+            ["content"] = template.Content,
+            ["description"] = template.Description,
+            ["metadata"] = metadata,
+        };
+    }
+
+    /// <summary>
+    /// Reads the frozen Create/Update Template payload, reproducing the
+    /// ValidationPipe surface: field rules, the @ValidateIf conditional
+    /// requirements keyed on the payload's own category, nested-block
+    /// validation, and whitelist enforcement.
+    /// </summary>
+    private static async Task<TemplateCommand> ReadTemplateBodyAsync(HttpContext ctx, bool isCreate)
+    {
+        var body = await BodyValidator.ReadAsync(ctx);
+
+        string? category = null;
+        if (isCreate || body.Has("category"))
+        {
+            category = body.RequiredEnumNotEmpty("category", TemplateCategories.All);
+        }
+
+        var name = isCreate
+            ? body.RequiredString("name")
+            : body.OptionalString("name", notEmpty: true);
+        var descriptionPresent = body.Has("description");
+        var description = body.OptionalString("description");
+        var isActive = body.OptionalBool("isActive");
+        var schema = isCreate ? body.RequiredObject("schema") : (JsonNode?)body.OptionalObject("schema");
+        var content = isCreate
+            ? body.RequiredString("content")
+            : body.OptionalString("content", notEmpty: true);
+
+        // Frozen @ValidateIf(category !== BASE) + @IsNotEmpty + @IsUUID on
+        // create; PartialType makes it optional on update.
+        string? baseTemplateId = null;
+        var basePresent = body.Has("baseTemplateId");
+        if (isCreate && category != TemplateCategories.Base)
+        {
+            var node = body.RawNode("baseTemplateId");
+            if (node is null
+                || node.GetValueKind() != JsonValueKind.String
+                || node.GetValue<string>().Length == 0)
+            {
+                body.AddFailure("baseTemplateId", "isNotEmpty", "baseTemplateId should not be empty");
+                body.AddFailure("baseTemplateId", "isUuid", "baseTemplateId must be a UUID");
+            }
+            else if (!Guid.TryParse(node.GetValue<string>(), out _))
+            {
+                body.AddFailure("baseTemplateId", "isUuid", "baseTemplateId must be a UUID");
+            }
+            else
+            {
+                baseTemplateId = node.GetValue<string>();
+            }
+        }
+        else
+        {
+            baseTemplateId = body.OptionalUuid("baseTemplateId");
+        }
+
+        var email = ReadEmailBlock(body, category, isCreate);
+        var doc = ReadDocBlock(body, category, isCreate);
+        var sms = ReadSmsBlock(body, category, isCreate);
+
+        body.RejectUnknownFields();
+        body.ThrowIfInvalid();
+
+        return new TemplateCommand(
+            category, name, description, descriptionPresent, isActive, schema,
+            content, baseTemplateId, basePresent, email, doc, sms);
+    }
+
+    private static EmailShape? ReadEmailBlock(
+        BodyValidator body, string? category, bool isCreate)
+    {
+        var node = body.RawNode("email");
+        var required = isCreate && category is not null && TemplateCategories.IsEmail(category);
+        if (node is null)
+        {
+            if (required)
+            {
+                body.AddFailure("email", "isNotEmpty", "email should not be empty");
+            }
+
+            return null;
+        }
+
+        if (node is not JsonObject block)
+        {
+            body.AddFailure(
+                "email", "nestedValidation", "nested property email must be either object or array");
+            return null;
+        }
+
+        var subject = RequiredNested(body, block, "email", "subject");
+        var fromEmail = RequiredNestedEmail(body, block, "email", "fromEmail");
+        var fromName = RequiredNested(body, block, "email", "fromName");
+        var cc = OptionalNestedEmailArray(body, block, "email", "cc");
+        var bcc = OptionalNestedEmailArray(body, block, "email", "bcc");
+        bool? hasAttachment = null;
+        var attachmentNode = block["hasAttachment"];
+        if (attachmentNode is not null)
+        {
+            var kind = attachmentNode.GetValueKind();
+            if (kind is not (JsonValueKind.True or JsonValueKind.False))
+            {
+                body.AddFailure(
+                    "email.hasAttachment", "isBoolean", "email.hasAttachment must be a boolean value");
+            }
+            else
+            {
+                hasAttachment = kind == JsonValueKind.True;
+            }
+        }
+
+        RejectUnknownNested(body, block, "email", ["subject", "fromEmail", "fromName", "cc", "bcc", "hasAttachment"]);
+        return new EmailShape(subject, fromEmail, fromName, cc, bcc, hasAttachment);
+    }
+
+    private static DocShape? ReadDocBlock(
+        BodyValidator body, string? category, bool isCreate)
+    {
+        var node = body.RawNode("doc");
+        var required = isCreate && category == TemplateCategories.Docs;
+        if (node is null)
+        {
+            if (required)
+            {
+                body.AddFailure("doc", "isNotEmpty", "doc should not be empty");
+            }
+
+            return null;
+        }
+
+        if (node is not JsonObject block)
+        {
+            body.AddFailure("doc", "nestedValidation", "nested property doc must be either object or array");
+            return null;
+        }
+
+        var documentCode = RequiredNestedEnum(body, block, "doc", "documentCode", DocumentCodes.All);
+        var format = RequiredNestedEnum(body, block, "doc", "format", DocumentFormats.All);
+        var size = RequiredNestedEnum(body, block, "doc", "size", DocumentSizes.All);
+        var orientation = RequiredNestedEnum(body, block, "doc", "orientation", DocumentOrientations.All);
+        RejectUnknownNested(body, block, "doc", ["documentCode", "format", "size", "orientation"]);
+        return new DocShape(documentCode, format, size, orientation);
+    }
+
+    private static SmsShape? ReadSmsBlock(
+        BodyValidator body, string? category, bool isCreate)
+    {
+        var node = body.RawNode("sms");
+        var required = isCreate && category is not null && TemplateCategories.IsSms(category);
+        if (node is null)
+        {
+            if (required)
+            {
+                body.AddFailure("sms", "isNotEmpty", "sms should not be empty");
+            }
+
+            return null;
+        }
+
+        if (node is not JsonObject block)
+        {
+            body.AddFailure("sms", "nestedValidation", "nested property sms must be either object or array");
+            return null;
+        }
+
+        var provider = RequiredNested(body, block, "sms", "provider");
+        var templateName = RequiredNested(body, block, "sms", "templateName");
+        var from = RequiredNested(body, block, "sms", "from");
+        RejectUnknownNested(body, block, "sms", ["provider", "templateName", "from"]);
+        return new SmsShape(provider, templateName, from);
+    }
+
+    private static string RequiredNested(BodyValidator body, JsonObject block, string parent, string field)
+    {
+        var node = block[field];
+        if (node is null
+            || node.GetValueKind() != JsonValueKind.String
+            || node.GetValue<string>().Length == 0)
+        {
+            body.AddFailure($"{parent}.{field}", "isNotEmpty", $"{parent}.{field} should not be empty");
+            return string.Empty;
+        }
+
+        return node.GetValue<string>();
+    }
+
+    private static string RequiredNestedEmail(BodyValidator body, JsonObject block, string parent, string field)
+    {
+        var node = block[field];
+        var text = node?.GetValueKind() == JsonValueKind.String ? node.GetValue<string>() : null;
+        if (text is null || !text.Contains('@', StringComparison.Ordinal))
+        {
+            body.AddFailure($"{parent}.{field}", "isEmail", $"{parent}.{field} must be an email");
+            return string.Empty;
+        }
+
+        return text;
+    }
+
+    private static string RequiredNestedEnum(
+        BodyValidator body, JsonObject block, string parent, string field, IReadOnlyList<string> oneOf)
+    {
+        var node = block[field];
+        var text = node?.GetValueKind() == JsonValueKind.String ? node.GetValue<string>() : null;
+        if (text is null || !oneOf.Contains(text, StringComparer.Ordinal))
+        {
+            body.AddFailure(
+                $"{parent}.{field}", "isEnum",
+                $"{parent}.{field} must be one of the following values: {string.Join(", ", oneOf)}");
+            return string.Empty;
+        }
+
+        return text;
+    }
+
+    private static List<string>? OptionalNestedEmailArray(
+        BodyValidator body, JsonObject block, string parent, string field)
+    {
+        var node = block[field];
+        if (node is null)
+        {
+            return null;
+        }
+
+        if (node is not JsonArray array || array.Count == 0)
+        {
+            body.AddFailure($"{parent}.{field}", "arrayNotEmpty", $"{parent}.{field} should not be empty");
+            return null;
+        }
+
+        var items = new List<string>();
+        foreach (var item in array)
+        {
+            if (item is null
+                || item.GetValueKind() != JsonValueKind.String
+                || !item.GetValue<string>().Contains('@', StringComparison.Ordinal))
+            {
+                body.AddFailure(
+                    $"{parent}.{field}", "isEmail", $"each value in {parent}.{field} must be an email");
+                return null;
+            }
+
+            items.Add(item.GetValue<string>());
+        }
+
+        return items;
+    }
+
+    private static void RejectUnknownNested(
+        BodyValidator body, JsonObject block, string parent, IReadOnlyList<string> known)
+    {
+        foreach (var property in block)
+        {
+            if (!known.Contains(property.Key, StringComparer.Ordinal))
+            {
+                body.AddFailure(
+                    $"{parent}.{property.Key}", "whitelistValidation",
+                    $"property {property.Key} should not exist");
+            }
+        }
+    }
+}

@@ -207,6 +207,217 @@ public sealed class BodyValidator
         return value.GetValue<double>();
     }
 
+    /// <summary>
+    /// A field constrained @IsNotEmpty + @IsEnum (frozen template category):
+    /// a missing value fails both constraints, a wrong value fails isEnum.
+    /// </summary>
+    public string? RequiredEnumNotEmpty(string field, IReadOnlyList<string> oneOf)
+    {
+        _knownFields.Add(field);
+        var value = _body[field];
+        if (value is null || value.GetValueKind() == JsonValueKind.Null)
+        {
+            Fail(field, "isNotEmpty", $"{field} should not be empty");
+            Fail(field, "isEnum", $"{field} must be one of the following values: {string.Join(", ", oneOf)}");
+            return null;
+        }
+
+        if (value.GetValueKind() != JsonValueKind.String)
+        {
+            Fail(field, "isEnum", $"{field} must be one of the following values: {string.Join(", ", oneOf)}");
+            return null;
+        }
+
+        var text = value.GetValue<string>();
+        if (text.Length == 0)
+        {
+            Fail(field, "isNotEmpty", $"{field} should not be empty");
+        }
+
+        if (!oneOf.Contains(text, StringComparer.Ordinal))
+        {
+            Fail(field, "isEnum", $"{field} must be one of the following values: {string.Join(", ", oneOf)}");
+            return null;
+        }
+
+        return text;
+    }
+
+    /// <summary>An optional boolean field (frozen @IsOptional + @IsBoolean).</summary>
+    public bool? OptionalBool(string field)
+    {
+        _knownFields.Add(field);
+        var value = _body[field];
+        if (value is null)
+        {
+            return null;
+        }
+
+        var kind = value.GetValueKind();
+        if (kind is not (JsonValueKind.True or JsonValueKind.False))
+        {
+            Fail(field, "isBoolean", $"{field} must be a boolean value");
+            return null;
+        }
+
+        return kind == JsonValueKind.True;
+    }
+
+    /// <summary>A required object field (frozen @IsObject).</summary>
+    public JsonObject? RequiredObject(string field)
+    {
+        _knownFields.Add(field);
+        var value = _body[field];
+        if (value is not JsonObject obj)
+        {
+            Fail(field, "isObject", $"{field} must be an object");
+            return null;
+        }
+
+        return obj;
+    }
+
+    /// <summary>An optional object field (frozen @IsOptional + @IsObject).</summary>
+    public JsonObject? OptionalObject(string field)
+    {
+        _knownFields.Add(field);
+        var value = _body[field];
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (value is not JsonObject obj)
+        {
+            Fail(field, "isObject", $"{field} must be an object");
+            return null;
+        }
+
+        return obj;
+    }
+
+    /// <summary>An optional email field (frozen @IsOptional + @IsEmail).</summary>
+    public string? OptionalEmail(string field)
+    {
+        _knownFields.Add(field);
+        var value = _body[field];
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (value.GetValueKind() != JsonValueKind.String || !LooksLikeEmail(value.GetValue<string>()))
+        {
+            Fail(field, "isEmail", $"{field} must be an email");
+            return null;
+        }
+
+        return value.GetValue<string>();
+    }
+
+    /// <summary>An optional UUID string field (frozen @IsOptional + @IsUUID).</summary>
+    public string? OptionalUuid(string field)
+    {
+        _knownFields.Add(field);
+        var value = _body[field];
+        if (value is null || value.GetValueKind() == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        if (value.GetValueKind() != JsonValueKind.String || !Guid.TryParse(value.GetValue<string>(), out _))
+        {
+            Fail(field, "isUuid", $"{field} must be a UUID");
+            return null;
+        }
+
+        return value.GetValue<string>();
+    }
+
+    /// <summary>
+    /// A required, non-empty array of email addresses (frozen @IsArray +
+    /// @ArrayNotEmpty + @IsEmail each — a missing value fails all three).
+    /// </summary>
+    public IReadOnlyList<string>? RequiredEmailArray(string field)
+    {
+        _knownFields.Add(field);
+        var value = _body[field];
+        if (value is null || value.GetValueKind() != JsonValueKind.Array)
+        {
+            Fail(field, "isArray", $"{field} must be an array");
+            Fail(field, "arrayNotEmpty", $"{field} should not be empty");
+            Fail(field, "isEmail", $"each value in {field} must be an email");
+            return null;
+        }
+
+        var array = value.AsArray();
+        if (array.Count == 0)
+        {
+            Fail(field, "arrayNotEmpty", $"{field} should not be empty");
+            return null;
+        }
+
+        var items = new List<string>();
+        foreach (var item in array)
+        {
+            if (item is null
+                || item.GetValueKind() != JsonValueKind.String
+                || !LooksLikeEmail(item.GetValue<string>()))
+            {
+                Fail(field, "isEmail", $"each value in {field} must be an email");
+                return null;
+            }
+
+            items.Add(item.GetValue<string>());
+        }
+
+        return items;
+    }
+
+    /// <summary>An optional array of UUIDs (frozen @IsOptional + @IsArray + @IsUUID each).</summary>
+    public IReadOnlyList<string>? OptionalUuidArray(string field)
+    {
+        _knownFields.Add(field);
+        var value = _body[field];
+        if (value is null)
+        {
+            return null;
+        }
+
+        if (value.GetValueKind() != JsonValueKind.Array)
+        {
+            Fail(field, "isArray", $"{field} must be an array");
+            Fail(field, "isUuid", $"each value in {field} must be a UUID");
+            return null;
+        }
+
+        var items = new List<string>();
+        foreach (var item in value.AsArray())
+        {
+            if (item is null
+                || item.GetValueKind() != JsonValueKind.String
+                || !Guid.TryParse(item.GetValue<string>(), out _))
+            {
+                Fail(field, "isUuid", $"each value in {field} must be a UUID");
+                return null;
+            }
+
+            items.Add(item.GetValue<string>());
+        }
+
+        return items;
+    }
+
+    /// <summary>The raw node for a known field (nested-block validation is the caller's).</summary>
+    public JsonNode? RawNode(string field)
+    {
+        _knownFields.Add(field);
+        return _body[field];
+    }
+
+    /// <summary>True when the body carries the property (even as null).</summary>
+    public bool Has(string field) => _body.ContainsKey(field);
+
     /// <summary>An optional array field whose content is ignored (frozen public-signup roles).</summary>
     public void IgnoredArray(string field)
     {
@@ -327,6 +538,85 @@ public sealed class QueryValidator
         }
 
         return text;
+    }
+
+    /// <summary>An optional enum param (frozen @IsOptional + @IsEnum).</summary>
+    public string? OptionalEnum(string field, IReadOnlyList<string> oneOf)
+    {
+        _knownParams.Add(field);
+        if (!_query.TryGetValue(field, out var values))
+        {
+            return null;
+        }
+
+        var text = values[^1] ?? string.Empty;
+        if (!oneOf.Contains(text, StringComparer.Ordinal))
+        {
+            Fail(field, "isEnum", $"{field} must be one of the following values: {string.Join(", ", oneOf)}");
+            return null;
+        }
+
+        return text;
+    }
+
+    /// <summary>An optional UUID param (frozen @IsOptional + @IsUUID).</summary>
+    public Guid? OptionalUuid(string field)
+    {
+        _knownParams.Add(field);
+        if (!_query.TryGetValue(field, out var values))
+        {
+            return null;
+        }
+
+        if (!Guid.TryParse(values[^1], out var id))
+        {
+            Fail(field, "isUuid", $"{field} must be a UUID");
+            return null;
+        }
+
+        return id;
+    }
+
+    /// <summary>An optional email param (frozen @IsOptional + @IsEmail).</summary>
+    public string? OptionalEmail(string field)
+    {
+        _knownParams.Add(field);
+        if (!_query.TryGetValue(field, out var values))
+        {
+            return null;
+        }
+
+        var text = values[^1] ?? string.Empty;
+        var at = text.IndexOf('@', StringComparison.Ordinal);
+        if (at <= 0 || at == text.Length - 1 || !text[(at + 1)..].Contains('.', StringComparison.Ordinal))
+        {
+            Fail(field, "isEmail", $"{field} must be an email");
+            return null;
+        }
+
+        return text;
+    }
+
+    /// <summary>An optional ISO-8601 date param (frozen @IsOptional + @IsDateString).</summary>
+    public DateTimeOffset? OptionalDateString(string field)
+    {
+        _knownParams.Add(field);
+        if (!_query.TryGetValue(field, out var values))
+        {
+            return null;
+        }
+
+        if (!DateTimeOffset.TryParse(
+                values[^1],
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AssumeUniversal,
+                out var parsed))
+        {
+            Fail(field, "isDateString", $"{field} must be a valid ISO 8601 date string");
+            return null;
+        }
+
+        return parsed;
     }
 
     /// <summary>The frozen forbidNonWhitelisted, applied to query params.</summary>

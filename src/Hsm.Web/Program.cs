@@ -5,9 +5,11 @@ using Hsm.Infrastructure;
 using Hsm.Web.Api;
 using Hsm.Web.Auth;
 using Hsm.Web.Components;
+using Hsm.Web.Coms;
 using Hsm.Web.Services;
 using Hsm.Web.Settings;
 using Hsm.Web.Telemetry;
+using Hsm.Web.Templates;
 using Hsm.Web.Users;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.AspNetCore.RateLimiting;
@@ -136,6 +138,8 @@ app.MapStaticAssets();
 app.MapAuthEndpoints();
 app.MapUserEndpoints();
 app.MapSettingsEndpoints();
+app.MapTemplateEndpoints();
+app.MapComsEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
