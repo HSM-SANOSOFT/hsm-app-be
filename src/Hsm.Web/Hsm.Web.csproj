@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Hsm.Web.Components\Hsm.Web.Components.csproj" />
+    <ProjectReference Include="..\Hsm.Application\Hsm.Application.csproj" />
+    <ProjectReference Include="..\Hsm.Infrastructure\Hsm.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+  </PropertyGroup>
+
+</Project>
