@@ -1,5 +1,6 @@
 using Hsm.Application.System;
 using Hsm.Contracts.Ui;
+using Hsm.Infrastructure;
 using Hsm.Web.Components;
 using Hsm.Web.Services;
 
@@ -8,6 +9,10 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// Store-port adapters (EF Core/Npgsql, S3, Meilisearch, Redis cache) bound
+// from configuration (plan U9).
+builder.Services.AddHsmInfrastructure(builder.Configuration);
 
 // Application handlers.
 builder.Services.AddScoped<GetSystemStatusHandler>();

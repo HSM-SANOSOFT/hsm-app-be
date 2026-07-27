@@ -117,6 +117,8 @@ jobs:
       Storage__S3__AccessKey: rustfs_user
       Storage__S3__SecretKey: rustfs_password
       Storage__S3__ForcePathStyle: 'true'
+      Search__Meilisearch__Url: http://localhost:7700
+      Search__Meilisearch__ApiKey: meili_ci_master_key_not_a_secret
     steps:
       - uses: actions/checkout@v4
       # Redis and RustFS run as plain `docker run` containers (not `services:`) so
@@ -138,17 +140,25 @@ jobs:
             -e RUSTFS_ADDRESS=0.0.0.0:9000 \
             -v rustfs-data:/data \
             rustfs/rustfs:latest
-      - name: Wait for Redis + RustFS to be ready
+      - name: Start Meilisearch
+        run: |
+          docker run -d --name meilisearch -p 7700:7700 \
+            -e MEILI_ENV=development \
+            -e MEILI_MASTER_KEY=meili_ci_master_key_not_a_secret \
+            getmeili/meilisearch:v1.15
+      - name: Wait for Redis + RustFS + Meilisearch to be ready
         run: |
           for i in $(seq 1 30); do
             redis_ok=$(docker exec redis redis-cli -u redis://redis:redis@localhost:6379 ping 2>/dev/null || true)
-            if [ "$redis_ok" = "PONG" ] && curl -sf http://localhost:9000/health >/dev/null; then
-              echo "Redis + RustFS ready"; exit 0
+            if [ "$redis_ok" = "PONG" ] \
+              && curl -sf http://localhost:9000/health >/dev/null \
+              && curl -sf http://localhost:7700/health >/dev/null; then
+              echo "Redis + RustFS + Meilisearch ready"; exit 0
             fi
             echo "waiting for infra ($i/30)"; sleep 2
           done
-          echo "::error::Redis/RustFS did not become ready in time"
-          docker logs redis || true; docker logs rustfs || true
+          echo "::error::Redis/RustFS/Meilisearch did not become ready in time"
+          docker logs redis || true; docker logs rustfs || true; docker logs meilisearch || true
           exit 1
       - name: Set up .NET SDK
         uses: actions/setup-dotnet@v4
