@@ -1,31 +1,13 @@
-# Ignore dependencies (we use named volume for node_modules in dev)
-node_modules
-**/node_modules
-
-# pnpm store (huge cache, not needed in image)
-.pnpm-store
-**/.pnpm-store
-
-# Logs and runtime output
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-*.log
-*.pid
-*.seed
-*.pid.lock
+# .NET build output (images build via dotnet publish inside the container)
+**/bin
+**/obj
+artifacts
+TestResults
 
 # Coverage / test output
 coverage
-.nyc_output
+*.trx
 *.lcov
-
-# Build artifacts
-dist
-build
-tmp
-temp
 
 # Editor / OS files
 .idea
@@ -47,5 +29,5 @@ Thumbs.db
 
 # Docker-related itself
 docker-compose*.yml
+docker-compose*.yaml
 Dockerfile*
-dockerfiles
