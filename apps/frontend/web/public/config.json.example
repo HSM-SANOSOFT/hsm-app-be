@@ -1,5 +1,0 @@
-{
-  "apiBaseUrl": "http://localhost:4201/v1",
-  "appVersion": "dev",
-  "production": false
-}

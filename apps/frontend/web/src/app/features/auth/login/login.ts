@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { afterNextRender, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { TranslocoPipe, TranslocoService } from '@jsverse/transloco';
@@ -40,7 +40,7 @@ const LAST_USERNAME_KEY = 'hsm.lastUsername';
   templateUrl: './login.html',
   styleUrl: '../auth.scss',
 })
-export class Login implements OnInit {
+export class Login {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
@@ -55,12 +55,18 @@ export class Login implements OnInit {
   protected readonly submitting = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
 
-  ngOnInit(): void {
-    const remembered = localStorage.getItem(LAST_USERNAME_KEY);
-    if (remembered) {
-      this.form.controls.username.setValue(remembered);
-    }
-    this.version.loadApiVersion();
+  constructor() {
+    // Browser-only boot work (R8): prefill the remembered username from
+    // localStorage and probe the API version. `afterNextRender` runs only in
+    // the browser, after hydration — never during SSR, where `localStorage` is
+    // undefined and API calls are deferred to the client (model a).
+    afterNextRender(() => {
+      const remembered = localStorage.getItem(LAST_USERNAME_KEY);
+      if (remembered) {
+        this.form.controls.username.setValue(remembered);
+      }
+      this.version.loadApiVersion();
+    });
   }
 
   protected submit(): void {

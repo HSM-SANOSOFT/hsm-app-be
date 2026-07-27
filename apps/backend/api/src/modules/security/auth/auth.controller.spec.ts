@@ -2,8 +2,9 @@ import type { PublicSignupPayloadDto } from '@hsm/common/dtos';
 import { RolesEnum } from '@hsm/common/enums';
 import type { IRefreshUser, ISignedUser } from '@hsm/common/interfaces';
 import { Test, TestingModule } from '@nestjs/testing';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { AccountRecoveryService } from './account-recovery.service';
+import { ACCESS_COOKIE, REFRESH_COOKIE } from './auth-cookie.util';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
@@ -30,6 +31,32 @@ const accountRecoveryService = {
 const makeReq = (overrides: Partial<Request> = {}): Request =>
   ({ headers: {}, user: undefined, ...overrides }) as unknown as Request;
 
+type MockRes = Response & {
+  cookie: jest.Mock;
+  clearCookie: jest.Mock;
+};
+
+const makeRes = (): MockRes =>
+  ({ cookie: jest.fn(), clearCookie: jest.fn() }) as unknown as MockRes;
+
+/**
+ * Asserts both httpOnly auth cookies were set: the access cookie SameSite=Lax
+ * (rides top-level document navigations for SSR first paint), the refresh
+ * cookie SameSite=Strict (path-scoped to the auth routes).
+ */
+const expectAuthCookiesSet = (res: MockRes): void => {
+  expect(res.cookie).toHaveBeenCalledWith(
+    ACCESS_COOKIE,
+    mockTokens.access_token,
+    expect.objectContaining({ httpOnly: true, sameSite: 'lax' }),
+  );
+  expect(res.cookie).toHaveBeenCalledWith(
+    REFRESH_COOKIE,
+    mockTokens.refresh_token,
+    expect.objectContaining({ httpOnly: true, sameSite: 'strict' }),
+  );
+};
+
 describe('AuthController', () => {
   let controller: AuthController;
 
@@ -55,7 +82,7 @@ describe('AuthController', () => {
   });
 
   describe('signup', () => {
-    it('delegates to authService.signup and returns tokens', async () => {
+    it('delegates to authService.signup, returns tokens, and sets cookies', async () => {
       const dto: PublicSignupPayloadDto = {
         username: 'jdoe',
         password: 'pw',
@@ -63,15 +90,17 @@ describe('AuthController', () => {
         firstName: 'John',
         firstLastName: 'Doe',
       } as never;
+      const res = makeRes();
 
-      const result = await controller.signup(dto);
+      const result = await controller.signup(dto, res);
       expect(authService.signup).toHaveBeenCalledWith(dto);
       expect(result).toEqual(mockTokens);
+      expectAuthCookiesSet(res);
     });
   });
 
   describe('login', () => {
-    it('delegates req.user to authService.login', async () => {
+    it('delegates req.user to authService.login, returns tokens, and sets cookies', async () => {
       const signedUser: ISignedUser = {
         id: 'user-uuid',
         username: 'jdoe',
@@ -83,29 +112,61 @@ describe('AuthController', () => {
         exp: 9999,
       };
       const req = makeReq({ user: signedUser as never });
+      const res = makeRes();
 
-      const result = await controller.login(req, {} as never);
+      const result = await controller.login(req, {} as never, res);
       expect(authService.login).toHaveBeenCalledWith(signedUser);
       expect(result).toEqual(mockTokens);
+      expectAuthCookiesSet(res);
     });
   });
 
   describe('logout', () => {
-    it('extracts Bearer token from Authorization header', async () => {
+    it('extracts Bearer token from Authorization header and clears cookies', async () => {
       const req = makeReq({ headers: { authorization: 'Bearer my-token' } });
-      await controller.logout(req);
+      const res = makeRes();
+      await controller.logout(req, res);
       expect(authService.logout).toHaveBeenCalledWith('my-token');
+      expect(res.clearCookie).toHaveBeenCalledWith(
+        ACCESS_COOKIE,
+        expect.any(Object),
+      );
+      expect(res.clearCookie).toHaveBeenCalledWith(
+        REFRESH_COOKIE,
+        expect.any(Object),
+      );
     });
 
-    it('passes undefined when no Authorization header', async () => {
+    it('falls back to the access cookie when no Authorization header', async () => {
+      const req = makeReq({
+        headers: {},
+        cookies: { [ACCESS_COOKIE]: 'cookie-at' },
+      } as never);
+      const res = makeRes();
+      await controller.logout(req, res);
+      expect(authService.logout).toHaveBeenCalledWith('cookie-at');
+    });
+
+    it('falls back to the refresh cookie when neither header nor access cookie present', async () => {
+      const req = makeReq({
+        headers: {},
+        cookies: { [REFRESH_COOKIE]: 'cookie-rt' },
+      } as never);
+      const res = makeRes();
+      await controller.logout(req, res);
+      expect(authService.logout).toHaveBeenCalledWith('cookie-rt');
+    });
+
+    it('passes undefined when no token in header or cookies', async () => {
       const req = makeReq({ headers: {} });
-      await controller.logout(req);
+      const res = makeRes();
+      await controller.logout(req, res);
       expect(authService.logout).toHaveBeenCalledWith(undefined);
     });
   });
 
   describe('refresh', () => {
-    it('delegates req.user to authService.refresh', async () => {
+    it('delegates req.user to authService.refresh, returns tokens, and sets cookies', async () => {
       const refreshUser: IRefreshUser = {
         id: 'user-uuid',
         username: 'jdoe',
@@ -118,10 +179,12 @@ describe('AuthController', () => {
         exp: 9999,
       };
       const req = makeReq({ user: refreshUser as never });
+      const res = makeRes();
 
-      const result = await controller.refresh(req);
+      const result = await controller.refresh(req, res);
       expect(authService.refresh).toHaveBeenCalledWith(refreshUser);
       expect(result).toEqual(mockTokens);
+      expectAuthCookiesSet(res);
     });
   });
 
@@ -153,18 +216,20 @@ describe('AuthController', () => {
   });
 
   describe('completeOnboarding', () => {
-    it('delegates the caller id and payload to authService.completeOnboarding', async () => {
+    it('delegates the caller id and payload to authService.completeOnboarding and sets cookies', async () => {
       const dto = {
         newPassword: 'New-Passw0rd',
         phoneNumber: '+1 555 0100',
         confirmEmail: 'nurse@example.com',
       } as never;
       const req = makeReq({ user: { id: 'u1' } as never });
+      const res = makeRes();
 
-      const result = await controller.completeOnboarding(req, dto);
+      const result = await controller.completeOnboarding(req, dto, res);
 
       expect(authService.completeOnboarding).toHaveBeenCalledWith('u1', dto);
       expect(result).toBe(mockTokens);
+      expectAuthCookiesSet(res);
     });
   });
 

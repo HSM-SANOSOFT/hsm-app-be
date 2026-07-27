@@ -13,7 +13,6 @@ import {
 import type { SuccessResponse, Tokens, UserProfile } from '../api/response';
 import { provideTranslocoTestingModule } from '../i18n/transloco-testing';
 import { AuthService } from './auth.service';
-import { TokenStorage } from './token-storage';
 
 const base = TEST_API_BASE_URL;
 
@@ -50,10 +49,8 @@ function wrap<T>(data: T): SuccessResponse<T> {
 describe('AuthService', () => {
   let auth: AuthService;
   let httpMock: HttpTestingController;
-  let tokenStorage: TokenStorage;
 
   beforeEach(() => {
-    localStorage.clear();
     TestBed.configureTestingModule({
       providers: [
         provideTestConfig(),
@@ -64,15 +61,13 @@ describe('AuthService', () => {
     });
     auth = TestBed.inject(AuthService);
     httpMock = TestBed.inject(HttpTestingController);
-    tokenStorage = TestBed.inject(TokenStorage);
   });
 
   afterEach(() => {
     httpMock.verify();
-    localStorage.clear();
   });
 
-  it('valid login stores tokens and transitions to authenticated state', () => {
+  it('valid login transitions to authenticated state (cookies set by response)', () => {
     let emitted: UserProfile | undefined;
     auth.login({ username: 'raul', password: 'pw' }).subscribe(p => {
       emitted = p;
@@ -80,18 +75,15 @@ describe('AuthService', () => {
 
     const loginReq = httpMock.expectOne(`${base}/auth/login`);
     expect(loginReq.request.method).toBe('POST');
-    expect(loginReq.request.body).toEqual({
-      username: 'raul',
-      password: 'pw',
-    });
+    expect(loginReq.request.body).toEqual({ username: 'raul', password: 'pw' });
+    // The token body is still returned (R1) but is not persisted client-side.
     loginReq.flush(wrap<Tokens>({ access_token: 'AT', refresh_token: 'RT' }));
 
-    // Profile load follows the token store.
-    const profileReq = httpMock.expectOne(`${base}/auth/profile`);
-    profileReq.flush(wrap(profile([RolesEnum.System.Admin])));
+    // Profile load follows login (derived from the cookie session).
+    httpMock
+      .expectOne(`${base}/auth/profile`)
+      .flush(wrap(profile([RolesEnum.System.Admin])));
 
-    expect(tokenStorage.getAccessToken()).toBe('AT');
-    expect(tokenStorage.getRefreshToken()).toBe('RT');
     expect(auth.isAuthenticated()).toBe(true);
     expect(auth.isAdmin()).toBe(true);
     expect(emitted?.username).toBe('raul');
@@ -117,7 +109,6 @@ describe('AuthService', () => {
     httpMock.expectNone(`${base}/auth/profile`);
     expect(error).toBeDefined();
     expect(auth.isAuthenticated()).toBe(false);
-    expect(tokenStorage.getAccessToken()).toBeNull();
   });
 
   it('derives isAdmin from RolesEnum.System.Admin', () => {
@@ -132,9 +123,7 @@ describe('AuthService', () => {
     expect(auth.hasAnyRole([RolesEnum.System.Admin])).toBe(false);
   });
 
-  it('restoreSession loads the profile when a token is persisted', () => {
-    tokenStorage.save({ access_token: 'AT', refresh_token: 'RT' });
-
+  it('restoreSession loads the profile from the cookie session', () => {
     auth.restoreSession().subscribe();
     httpMock
       .expectOne(`${base}/auth/profile`)
@@ -143,10 +132,8 @@ describe('AuthService', () => {
     expect(auth.isAdmin()).toBe(true);
   });
 
-  it('restoreSession clears state when the persisted token is dead', () => {
-    tokenStorage.save({ access_token: 'AT', refresh_token: 'RT' });
-
-    let value: UserProfile | null | undefined;
+  it('restoreSession resolves to null and stays anonymous when the probe is unauthorized', () => {
+    let value: UserProfile | null | undefined = profile([]);
     auth.restoreSession().subscribe(v => {
       value = v;
     });
@@ -159,16 +146,6 @@ describe('AuthService', () => {
 
     expect(value).toBeNull();
     expect(auth.isAuthenticated()).toBe(false);
-    expect(tokenStorage.getAccessToken()).toBeNull();
-  });
-
-  it('restoreSession resolves to null with no persisted token', () => {
-    let value: UserProfile | null | undefined = profile([]);
-    auth.restoreSession().subscribe(v => {
-      value = v;
-    });
-    httpMock.expectNone(`${base}/auth/profile`);
-    expect(value).toBeNull();
   });
 
   it('needsOnboarding is false when anonymous', () => {
@@ -240,7 +217,7 @@ describe('AuthService', () => {
     expect(auth.isPatient()).toBe(false);
   });
 
-  it('completeOnboarding stores the reissued tokens and reloads the profile', () => {
+  it('completeOnboarding reloads the profile (reissued cookies set by response)', () => {
     let emitted: UserProfile | undefined;
     auth
       .completeOnboarding({
@@ -268,8 +245,6 @@ describe('AuthService', () => {
       .expectOne(`${base}/auth/profile`)
       .flush(wrap(profile([RolesEnum.System.Auditor])));
 
-    expect(tokenStorage.getAccessToken()).toBe('AT2');
-    expect(tokenStorage.getRefreshToken()).toBe('RT2');
     expect(auth.needsOnboarding()).toBe(false);
     expect(emitted?.username).toBe('raul');
   });

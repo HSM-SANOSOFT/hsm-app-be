@@ -11,6 +11,7 @@ import {
 } from '../../core/config/config-testing';
 import type { SuccessResponse } from '../api/response';
 import { provideTranslocoTestingModule } from '../i18n/transloco-testing';
+import { BUILD_VERSION } from './build-version';
 import { API_VERSION_FALLBACK, VersionService } from './version.service';
 
 const base = TEST_API_BASE_URL;
@@ -49,8 +50,8 @@ describe('VersionService', () => {
     httpMock.verify();
   });
 
-  it('exposes the build-time UI version from the environment', () => {
-    expect(service.uiVersion).toBe('test');
+  it('exposes the build-time UI version baked into the bundle', () => {
+    expect(service.uiVersion).toBe(BUILD_VERSION);
   });
 
   it('loadApiVersion sets the signal from the API response', () => {

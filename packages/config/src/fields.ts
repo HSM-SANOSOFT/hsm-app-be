@@ -28,6 +28,20 @@ export const FIELDS = {
   JWT_AT_SECRET: joi.string().required(),
   JWT_RT_SECRET: joi.string().required(),
 
+  // Browser session cookies (dual-transport auth). `secure` defaults off for
+  // local dev/test (plain http on :4200) and is forced on in prod/staging by
+  // the @hsm/config/api boot invariant (assertCookieSecureForEnv); `domain`
+  // (COOKIE_DOMAIN) is the shared parent registrable domain so the cookie is
+  // first-party to the web + API subdomains (unset = request host). httpOnly is
+  // a code constant; SameSite is Lax on the access cookie, Strict on refresh.
+  COOKIE_SECURE: joi.boolean().default(false),
+  COOKIE_DOMAIN: joi.string().allow('').optional(),
+
+  // Secret for the signed double-submit CSRF token (csrf-csrf HMAC). Required —
+  // a weak/absent secret would let an attacker forge a valid token, defeating
+  // the CSRF protection (S1). Min 32 chars.
+  CSRF_SECRET: joi.string().min(32).required(),
+
   DB_POSTGRES_HOST: joi.string().required(),
   DB_POSTGRES_PORT: joi.number().default(5432),
   DB_POSTGRES_USER: joi.string().required(),

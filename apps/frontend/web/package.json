@@ -9,8 +9,7 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "predev": "node scripts/gen-config.mjs public/config.json",
-    "gen-config": "node scripts/gen-config.mjs"
+    "gen-version": "node scripts/gen-version.mjs"
   },
   "dependencies": {
     "@angular/animations": "^21.2.0",
@@ -20,10 +19,13 @@
     "@angular/core": "^21.2.0",
     "@angular/forms": "^21.2.0",
     "@angular/platform-browser": "^21.2.0",
+    "@angular/platform-server": "^21.2.0",
     "@angular/router": "^21.2.0",
     "@angular/service-worker": "^21.2.0",
+    "@angular/ssr": "^21.2.0",
     "@jsverse/transloco": "^8.4.0",
     "@primeng/themes": "^21.0.4",
+    "express": "^5.2.1",
     "handlebars": "^4.7.9",
     "joi": "^18.1.2",
     "monaco-editor": "^0.55.1",
@@ -36,6 +38,8 @@
     "@angular/build": "^21.2.16",
     "@angular/cli": "^21.2.16",
     "@angular/compiler-cli": "^21.2.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.1",
     "jsdom": "^28.0.0",
     "typescript": "~5.9.2",
     "vitest": "^4.0.8"

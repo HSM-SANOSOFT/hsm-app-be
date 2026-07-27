@@ -10,12 +10,14 @@ import {
 } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 import {
   collectValidationDetails,
   flattenValidationMessages,
 } from './filters/validation-details.util';
 import { HttpLoggingInterceptor } from './interceptors';
 import { MainModule } from './main.module';
+import { doubleCsrfProtection } from './modules/security/csrf/csrf.util';
 
 async function bootstrap() {
   const app = await NestFactory.create(MainModule, {
@@ -47,6 +49,14 @@ async function bootstrap() {
     customSiteTitle: envs.SWAGGER_SITE_TITLE,
     customfavIcon: envs.SWAGGER_FAVICON,
   });
+
+  // Parse cookies before guards/strategies run so the JWT strategies can read
+  // the httpOnly access/refresh cookies (dual-transport auth, browser/SSR).
+  app.use(cookieParser());
+  // CSRF double-submit protection (U3): validates the x-csrf-token header on
+  // cookie-authenticated browser mutations. Safe methods, bearer/integration
+  // requests, and pre-session requests are skipped (see csrf.util).
+  app.use(doubleCsrfProtection);
 
   app.useGlobalGuards();
   app.useGlobalFilters();

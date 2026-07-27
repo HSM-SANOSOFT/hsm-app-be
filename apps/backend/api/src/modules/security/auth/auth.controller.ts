@@ -23,15 +23,24 @@ import {
   Ip,
   Post,
   Req,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { AllowPending, ApiDocumentation, Public } from '../../../decorator';
 import { AuthJwtRtGuard, AuthLocalGuard } from '../../../guards';
 import { Roles } from '../../security/roles/roles.decorator';
+import { generateCsrfToken } from '../csrf/csrf.util';
 import { AccountRecoveryService } from './account-recovery.service';
 import { AuthService } from './auth.service';
+import {
+  ACCESS_COOKIE,
+  clearAuthCookies,
+  REFRESH_COOKIE,
+  readCookie,
+  setAuthCookies,
+} from './auth-cookie.util';
 
 /**
  * Generic, non-committal acknowledgement returned by the recovery endpoints
@@ -51,8 +60,13 @@ export class AuthController {
   @ApiDocumentation(TokensDto)
   @Public()
   @Post('signup')
-  async signup(@Body() payload: PublicSignupPayloadDto): Promise<TokensDto> {
-    return await this.authService.signup(payload);
+  async signup(
+    @Body() payload: PublicSignupPayloadDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<TokensDto> {
+    const tokens = await this.authService.signup(payload);
+    setAuthCookies(res, tokens);
+    return tokens;
   }
 
   @ApiDocumentation(TokensDto)
@@ -62,15 +76,29 @@ export class AuthController {
   async login(
     @Req() req: Request,
     @Body() _payload: LoginPayloadDto,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<TokensDto> {
-    return await this.authService.login(req.user as ISignedUser);
+    const tokens = await this.authService.login(req.user as ISignedUser);
+    setAuthCookies(res, tokens);
+    return tokens;
   }
 
   @ApiDocumentation()
   @Public()
   @Get('logout')
-  async logout(@Req() req: Request): Promise<void> {
-    const token = req.headers.authorization?.split(' ')[1];
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    // Accept the token from the Authorization header (integrations) or the
+    // auth cookies (browser) — access first, refresh as fallback. logout()
+    // verifies against both secrets, so either works. Clear cookies regardless.
+    const token =
+      req.headers.authorization?.split(' ')[1] ??
+      readCookie(req, ACCESS_COOKIE) ??
+      readCookie(req, REFRESH_COOKIE) ??
+      undefined;
+    clearAuthCookies(res);
     return await this.authService.logout(token);
   }
 
@@ -78,9 +106,14 @@ export class AuthController {
   @AllowPending()
   @UseGuards(AuthJwtRtGuard)
   @Get('refresh')
-  async refresh(@Req() req: Request): Promise<TokensDto> {
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<TokensDto> {
     const user = req.user as IRefreshUser;
-    return await this.authService.refresh(user);
+    const tokens = await this.authService.refresh(user);
+    setAuthCookies(res, tokens);
+    return tokens;
   }
 
   /**
@@ -94,11 +127,14 @@ export class AuthController {
   async completeOnboarding(
     @Req() req: Request,
     @Body() payload: CompleteOnboardingDto,
+    @Res({ passthrough: true }) res: Response,
   ): Promise<TokensDto> {
-    return await this.authService.completeOnboarding(
+    const tokens = await this.authService.completeOnboarding(
       (req.user as ISignedUser).id,
       payload,
     );
+    setAuthCookies(res, tokens);
+    return tokens;
   }
 
   @ApiDocumentation(TokensDto)
@@ -123,6 +159,21 @@ export class AuthController {
   @Get('profile')
   profile(@Req() req: Request) {
     return req.user;
+  }
+
+  /**
+   * Issues (or reuses) the signed double-submit CSRF token for the current
+   * cookie session and returns it so the browser can echo it in the
+   * `x-csrf-token` header on mutations. Safe GET — not itself CSRF-protected.
+   */
+  @ApiDocumentation()
+  @AllowPending()
+  @Get('csrf')
+  csrf(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): { csrfToken: string } {
+    return { csrfToken: generateCsrfToken(req, res) };
   }
 
   @ApiDocumentation()
