@@ -1,0 +1,117 @@
+using Hsm.Application.Auth;
+using Hsm.Application.Errors;
+using Hsm.Domain.Identity;
+
+namespace Hsm.Web.Auth;
+
+/// <summary>
+/// Request authentication and authorization, reproducing the frozen guard
+/// chain (AuthJwtAtGuard → RolesGuard → OnboardingGuard) and its observable
+/// errors. Token transport is dual: httpOnly cookie FIRST, then the
+/// Authorization bearer header — so browser/SSR and integration clients both
+/// resolve.
+/// </summary>
+public static class RequestAuth
+{
+    /// <summary>The raw access token: access cookie, then bearer header.</summary>
+    public static string? AccessToken(HttpContext ctx) =>
+        Cookie(ctx, AuthCookies.AccessCookie) ?? Bearer(ctx);
+
+    /// <summary>The raw refresh token: refresh cookie, then bearer header.</summary>
+    public static string? RefreshToken(HttpContext ctx) =>
+        Cookie(ctx, AuthCookies.RefreshCookie) ?? Bearer(ctx);
+
+    public static string? Bearer(HttpContext ctx)
+    {
+        var authorization = ctx.Request.Headers.Authorization.ToString();
+        return authorization.StartsWith("Bearer ", StringComparison.Ordinal)
+            ? authorization["Bearer ".Length..].Trim()
+            : null;
+    }
+
+    private static string? Cookie(HttpContext ctx, string name) =>
+        ctx.Request.Cookies.TryGetValue(name, out var value) ? value : null;
+
+    /// <summary>
+    /// Validates the transported token of <paramref name="kind"/> and returns
+    /// the principal, or throws the frozen 401 family: missing → "Unauthorized",
+    /// expired → "token expired"/TOKEN_EXPIRED, otherwise "Invalid token"/INVALID_TOKEN.
+    /// </summary>
+    public static async Task<AuthPrincipal> AuthenticateAsync(HttpContext ctx, TokenKind kind)
+    {
+        var raw = kind == TokenKind.Access ? AccessToken(ctx) : RefreshToken(ctx);
+        if (string.IsNullOrEmpty(raw))
+        {
+            throw ApiException.Unauthorized();
+        }
+
+        var codec = ctx.RequestServices.GetRequiredService<IAuthTokenCodec>();
+        var result = await codec.ValidateAsync(raw, kind);
+        if (result.Principal is null)
+        {
+            throw result.IsExpired
+                ? ApiException.Unauthorized("token expired", errorLabel: "TOKEN_EXPIRED")
+                : ApiException.Unauthorized("Invalid token", errorLabel: "INVALID_TOKEN");
+        }
+
+        return result.Principal;
+    }
+
+    /// <summary>
+    /// The frozen RolesGuard: developer is env-gated; admin passes everything;
+    /// otherwise at least one required role must be held.
+    /// </summary>
+    public static void RequireRoles(HttpContext ctx, AuthPrincipal principal, params string[] requiredRoles)
+    {
+        if (principal.Roles.Contains(Roles.Developer))
+        {
+            var environment = ctx.RequestServices.GetRequiredService<IEnvironmentPolicy>();
+            if (!environment.IsDev)
+            {
+                throw ApiException.Forbidden("Developer role is not permitted in this environment");
+            }
+
+            return;
+        }
+
+        if (requiredRoles.Length == 0 || principal.Roles.Contains(Roles.Admin))
+        {
+            return;
+        }
+
+        if (!requiredRoles.Any(principal.Roles.Contains))
+        {
+            throw ApiException.Forbidden("Insufficient permissions");
+        }
+    }
+
+    /// <summary>
+    /// The frozen OnboardingGuard for routes that do NOT allow pending users:
+    /// integrations and admins are exempt; a completed claim is trusted; a
+    /// pending claim defers to the authoritative database row and fails closed.
+    /// </summary>
+    public static async Task RequireOnboardingCompletedAsync(HttpContext ctx, AuthPrincipal principal)
+    {
+        if (principal.IsIntegration || principal.Roles.Contains(Roles.Admin))
+        {
+            return;
+        }
+
+        if (principal.OnboardingCompletedAt is not null)
+        {
+            return;
+        }
+
+        var users = ctx.RequestServices.GetRequiredService<IUserStore>();
+        var user = await users.FindByIdAsync(Guid.Parse(principal.Id));
+        if (user is null)
+        {
+            throw ApiException.Forbidden("Account is no longer available");
+        }
+
+        if (user.OnboardingCompletedAt is null)
+        {
+            throw ApiException.Forbidden("Onboarding required: complete first-login onboarding to continue");
+        }
+    }
+}

@@ -87,8 +87,10 @@ jobs:
             echo "No Hsm.sln yet (pre-U7) — unit tests trivially green."
             exit 0
           fi
+          # Contract.Tests.Auth needs live Postgres — it runs in the
+          # integration-tests job below.
           dotnet test Hsm.sln --configuration Release \
-            --filter "FullyQualifiedName!~Integration"
+            --filter "FullyQualifiedName!~Integration&FullyQualifiedName!~Hsm.Contract.Tests.Auth"
 
   # --- integration tests: real Postgres/Redis/RustFS, same shape as local dev ----
   # Mocks cannot prove EF Core change tracking, migration correctness, or S3
@@ -171,6 +173,13 @@ jobs:
             exit 0
           fi
           dotnet test tests/Hsm.Integration.Tests --configuration Release
+      - name: Run infra-backed contract tests (auth, dedicated database)
+        run: |
+          if [ ! -f Hsm.sln ]; then
+            echo "No Hsm.sln yet (pre-U7) — contract tests trivially green."
+            exit 0
+          fi
+          dotnet test tests/Hsm.Contract.Tests --configuration Release
 
   # --- single required status check -> reference this name in the rulesets --------
   pr-gate:
