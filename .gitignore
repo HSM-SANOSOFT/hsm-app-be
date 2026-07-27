@@ -35,6 +35,7 @@ Thumbs.db
 # dotenv environment variable files
 .env
 .env.local
+secrets.env
 
 # Logs and runtime data
 logs

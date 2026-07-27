@@ -19,15 +19,11 @@ SECRETS_DOTENV=$(infisical export \
 
 WORKSPACE_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 
-# @hsm/config does `import 'dotenv/config'`, which reads .env from process.cwd().
-# pnpm -F runs scripts from each app's package dir, so write per-app .env files.
-printf '%s\n' "$SECRETS_DOTENV" > "$WORKSPACE_DIR/apps/backend/api/.env"
-echo "Wrote $WORKSPACE_DIR/apps/backend/api/.env"
-
-printf '%s\n' "$SECRETS_DOTENV" > "$WORKSPACE_DIR/apps/backend/worker/.env"
-echo "Wrote $WORKSPACE_DIR/apps/backend/worker/.env"
-
-printf '%s\n' "$SECRETS_DOTENV" > "$WORKSPACE_DIR/apps/frontend/.env"
-echo "Wrote $WORKSPACE_DIR/apps/frontend/.env"
+# One dotenv-format file at the repo root (gitignored). The root .env is NOT
+# used — it holds the Infisical *bootstrap* creds the workspace container
+# loads via compose env_file; overwriting it would clobber them. The .NET
+# hosts load secrets.env at startup in Development.
+printf '%s\n' "$SECRETS_DOTENV" > "$WORKSPACE_DIR/secrets.env"
+echo "Wrote $WORKSPACE_DIR/secrets.env"
 
 echo "Restart your dev server to pick up changes."

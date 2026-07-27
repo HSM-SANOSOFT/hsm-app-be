@@ -1,6 +1,11 @@
 {
   "name": "HSM Dev",
   "features": {
+    // Claude Code's feature depends on Node; pin a supported LTS — the
+    // transitive default resolves to EOL Node 18, whose NodeSource repo 403s.
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22"
+    },
     "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {},
     "ghcr.io/devcontainers/features/github-cli:1.1": {}
   },
@@ -14,26 +19,23 @@
     "workspace",
     "postgres",
     "redis",
-    "rustfs"
+    "rustfs",
+    "meilisearch",
+    "otel-collector"
   ],
   "remoteUser": "vscode",
   "mounts": [
     "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume"
   ],
   "forwardPorts": [
-    3000,
-    4200
+    5000
   ],
   "portsAttributes": {
-    "3000": {
-      "label": "Api"
-    },
-    "4200": {
-      "label": "Web"
+    "5000": {
+      "label": "App"
     }
   },
   "containerEnv": {
-    "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0",
     "CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
   },
   "postCreateCommand": ".devcontainer/script/post-create.sh",
@@ -46,23 +48,10 @@
         "terminal.integrated.showExitAlert": false
       },
       "extensions": [
-        "biomejs.biome",
-        "ms-vscode.vscode-typescript-next",
-        "orta.vscode-jest",
+        "ms-dotnettools.csdevkit",
         "ms-azuretools.vscode-docker",
-        "angular.ng-template",
-        "imgildev.vscode-auto-barrel",
-        "steoates.autoimport",
         "aaron-bond.better-comments",
         "dbcode.dbcode",
-        "jmkrivocapich.drawfolderstructure",
-        "usernamehw.errorlens",
-        "greenbyte.handlebars-preview",
-        "ctf0.inline-fold-new",
-        "firsttris.vscode-jest-runner",
-        "christian-kohler.path-intellisense",
-        "yoavbls.pretty-ts-errors",
-        "ms-vscode.test-adapter-converter",
         "usernamehw.errorlens",
         "humao.rest-client"
       ]

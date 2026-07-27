@@ -1,37 +1,21 @@
-FROM node:24-bookworm-slim
+FROM mcr.microsoft.com/dotnet/sdk:10.0-noble
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bash \
     git \
     curl \
     unzip \
-    libaio1 \
-    libnsl2 \
     ca-certificates \
     gnupg \
-    fonts-liberation \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libcups2 \
-    python3 \
-    python3-pip \
-    libdbus-1-3 \
-    libdrm2 \
-    libgbm1 \
-    libnspr4 \
-    libnss3 \
-    libx11-6 \
-    libxext6 \
   && rm -rf /var/lib/apt/lists/*
 
 # Infisical CLI — https://infisical.com/docs/cli/overview#debianubuntu
+# Pinned: 0.43.x switched to the /api/v4 secrets routes, which the self-hosted
+# server (vault.hospitalsm.org) does not serve — export fails with 404.
 RUN curl -1sLf 'https://artifacts-cli.infisical.com/setup.deb.sh' | bash \
   && apt-get update \
-  && apt-get install -y --no-install-recommends infisical \
+  && apt-get install -y --no-install-recommends infisical=0.42.6 \
   && rm -rf /var/lib/apt/lists/*
-
-COPY docker/oracle /tmp/oracle
-RUN bash /tmp/oracle/install_oracle_client.sh && rm -rf /tmp/oracle
 
 ARG USER_UID=1000
 ARG USER_GID=1000
@@ -47,9 +31,9 @@ RUN if getent group ${USER_GID} >/dev/null 2>&1; then \
       useradd --uid ${USER_UID} --gid ${USER_GID} -m --shell /bin/bash vscode; \
     fi
 
-ENV PATH="/home/vscode/.local/bin:${PATH}"
-
-RUN corepack enable
+ENV PATH="/home/vscode/.local/bin:${PATH}" \
+    DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+    DOTNET_NOLOGO=1
 
 WORKDIR /workspace
 
