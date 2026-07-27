@@ -3,8 +3,41 @@ using Hsm.Contracts.Ui;
 using Hsm.Infrastructure;
 using Hsm.Web.Components;
 using Hsm.Web.Services;
+using Hsm.Web.Telemetry;
+using Microsoft.AspNetCore.Components.Server.Circuits;
+using Npgsql;
+using OpenTelemetry;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// OpenTelemetry (plan U10): standard primitives, off-the-shelf
+// instrumentation, OTLP export to the collector. Export failure degrades
+// observability, never availability — a stopped collector must not affect
+// boot or request handling (the exporter buffers and drops).
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService("hsm-web"))
+    .WithTracing(tracing => tracing
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddNpgsql())
+    .WithMetrics(metrics => metrics
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddRuntimeInstrumentation()
+        .AddNpgsqlInstrumentation()
+        .AddMeter(CircuitMetrics.MeterName))
+    .WithLogging()
+    .UseOtlpExporter(
+        OtlpExportProtocol.HttpProtobuf,
+        new Uri(builder.Configuration["Otlp:Endpoint"] ?? "http://localhost:4318"));
+
+// Blazor circuit signals — without them a circuit leak looks like a memory leak.
+builder.Services.AddSingleton<CircuitMetrics>();
+builder.Services.AddScoped<CircuitHandler, MetricsCircuitHandler>();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
