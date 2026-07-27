@@ -17,6 +17,21 @@ public interface IUserStore
     Task AddAsync(User user, IEnumerable<string> roles, CancellationToken ct = default);
 
     Task UpdatePasswordAsync(Guid userId, string passwordHash, CancellationToken ct = default);
+
+    /// <summary>Paged listing, newest first, roles attached (frozen findAll).</summary>
+    Task<(IReadOnlyList<User> Users, int TotalItems)> ListAsync(int page, int limit, CancellationToken ct = default);
+
+    /// <summary>
+    /// Replaces the user's role rows: deletes the existing rows IMMEDIATELY
+    /// (the caller supplies the surrounding transaction) and stages the
+    /// replacements — the frozen delete-then-insert order, so re-assigning a
+    /// held role cannot trip the (user, domain, role) unique index. Unknown
+    /// roles resolve to no domain and are skipped, as in AddAsync.
+    /// </summary>
+    Task ReplaceRolesAsync(Guid userId, IEnumerable<string> roles, CancellationToken ct = default);
+
+    /// <summary>Fresh, untracked role rows for a user.</summary>
+    Task<IReadOnlyList<UserRole>> RolesOfAsync(Guid userId, CancellationToken ct = default);
 }
 
 /// <summary>Refresh-token store for human users — never shared with integrations.</summary>

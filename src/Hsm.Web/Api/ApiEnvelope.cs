@@ -13,11 +13,19 @@ namespace Hsm.Web.Api;
 /// </summary>
 public static partial class ApiEnvelope
 {
-    public static IResult Success(HttpContext ctx, int statusCode, JsonNode? data = null, bool includeData = true)
+    public static IResult Success(
+        HttpContext ctx, int statusCode, JsonNode? data = null, bool includeData = true, JsonObject? extra = null)
     {
+        var metadata = Metadata(ctx, statusCode, success: statusCode is >= 200 and < 300);
+        if (extra is not null)
+        {
+            // metadata.extra — the frozen carrier for pagination and friends.
+            metadata["extra"] = extra;
+        }
+
         var body = new JsonObject
         {
-            ["metadata"] = Metadata(ctx, statusCode, success: statusCode is >= 200 and < 300),
+            ["metadata"] = metadata,
         };
         if (includeData)
         {

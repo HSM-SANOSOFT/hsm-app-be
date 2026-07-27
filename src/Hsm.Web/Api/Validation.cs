@@ -55,7 +55,7 @@ public sealed class BodyValidator
         }
     }
 
-    public string? OptionalString(string field)
+    public string? OptionalString(string field, bool notEmpty = false)
     {
         _knownFields.Add(field);
         var value = _body[field];
@@ -70,10 +70,21 @@ public sealed class BodyValidator
             return null;
         }
 
-        return value.GetValue<string>();
+        var text = value.GetValue<string>();
+        if (notEmpty && text.Length == 0)
+        {
+            Fail(field, "isNotEmpty", $"{field} should not be empty");
+        }
+
+        return text;
     }
 
-    public string RequiredString(string field, int? minLength = null, bool email = false, IReadOnlyList<string>? oneOf = null)
+    public string RequiredString(
+        string field,
+        int? minLength = null,
+        bool email = false,
+        IReadOnlyList<string>? oneOf = null,
+        string oneOfConstraint = "isEnum")
     {
         _knownFields.Add(field);
         var value = _body[field];
@@ -97,7 +108,7 @@ public sealed class BodyValidator
 
             if (oneOf is not null)
             {
-                Fail(field, "isEnum", $"{field} must be one of the following values: {string.Join(", ", oneOf)}");
+                Fail(field, oneOfConstraint, $"{field} must be one of the following values: {string.Join(", ", oneOf)}");
             }
 
             return string.Empty;
@@ -127,11 +138,60 @@ public sealed class BodyValidator
 
         if (oneOf is not null && !oneOf.Contains(text, StringComparer.Ordinal))
         {
-            Fail(field, "isEnum", $"{field} must be one of the following values: {string.Join(", ", oneOf)}");
+            Fail(field, oneOfConstraint, $"{field} must be one of the following values: {string.Join(", ", oneOf)}");
         }
 
         return text;
     }
+
+    /// <summary>
+    /// A field whose ONLY constraint is @IsEnum (frozen settings category):
+    /// missing, non-string, and out-of-set values all surface the single
+    /// isEnum constraint.
+    /// </summary>
+    public string RequiredEnum(string field, IReadOnlyList<string> oneOf)
+    {
+        _knownFields.Add(field);
+        var value = _body[field];
+        if (value is null
+            || value.GetValueKind() != JsonValueKind.String
+            || !oneOf.Contains(value.GetValue<string>(), StringComparer.Ordinal))
+        {
+            Fail(field, "isEnum", $"{field} must be one of the following values: {string.Join(", ", oneOf)}");
+            return string.Empty;
+        }
+
+        return value.GetValue<string>();
+    }
+
+    /// <summary>
+    /// A required, non-empty array of objects (frozen @IsArray + @ArrayNotEmpty
+    /// + @ValidateNested). Returns null when structurally invalid; per-item
+    /// failures are the caller's to add via <see cref="AddFailure"/>.
+    /// </summary>
+    public JsonArray? RequiredObjectArray(string field)
+    {
+        _knownFields.Add(field);
+        var value = _body[field];
+        if (value is null || value.GetValueKind() != JsonValueKind.Array)
+        {
+            Fail(field, "isArray", $"{field} must be an array");
+            Fail(field, "arrayNotEmpty", $"{field} should not be empty");
+            return null;
+        }
+
+        var array = value.AsArray();
+        if (array.Count == 0)
+        {
+            Fail(field, "arrayNotEmpty", $"{field} should not be empty");
+            return null;
+        }
+
+        return array;
+    }
+
+    /// <summary>Records a failure for a nested field (e.g. "settings.0.key").</summary>
+    public void AddFailure(string field, string key, string message) => Fail(field, key, message);
 
     public double RequiredNumber(string field)
     {
@@ -198,4 +258,103 @@ public sealed class BodyValidator
         var domain = value[(at + 1)..];
         return domain.Contains('.', StringComparison.Ordinal) && !domain.StartsWith('.') && !domain.EndsWith('.');
     }
+}
+
+/// <summary>
+/// Query-string validation reproducing the frozen global ValidationPipe over
+/// @Query() DTOs: class-validator constraint keys/messages, Type(() =&gt; Number)
+/// coercion for numeric params, and whitelist enforcement.
+/// </summary>
+public sealed class QueryValidator
+{
+    private readonly IQueryCollection _query;
+    private readonly HashSet<string> _knownParams = new(StringComparer.Ordinal);
+    private readonly List<(string Field, string Key, string Message)> _failures = [];
+
+    private QueryValidator(IQueryCollection query) => _query = query;
+
+    public static QueryValidator Read(HttpContext ctx) => new(ctx.Request.Query);
+
+    /// <summary>An optional integer param (frozen @IsInt + @Min/@Max with Number coercion).</summary>
+    public int? OptionalInt(string field, int? min = null, int? max = null)
+    {
+        _knownParams.Add(field);
+        if (!_query.TryGetValue(field, out var values))
+        {
+            return null;
+        }
+
+        var text = values[^1] ?? string.Empty;
+        if (!double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number)
+            || double.IsNaN(number)
+            || number != Math.Truncate(number)
+            || number is > int.MaxValue or < int.MinValue)
+        {
+            Fail(field, "isInt", $"{field} must be an integer number");
+            return null;
+        }
+
+        var value = (int)number;
+        if (min is not null && value < min)
+        {
+            Fail(field, "min", $"{field} must not be less than {min}");
+        }
+
+        if (max is not null && value > max)
+        {
+            Fail(field, "max", $"{field} must not be greater than {max}");
+        }
+
+        return value;
+    }
+
+    /// <summary>A required enum param (frozen @IsNotEmpty + @IsEnum).</summary>
+    public string RequiredEnum(string field, IReadOnlyList<string> oneOf)
+    {
+        _knownParams.Add(field);
+        var text = _query.TryGetValue(field, out var values) ? values[^1] : null;
+        if (string.IsNullOrEmpty(text))
+        {
+            Fail(field, "isNotEmpty", $"{field} should not be empty");
+            Fail(field, "isEnum", $"{field} must be one of the following values: {string.Join(", ", oneOf)}");
+            return string.Empty;
+        }
+
+        if (!oneOf.Contains(text, StringComparer.Ordinal))
+        {
+            Fail(field, "isEnum", $"{field} must be one of the following values: {string.Join(", ", oneOf)}");
+            return string.Empty;
+        }
+
+        return text;
+    }
+
+    /// <summary>The frozen forbidNonWhitelisted, applied to query params.</summary>
+    public void RejectUnknownParams()
+    {
+        foreach (var parameter in _query)
+        {
+            if (!_knownParams.Contains(parameter.Key))
+            {
+                Fail(parameter.Key, "whitelistValidation", $"property {parameter.Key} should not exist");
+            }
+        }
+    }
+
+    public void ThrowIfInvalid()
+    {
+        if (_failures.Count == 0)
+        {
+            return;
+        }
+
+        var messages = _failures.Select(f => f.Message).ToList();
+        var byField = _failures
+            .GroupBy(f => f.Field)
+            .Select(g => (g.Key, (IReadOnlyList<string>)g.Select(f => f.Key).Distinct().ToList()))
+            .ToList();
+        throw new ApiValidationException(messages, byField);
+    }
+
+    private void Fail(string field, string key, string message) => _failures.Add((field, key, message));
 }

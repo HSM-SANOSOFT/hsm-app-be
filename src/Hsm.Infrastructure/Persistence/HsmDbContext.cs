@@ -1,5 +1,6 @@
 using Hsm.Domain.Identity;
 using Hsm.Domain.Proving;
+using Hsm.Domain.Settings;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hsm.Infrastructure.Persistence;
@@ -15,9 +16,13 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options) : DbContext(op
     public DbSet<IntegrationRefreshToken> IntegrationRefreshTokens => Set<IntegrationRefreshToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
+    public DbSet<AppSettingAudit> AppSettingAudits => Set<AppSettingAudit>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ConfigureIdentity(modelBuilder);
+        ConfigureSettings(modelBuilder);
         modelBuilder.Entity<ProvingRoot>(root =>
         {
             root.ToTable("proving_roots");
@@ -118,6 +123,34 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options) : DbContext(op
                 .WithMany()
                 .HasForeignKey(t => t.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    /// <summary>
+    /// Settings tables mirror the frozen schema's semantics: one row per key
+    /// (unique), and an append-only audit table whose rows never store secret
+    /// plaintext. The frozen category column was a Postgres enum; a plain
+    /// string is used here — observably identical through the API, and the
+    /// catalog (not the column type) is the source of truth for valid values.
+    /// </summary>
+    private static void ConfigureSettings(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<AppSetting>(setting =>
+        {
+            setting.ToTable("app_setting");
+            setting.HasKey(s => s.Id);
+            setting.Property(s => s.Key).HasMaxLength(200);
+            setting.Property(s => s.Category).HasMaxLength(50);
+            setting.HasIndex(s => s.Key).IsUnique();
+        });
+
+        modelBuilder.Entity<AppSettingAudit>(audit =>
+        {
+            audit.ToTable("app_setting_audit");
+            audit.HasKey(a => a.Id);
+            audit.Property(a => a.Key).HasMaxLength(200);
+            audit.Property(a => a.Category).HasMaxLength(50);
+            audit.HasIndex(a => a.Key);
         });
     }
 }

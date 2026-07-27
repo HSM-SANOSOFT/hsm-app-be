@@ -31,6 +31,32 @@ public static class Api
         return await ApiResponse.FromAsync(await client.SendAsync(request));
     }
 
+    public static async Task<ApiResponse> PatchJsonAsync(
+        HttpClient client,
+        string path,
+        object body,
+        string? bearer = null,
+        (string Name, string Value)[]? cookies = null,
+        (string Name, string Value)[]? headers = null)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Patch, path) { Content = JsonContent.Create(body) };
+        Decorate(request, bearer, cookies, headers);
+        return await ApiResponse.FromAsync(await client.SendAsync(request));
+    }
+
+    public static async Task<ApiResponse> PutJsonAsync(
+        HttpClient client,
+        string path,
+        object body,
+        string? bearer = null,
+        (string Name, string Value)[]? cookies = null,
+        (string Name, string Value)[]? headers = null)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put, path) { Content = JsonContent.Create(body) };
+        Decorate(request, bearer, cookies, headers);
+        return await ApiResponse.FromAsync(await client.SendAsync(request));
+    }
+
     private static void Decorate(
         HttpRequestMessage request,
         string? bearer,

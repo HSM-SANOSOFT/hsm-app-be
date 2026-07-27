@@ -60,6 +60,50 @@ public sealed class UserStore(HsmDbContext db) : IUserStore
                     .SetProperty(u => u.UpdatedAt, DateTimeOffset.UtcNow),
                 ct);
     }
+
+    public async Task<(IReadOnlyList<User> Users, int TotalItems)> ListAsync(
+        int page, int limit, CancellationToken ct = default)
+    {
+        var live = db.Users.Where(u => u.DeletedAt == null);
+        var totalItems = await live.CountAsync(ct);
+        var users = await live
+            .Include(u => u.Roles)
+            .OrderByDescending(u => u.CreatedAt)
+            .Skip((page - 1) * limit)
+            .Take(limit)
+            .ToListAsync(ct);
+        return (users, totalItems);
+    }
+
+    public async Task ReplaceRolesAsync(Guid userId, IEnumerable<string> roles, CancellationToken ct = default)
+    {
+        // Immediate delete inside the caller's transaction, THEN staged
+        // inserts — the frozen statement order, so re-assigning a held role
+        // never collides with the (user, domain, role) unique index.
+        await db.UserRoles.Where(r => r.UserId == userId).ExecuteDeleteAsync(ct);
+
+        var now = DateTimeOffset.UtcNow;
+        foreach (var role in roles)
+        {
+            var domain = RoleCatalog.DomainOf(role);
+            if (domain is null)
+            {
+                continue;
+            }
+
+            db.UserRoles.Add(new UserRole
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                Domain = domain,
+                Role = role,
+                CreatedAt = now,
+            });
+        }
+    }
+
+    public async Task<IReadOnlyList<UserRole>> RolesOfAsync(Guid userId, CancellationToken ct = default) =>
+        await db.UserRoles.AsNoTracking().Where(r => r.UserId == userId).ToListAsync(ct);
 }
 
 /// <summary>EF Core adapter for the USER refresh-token store.</summary>

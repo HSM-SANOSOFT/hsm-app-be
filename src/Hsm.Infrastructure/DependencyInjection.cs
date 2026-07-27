@@ -3,10 +3,14 @@ using Amazon.S3;
 using Hsm.Application.Auth;
 using Hsm.Application.Ports;
 using Hsm.Application.Proving;
+using Hsm.Application.Settings;
+using Hsm.Application.Users;
 using Hsm.Infrastructure.Identity;
 using Hsm.Infrastructure.Persistence;
 using Hsm.Infrastructure.Search;
+using Hsm.Infrastructure.Settings;
 using Hsm.Infrastructure.Storage;
+using Hsm.Infrastructure.Users;
 using Meilisearch;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -55,8 +59,30 @@ public static class DependencyInjection
         services.AddSingleton<ISearchIndexResolver, SearchIndexResolver>();
 
         AddIdentity(services, configuration);
+        AddUsersAndSettings(services);
 
         return services;
+    }
+
+    /// <summary>
+    /// User-administration and settings adapters plus their use-case handlers
+    /// (plan U13). The settings seed source binds the frozen envValue()
+    /// fallbacks from configuration (Settings:Seed:&lt;KEY&gt;).
+    /// </summary>
+    private static void AddUsersAndSettings(IServiceCollection services)
+    {
+        services.AddSingleton<IStaffWelcomeEmailer, LoggingStaffWelcomeEmailer>();
+        services.AddScoped<IAppSettingStore, AppSettingStore>();
+        services.AddSingleton<ISettingSeedSource, ConfigurationSettingSeedSource>();
+
+        services.AddScoped<UpdateOwnProfileHandler>();
+        services.AddScoped<ChangeOwnPasswordHandler>();
+        services.AddScoped<CreateStaffHandler>();
+        services.AddScoped<ListUsersHandler>();
+        services.AddScoped<GetUserHandler>();
+        services.AddScoped<ChangeUserRoleHandler>();
+        services.AddScoped<GetSettingsHandler>();
+        services.AddScoped<UpdateSettingsHandler>();
     }
 
     /// <summary>

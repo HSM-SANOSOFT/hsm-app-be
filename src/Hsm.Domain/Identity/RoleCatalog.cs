@@ -66,6 +66,9 @@ public static class Roles
 /// </summary>
 public static class RoleCatalog
 {
+    // Declaration order matters: OrderedRoles must exist before BuildCatalog
+    // populates it.
+    private static readonly List<string> OrderedRoles = [];
     private static readonly Dictionary<string, string> DomainByRole = BuildCatalog();
 
     private static Dictionary<string, string> BuildCatalog()
@@ -76,6 +79,7 @@ public static class RoleCatalog
             foreach (var role in roles)
             {
                 catalog[role] = domain;
+                OrderedRoles.Add(role);
             }
         }
 
@@ -94,8 +98,11 @@ public static class RoleCatalog
         return catalog;
     }
 
-    /// <summary>All known role identifiers.</summary>
-    public static IReadOnlyCollection<string> All => DomainByRole.Keys;
+    /// <summary>
+    /// All known role identifiers in the frozen declaration order — the order
+    /// of the frozen ROLE_VALUES constant, which rides in validation messages.
+    /// </summary>
+    public static IReadOnlyList<string> All => OrderedRoles;
 
     public static bool IsKnown(string role) => DomainByRole.ContainsKey(role);
 

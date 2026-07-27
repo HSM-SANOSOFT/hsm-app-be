@@ -6,7 +6,9 @@ using Hsm.Web.Api;
 using Hsm.Web.Auth;
 using Hsm.Web.Components;
 using Hsm.Web.Services;
+using Hsm.Web.Settings;
 using Hsm.Web.Telemetry;
+using Hsm.Web.Users;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.AspNetCore.RateLimiting;
 using Npgsql;
@@ -132,6 +134,8 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapAuthEndpoints();
+app.MapUserEndpoints();
+app.MapSettingsEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
