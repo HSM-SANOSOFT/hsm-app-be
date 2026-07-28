@@ -1,0 +1,17 @@
+@inject NavigationManager Navigation
+
+@* Rendered when routing resolves to a page the anonymous visitor may not
+   see. During static rendering the host turns the navigation into an HTTP
+   redirect; during a circuit, forceLoad re-enters the host so the cookie
+   session is re-evaluated. *@
+
+@code {
+    protected override void OnInitialized()
+    {
+        var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+        var target = string.IsNullOrEmpty(returnUrl)
+            ? "login"
+            : $"login?returnUrl={Uri.EscapeDataString(returnUrl)}";
+        Navigation.NavigateTo(target, forceLoad: true);
+    }
+}

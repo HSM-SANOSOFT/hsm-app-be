@@ -1,0 +1,20 @@
+@inject ICurrentUserUiService CurrentUser
+
+@* Top-bar identity chip, fed by the contracts-declared UI service. *@
+
+@if (_user is not null)
+{
+    <MudChip T="string"
+             Icon="@Icons.Material.Filled.Person"
+             Color="Color.Default"
+             data-testid="current-user">
+        @_user.DisplayName
+    </MudChip>
+}
+
+@code {
+    private CurrentUserDto? _user;
+
+    protected override async Task OnInitializedAsync() =>
+        _user = await CurrentUser.GetCurrentUserAsync();
+}

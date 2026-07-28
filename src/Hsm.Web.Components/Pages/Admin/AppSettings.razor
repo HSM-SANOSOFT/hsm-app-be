@@ -1,0 +1,163 @@
+@page "/configuracion"
+@attribute [Authorize(Roles = UiRoles.Admin)]
+@inject ISettingsAdminUiService SettingsAdmin
+@inject ISnackbar Snackbar
+
+@* Settings (plan U18, screen 4): catalog-driven view and edit per category.
+   Secrets never arrive in plaintext — the handler masks them on read and in
+   the audit rows — so this screen renders the mask and only sends a secret
+   when the admin types a replacement (a blank secret input means "leave it
+   unchanged", the frozen semantics). *@
+
+<PageTitle>Configuración — HSM</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Configuración</MudText>
+
+<MudSelect T="string"
+           Value="_category"
+           ValueChanged="ChangeCategoryAsync"
+           Label="Categoría"
+           Variant="Variant.Outlined"
+           Class="mb-4"
+           Style="max-width: 300px;"
+           data-testid="category-select">
+    @foreach (var category in UiSettingCategories.All)
+    {
+        <MudSelectItem T="string" Value="@category">@category</MudSelectItem>
+    }
+</MudSelect>
+
+@if (_items is null)
+{
+    <MudProgressLinear Indeterminate="true" data-testid="settings-loading" />
+}
+else
+{
+    <MudPaper Class="pa-4 mb-4" Elevation="2" data-testid="settings-form">
+        @foreach (var item in _items)
+        {
+            <MudTextField T="string"
+                          @bind-Value="item.Input"
+                          Label="@item.Key"
+                          InputType="@(item.IsSecret ? InputType.Password : InputType.Text)"
+                          Placeholder="@(item.IsSecret && item.IsSet ? SecretMask : null)"
+                          HelperText="@(item.IsSecret
+                              ? "Secreto: se muestra enmascarado; escriba un valor para reemplazarlo."
+                              : null)"
+                          Variant="Variant.Outlined"
+                          Class="mb-3"
+                          data-testid="@($"setting-{item.Key}")" />
+        }
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   OnClick="SaveAsync" data-testid="save-settings">
+            Guardar cambios
+        </MudButton>
+    </MudPaper>
+
+    <MudText Typo="Typo.h6" Class="mb-2">Historial de cambios</MudText>
+    @if (_audit is { Count: > 0 })
+    {
+        <MudSimpleTable Dense="true" data-testid="settings-audit">
+            <thead>
+                <tr>
+                    <th>Clave</th>
+                    <th>Modificado por</th>
+                    <th>Valor anterior</th>
+                    <th>Valor nuevo</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var entry in _audit)
+                {
+                    <tr>
+                        <td>@entry.Key</td>
+                        <td>@(entry.ChangedBy ?? "—")</td>
+                        <td>@(entry.OldValue ?? "—")</td>
+                        <td>@(entry.NewValue ?? "—")</td>
+                        <td>@entry.ChangedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    }
+    else
+    {
+        <MudText Typo="Typo.body2" Class="mud-text-secondary" data-testid="settings-audit-empty">
+            Sin cambios registrados para esta categoría.
+        </MudText>
+    }
+}
+
+@code {
+    private const string SecretMask = "********";
+
+    private string _category = UiSettingCategories.Email;
+    private List<EditableSetting>? _items;
+    private IReadOnlyList<SettingAuditEntryDto>? _audit;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task ChangeCategoryAsync(string category)
+    {
+        _category = category;
+        _items = null;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var view = await SettingsAdmin.GetSettingsAsync(_category);
+        _items = [.. view.Settings.Select(item => new EditableSetting
+        {
+            Key = item.Key,
+            IsSecret = item.IsSecret,
+            IsSet = item.IsSet,
+            // Secrets edit from blank (blank means "leave unchanged");
+            // non-secrets edit from their effective value.
+            Original = item.IsSecret ? string.Empty : item.Value ?? string.Empty,
+            Input = item.IsSecret ? string.Empty : item.Value ?? string.Empty,
+        })];
+        _audit = await SettingsAdmin.GetAuditTrailAsync(_category);
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_items is null)
+        {
+            return;
+        }
+
+        var changes = _items
+            .Where(item => item.IsSecret
+                ? !string.IsNullOrWhiteSpace(item.Input)
+                : !string.Equals(item.Input, item.Original, StringComparison.Ordinal))
+            .Select(item => new SettingChangeDto(item.Key, item.Input))
+            .ToList();
+        if (changes.Count == 0)
+        {
+            Snackbar.Add("No hay cambios para guardar.", Severity.Info);
+            return;
+        }
+
+        try
+        {
+            await SettingsAdmin.UpdateSettingsAsync(_category, changes);
+            Snackbar.Add("Configuración guardada.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudo guardar la configuración: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private sealed class EditableSetting
+    {
+        public required string Key { get; init; }
+        public required bool IsSecret { get; init; }
+        public required bool IsSet { get; init; }
+        public required string Original { get; init; }
+        public string Input { get; set; } = string.Empty;
+    }
+}

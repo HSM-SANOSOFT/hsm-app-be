@@ -5,7 +5,11 @@ name: PR Validation
 # docs/brainstorms/2026-07-02-legacy-oracle-coexistence-requirements.md §6–7.
 #
 # The `pr-gate` job at the bottom is the single status check to mark "required" in
-# the branch rulesets — it only succeeds if every upstream job did.
+# the branch rulesets — it only succeeds if every upstream job did. Its name is
+# referenced by all three rulesets in .github/rulesets/ — do not rename it.
+#
+# .NET retarget (rewrite plan U4/U20): all jobs run real dotnet work — the
+# pre-U7 trivially-green guards were removed at the release gate.
 
 on:
   pull_request:
@@ -13,6 +17,9 @@ on:
       - development
       - main
       - 'release/**'
+      # Unprotected rewrite anchor — included so intra-rewrite PRs exercise the
+      # gate even though no ruleset requires it there (rewrite plan U4).
+      - 'rewrite/**'
 
 permissions:
   contents: read
@@ -51,40 +58,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v4
         with:
-          node-version: 24.x
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Build (typecheck + compile)
-        run: pnpm build
+          dotnet-version: 10.0.x
+      - name: Build (warnings as errors via Directory.Build.props)
+        run: |
+          dotnet build Hsm.sln --configuration Release
 
-  # --- unit tests: pg-native, no live DB (specs mock repositories) ---------------
+  # --- unit tests: no live infrastructure (Domain/Application/Architecture) ------
   unit-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v4
         with:
-          node-version: 24.x
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+          dotnet-version: 10.0.x
       - name: Run unit tests
-        # Web (@hsm/web) unit tests need a browser runner; excluded here and run
-        # in a dedicated headless job once configured. Backend + packages run now.
-        run: pnpm turbo run test --filter=!@hsm/web
+        run: |
+          # Contract suites needing a live host (Postgres and, for Docs,
+          # RustFS) carry the Infra trait via their shared base classes and
+          # run in the integration-tests job below; everything untraited
+          # (Domain/Application/Architecture + host-free contract tests like
+          # CircuitMetricsTests) runs here.
+          dotnet test Hsm.sln --configuration Release \
+            --filter "FullyQualifiedName!~Integration&Infra!=true"
 
-  # --- integration tests: real read/write/delete against a throwaway Postgres ----
-  # This is the "integration" bar from §8. The app-boot env mirrors migration-drift.
-  # NOTE: expand the `test:e2e` suites per cluster as modules are ported.
+  # --- integration tests: real Postgres/Redis/RustFS, same shape as local dev ----
+  # Mocks cannot prove EF Core change tracking, migration correctness, or S3
+  # compatibility — this job runs against the real services. Meilisearch and the
+  # OTLP collector join once U9/U10 introduce dependencies on them.
   integration-tests:
     runs-on: ubuntu-latest
     services:
@@ -102,43 +106,14 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      # ENVIRONMENT=dev so schema is delivered via `synchronize` — the same path
-      # the local dev loop and the plan's "app booted" signal use, delivering ALL
-      # tables (core/security/settings/clinical). Migration-based delivery is
-      # guarded separately by migration-drift.yml; this job proves the app BOOTS
-      # Oracle-free, not that migrations are complete.
-      ENVIRONMENT: dev
-      DB_POSTGRES_HOST: localhost
-      DB_POSTGRES_PORT: '5432'
-      DB_POSTGRES_USER: hsm
-      DB_POSTGRES_PASSWORD: hsm
-      DB_POSTGRES_DB: hsm_test
-      DB_POSTGRES_RUN_MIGRATIONS: 'false'
-      # Redis (BullMQ) and RustFS (S3-compatible) are eager boot dependencies
-      # exactly as Oracle WAS: AppModule connects BullMQ at forRoot and awaits
-      # S3Initializer.ensureBuckets() at init. So this job provisions the full
-      # local-run infra set (postgres+redis+rustfs). Only Oracle is intentionally
-      # absent — no DB_ORACLE_* env, no Oracle host reachable (that is the regression).
-      DB_REDIS_HOST: localhost
-      DB_REDIS_PORT: '6379'
-      DB_REDIS_USER: redis
-      DB_REDIS_PASSWORD: redis
-      STRG_S3_ACCESS_KEY: rustfs_user
-      STRG_S3_SECRET_KEY: rustfs_password
-      STRG_S3_FORCE_PATH_STYLE: 'true'
-      STRG_S3_HOST: http://localhost:9000
-      STRG_S3_HOST_EXTERNAL: http://localhost:9000
-      STRG_S3_REGION: us-east-1
-      # Dummy values so @hsm/config Joi validation passes (see migration-drift.yml).
-      SWAGGER_FAVICON: http://localhost/favicon.ico
-      SWAGGER_SITE_TITLE: CI
-      SMTP_ADDRESS: smtp.test.local
-      SMTP_USERNAME: ci@test.local
-      SMTP_PASSWORD: ci
-      SMTP_PORT: '587'
-      SMTP_SECURE: 'false'
-      JWT_AT_SECRET: ci-at-secret-32-chars-padding!!!!
-      JWT_RT_SECRET: ci-rt-secret-32-chars-padding!!!!
+      ConnectionStrings__HsmDb: Host=localhost;Port=5432;Username=hsm;Password=hsm;Database=hsm_test
+      Redis__ConnectionString: localhost:6379,user=redis,password=redis
+      Storage__S3__Endpoint: http://localhost:9000
+      Storage__S3__AccessKey: rustfs_user
+      Storage__S3__SecretKey: rustfs_password
+      Storage__S3__ForcePathStyle: 'true'
+      Search__Meilisearch__Url: http://localhost:7700
+      Search__Meilisearch__ApiKey: meili_ci_master_key_not_a_secret
     steps:
       - uses: actions/checkout@v4
       # Redis and RustFS run as plain `docker run` containers (not `services:`) so
@@ -160,38 +135,38 @@ jobs:
             -e RUSTFS_ADDRESS=0.0.0.0:9000 \
             -v rustfs-data:/data \
             rustfs/rustfs:latest
-      - name: Wait for Redis + RustFS to be ready
+      - name: Start Meilisearch
+        run: |
+          docker run -d --name meilisearch -p 7700:7700 \
+            -e MEILI_ENV=development \
+            -e MEILI_MASTER_KEY=meili_ci_master_key_not_a_secret \
+            getmeili/meilisearch:v1.15
+      - name: Wait for Redis + RustFS + Meilisearch to be ready
         run: |
           for i in $(seq 1 30); do
             redis_ok=$(docker exec redis redis-cli -u redis://redis:redis@localhost:6379 ping 2>/dev/null || true)
-            if [ "$redis_ok" = "PONG" ] && curl -sf http://localhost:9000/health >/dev/null; then
-              echo "Redis + RustFS ready"; exit 0
+            if [ "$redis_ok" = "PONG" ] \
+              && curl -sf http://localhost:9000/health >/dev/null \
+              && curl -sf http://localhost:7700/health >/dev/null; then
+              echo "Redis + RustFS + Meilisearch ready"; exit 0
             fi
             echo "waiting for infra ($i/30)"; sleep 2
           done
-          echo "::error::Redis/RustFS did not become ready in time"
-          docker logs redis || true; docker logs rustfs || true
+          echo "::error::Redis/RustFS/Meilisearch did not become ready in time"
+          docker logs redis || true; docker logs rustfs || true; docker logs meilisearch || true
           exit 1
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v4
         with:
-          node-version: 24.x
-          cache: pnpm
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Build workspace deps
-        run: pnpm build
-      - name: API integration (e2e) — boots Oracle-free
-        run: pnpm --filter @hsm/api test:e2e
-      - name: Worker integration (e2e) — boots Oracle-free
-        run: pnpm --filter @hsm/worker test:e2e
+          dotnet-version: 10.0.x
+      - name: Run integration tests
+        run: |
+          dotnet test tests/Hsm.Integration.Tests --configuration Release
+      - name: Run infra-backed contract tests (auth, dedicated database)
+        run: |
+          dotnet test tests/Hsm.Contract.Tests --configuration Release
 
   # --- single required status check -> reference this name in the rulesets --------
-  # integration-tests is now GATED: the app boots Oracle-free (this plan's U1/U2),
-  # so its e2e is a hard requirement — a regression that re-introduces an eager
-  # Oracle boot dependency (or breaks pg/redis/rustfs boot) fails the gate.
   pr-gate:
     if: always()
     needs: [branch-policy, lint, build, unit-tests, integration-tests]

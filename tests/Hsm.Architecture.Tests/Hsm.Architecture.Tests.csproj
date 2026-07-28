@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Hsm.Web\Hsm.Web.csproj" />
+    <ProjectReference Include="..\..\src\Hsm.Web.Components\Hsm.Web.Components.csproj" />
+    <ProjectReference Include="..\..\src\Hsm.Application\Hsm.Application.csproj" />
+    <ProjectReference Include="..\..\src\Hsm.Infrastructure\Hsm.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Hsm.Contracts\Hsm.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Hsm.Domain\Hsm.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,32 @@
+# Dev/CI collector config: accept OTLP over gRPC (4317) and HTTP (4318),
+# print to the collector's own log. Real exporters (Prometheus, Tempo, Loki,
+# etc.) are a deployment concern, not a repo concern.
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch: {}
+
+exporters:
+  debug:
+    verbosity: normal
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug]

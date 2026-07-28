@@ -12,59 +12,13 @@ volumes:
     name: hsm-app-db_redis-data
   db_rustfs_data:
     name: hsm-app-db_rustfs-data
+  db_meili_data:
+    name: hsm-app-db_meili-data
 
+# Application hosts (Hsm.Web, Hsm.Worker) run directly in the dev container via
+# `dotnet run`/`dotnet watch`, not as compose services. Only infrastructure
+# lives here.
 services:
-  api:
-    image: hsm-app-be-api
-    build:
-      context: ../
-      dockerfile: apps/backend/api/Dockerfile
-    networks:
-      - hsm-app-network
-    ports:
-      - 10001:4201
-    # Secrets are written per-app by .devcontainer/script/get-secrets-infisical.sh
-    # (root ../.env holds only the Infisical *bootstrap* creds, not app secrets).
-    env_file:
-      - ../apps/backend/api/.env
-    restart: unless-stopped
-    depends_on:
-      - postgres
-      - redis
-      - rustfs
-      - worker
-
-  worker:
-    image: hsm-app-be-worker
-    build:
-      context: ../
-      dockerfile: apps/backend/worker/Dockerfile
-    networks:
-      - hsm-app-network
-    ports:
-      - 10002:3001
-    # Per-app secrets file (see api service note above).
-    env_file:
-      - ../apps/backend/worker/.env
-    depends_on:
-      - postgres
-      - redis
-      - rustfs
-    restart: unless-stopped
-
-  web:
-    image: hsm-app-fe-web
-    build:
-      context: ../
-      dockerfile: apps/frontend/web/Dockerfile
-    networks:
-      - hsm-app-network
-    ports:
-      - 42000:4200
-    depends_on:
-      - api
-    restart: unless-stopped
-
   postgres:
     image: postgres:18-bookworm
     networks:
@@ -96,8 +50,8 @@ services:
     restart: unless-stopped
 
   # RustFS — S3-compatible object storage (replaces MinIO, which is no longer
-  # free). The app talks to it via the same STRG_S3_* / AWS SDK path; only the
-  # backing service and credentials change.
+  # free). The app talks to it via the standard S3 SDK; only the backing
+  # service and credentials change.
   rustfs:
     image: rustfs/rustfs:latest
     networks:
@@ -114,4 +68,32 @@ services:
       RUSTFS_CONSOLE_ADDRESS: 0.0.0.0:9001
     volumes:
       - db_rustfs_data:/data
+    restart: unless-stopped
+
+  # Meilisearch — search engine for non-clinical collections (rewrite plan U9).
+  meilisearch:
+    image: getmeili/meilisearch:v1.15
+    networks:
+      - hsm-app-network
+    ports:
+      - 10008:7700
+    environment:
+      MEILI_ENV: development
+      MEILI_MASTER_KEY: meili_dev_master_key_please_rotate
+    volumes:
+      - db_meili_data:/meili_data
+    restart: unless-stopped
+
+  # OpenTelemetry collector — OTLP sink for traces/metrics/logs (rewrite plan
+  # U10). Telemetry export is never a boot dependency: the app must start and
+  # serve with this service stopped.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    networks:
+      - hsm-app-network
+    ports:
+      - 10009:4317
+      - 10010:4318
+    volumes:
+      - ./otel/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
     restart: unless-stopped

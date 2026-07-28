@@ -1,0 +1,57 @@
+@inherits LayoutComponentBase
+
+<MudThemeProvider Theme="HsmTheme.Default" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                       Color="Color.Inherit"
+                       Edge="Edge.Start"
+                       aria-label="Alternar menú de navegación"
+                       OnClick="ToggleDrawer" />
+        <MudText Typo="Typo.h6">HSM — Administración hospitalaria</MudText>
+        <MudSpacer />
+        <CurrentUserDisplay />
+    </MudAppBar>
+    <MudDrawer @bind-Open="_drawerOpen" Elevation="1" ClipMode="DrawerClipMode.Always">
+        <NavMenu />
+    </MudDrawer>
+    <MudMainContent Class="pa-4">
+        @* Required containment (plan U17): a page component throwing must not
+           take the circuit down — the failure renders here, contained, and
+           the rest of the shell keeps working. *@
+        <ErrorBoundary @ref="_errorBoundary">
+            <ChildContent>
+                @Body
+            </ChildContent>
+            <ErrorContent>
+                <MudAlert Severity="Severity.Error" data-testid="page-error-boundary">
+                    Se produjo un error inesperado en esta sección. El resto de la
+                    aplicación sigue funcionando.
+                </MudAlert>
+                <MudButton Class="mt-2"
+                           Color="Color.Primary"
+                           Variant="Variant.Filled"
+                           OnClick="Recover">
+                    Reintentar
+                </MudButton>
+            </ErrorContent>
+        </ErrorBoundary>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+    private ErrorBoundary? _errorBoundary;
+
+    private void ToggleDrawer() => _drawerOpen = !_drawerOpen;
+
+    private void Recover() => _errorBoundary?.Recover();
+
+    // Navigating away from a failed page clears the boundary so the next page
+    // renders normally.
+    protected override void OnParametersSet() => _errorBoundary?.Recover();
+}

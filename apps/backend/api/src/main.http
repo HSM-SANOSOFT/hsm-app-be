@@ -1,5 +1,0 @@
-### Health Check
-GET {{host}}/health
-
-### API Version (public — UI footer)
-GET {{host}}/health/version

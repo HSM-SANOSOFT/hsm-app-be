@@ -1,0 +1,37 @@
+@inject ICurrentUserUiService CurrentUser
+
+@* Role-aware navigation: items render per role, resolved through the
+   contracts-declared UI service — never from application types. *@
+
+<MudNavMenu data-testid="nav-menu">
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">
+        Inicio
+    </MudNavLink>
+    @if (_user is not null && _user.IsInRole(UiRoles.Admin))
+    {
+        <MudNavGroup Title="Administración"
+                     Icon="@Icons.Material.Filled.AdminPanelSettings"
+                     Expanded="true"
+                     data-testid="nav-admin-group">
+            <MudNavLink Href="/usuarios" Icon="@Icons.Material.Filled.Group">
+                Usuarios y roles
+            </MudNavLink>
+            <MudNavLink Href="/integraciones" Icon="@Icons.Material.Filled.VpnKey">
+                Cuentas de integración
+            </MudNavLink>
+            <MudNavLink Href="/configuracion" Icon="@Icons.Material.Filled.Settings">
+                Configuración
+            </MudNavLink>
+            <MudNavLink Href="/documentos" Icon="@Icons.Material.Filled.Description">
+                Documentos
+            </MudNavLink>
+        </MudNavGroup>
+    }
+</MudNavMenu>
+
+@code {
+    private CurrentUserDto? _user;
+
+    protected override async Task OnInitializedAsync() =>
+        _user = await CurrentUser.GetCurrentUserAsync();
+}

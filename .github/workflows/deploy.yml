@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       APP_TYPE:
-        description: Type of application to deploy (main or worker)
+        description: Type of application to deploy (web or worker)
         required: true
         type: string
       NAMESPACE:
@@ -17,4 +17,4 @@ jobs:
     steps:
       - name: kubectl rollout restart
         run: |
-          echo kubectl rollout restart deployment hsm-app-be-${{ inputs.APP_TYPE }} -n ${{inputs.NAMESPACE}}
+          echo kubectl rollout restart deployment hsm-app-${{ inputs.APP_TYPE }} -n ${{inputs.NAMESPACE}}

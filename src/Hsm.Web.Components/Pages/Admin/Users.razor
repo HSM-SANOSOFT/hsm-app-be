@@ -1,0 +1,243 @@
+@page "/usuarios"
+@attribute [Authorize(Roles = UiRoles.Admin)]
+@inject IUsersAdminUiService UsersAdmin
+@inject ISnackbar Snackbar
+
+@* Users and roles (plan U18, screen 2): paginated listing, staff creation
+   with role assignment at creation, and role change — all through the
+   contracts-declared UI service; the transactional guarantees live in the
+   application handlers. *@
+
+<PageTitle>Usuarios y roles — HSM</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Usuarios y roles</MudText>
+
+<MudButton Color="Color.Primary"
+           Variant="Variant.Filled"
+           StartIcon="@Icons.Material.Filled.PersonAdd"
+           Class="mb-4"
+           OnClick="ToggleCreate"
+           data-testid="toggle-create-user">
+    Nuevo usuario
+</MudButton>
+
+@if (_showCreate)
+{
+    <MudPaper Class="pa-4 mb-4" Elevation="2" data-testid="create-user-form">
+        <MudText Typo="Typo.h6" Class="mb-3">Crear usuario de personal</MudText>
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" @bind-Value="_newUser.Username" Label="Nombre de usuario"
+                              Variant="Variant.Outlined" data-testid="new-username" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" @bind-Value="_newUser.Email" Label="Correo electrónico"
+                              Variant="Variant.Outlined" data-testid="new-email" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" @bind-Value="_newUser.FirstName" Label="Primer nombre"
+                              Variant="Variant.Outlined" data-testid="new-first-name" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" @bind-Value="_newUser.SecondName" Label="Segundo nombre (opcional)"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" @bind-Value="_newUser.FirstLastName" Label="Primer apellido"
+                              Variant="Variant.Outlined" data-testid="new-first-last-name" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" @bind-Value="_newUser.SecondLastName" Label="Segundo apellido (opcional)"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" @bind-Value="_newUser.PhoneNumber" Label="Teléfono (opcional)"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="string" @bind-Value="_newUser.Role" Label="Rol"
+                           Variant="Variant.Outlined" data-testid="new-role">
+                    @foreach (var role in _roles)
+                    {
+                        <MudSelectItem T="string" Value="@role">@role</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField T="string" @bind-Value="_newUser.TempPassword" Label="Contraseña temporal"
+                              InputType="InputType.Password" Variant="Variant.Outlined"
+                              HelperText="Se envía por correo; el usuario la cambia en su primer ingreso."
+                              data-testid="new-temp-password" />
+            </MudItem>
+        </MudGrid>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Class="mt-3"
+                   OnClick="CreateAsync" data-testid="create-user-submit">
+            Crear usuario
+        </MudButton>
+    </MudPaper>
+}
+
+@if (_page is null)
+{
+    <MudProgressLinear Indeterminate="true" data-testid="users-loading" />
+}
+else
+{
+    <MudTable T="UserRowDto" Items="_page.Users" Hover="true" Dense="true" data-testid="users-table">
+        <HeaderContent>
+            <MudTh>Usuario</MudTh>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Correo</MudTh>
+            <MudTh>Estado</MudTh>
+            <MudTh>Rol</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Usuario">@context.Username</MudTd>
+            <MudTd DataLabel="Nombre">@context.FullName</MudTd>
+            <MudTd DataLabel="Correo">@context.Email</MudTd>
+            <MudTd DataLabel="Estado">
+                @if (!context.IsActive)
+                {
+                    <MudChip T="string" Color="Color.Error" Size="Size.Small">Inactivo</MudChip>
+                }
+                else if (context.OnboardingPending)
+                {
+                    <MudChip T="string" Color="Color.Warning" Size="Size.Small">Pendiente</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small">Activo</MudChip>
+                }
+            </MudTd>
+            <MudTd DataLabel="Rol">
+                <MudSelect T="string"
+                           Value="@PendingRoleFor(context)"
+                           ValueChanged="@(role => SetPendingRole(context.Id, role))"
+                           Dense="true"
+                           Variant="Variant.Outlined"
+                           data-testid="@($"role-select-{context.Username}")">
+                    @foreach (var role in _roles)
+                    {
+                        <MudSelectItem T="string" Value="@role">@role</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudTd>
+            <MudTd>
+                <MudButton Size="Size.Small"
+                           Color="Color.Secondary"
+                           Variant="Variant.Outlined"
+                           Disabled="@(!HasPendingRoleChange(context))"
+                           OnClick="@(() => ChangeRoleAsync(context))"
+                           data-testid="@($"apply-role-{context.Username}")">
+                    Cambiar rol
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+    <div class="d-flex justify-center mt-4">
+        <MudPagination Count="TotalPages" Selected="_pageNumber" SelectedChanged="ChangePageAsync" />
+    </div>
+}
+
+@code {
+    private const int PageSize = 10;
+
+    private UserListPageDto? _page;
+    private IReadOnlyList<string> _roles = [];
+    private int _pageNumber = 1;
+    private bool _showCreate;
+    private NewUserInput _newUser = new();
+    private readonly Dictionary<string, string> _pendingRoles = new(StringComparer.Ordinal);
+
+    private int TotalPages => _page is null || _page.TotalItems == 0
+        ? 1
+        : (_page.TotalItems + PageSize - 1) / PageSize;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _roles = await UsersAdmin.GetAssignableRolesAsync();
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _page = await UsersAdmin.ListUsersAsync(_pageNumber, PageSize);
+        _pendingRoles.Clear();
+    }
+
+    private async Task ChangePageAsync(int page)
+    {
+        _pageNumber = page;
+        await LoadAsync();
+    }
+
+    private void ToggleCreate() => _showCreate = !_showCreate;
+
+    private string PendingRoleFor(UserRowDto user) =>
+        _pendingRoles.TryGetValue(user.Id, out var pending)
+            ? pending
+            : user.Roles.FirstOrDefault() ?? string.Empty;
+
+    private void SetPendingRole(string userId, string role) => _pendingRoles[userId] = role;
+
+    private bool HasPendingRoleChange(UserRowDto user) =>
+        _pendingRoles.TryGetValue(user.Id, out var pending)
+        && pending != (user.Roles.FirstOrDefault() ?? string.Empty);
+
+    private async Task CreateAsync()
+    {
+        try
+        {
+            var created = await UsersAdmin.CreateStaffAsync(new NewStaffUserDto(
+                _newUser.Username,
+                _newUser.Email,
+                _newUser.FirstName,
+                NullIfBlank(_newUser.SecondName),
+                _newUser.FirstLastName,
+                NullIfBlank(_newUser.SecondLastName),
+                NullIfBlank(_newUser.PhoneNumber),
+                _newUser.Role,
+                _newUser.TempPassword));
+            Snackbar.Add($"Usuario '{created.Username}' creado.", Severity.Success);
+            _newUser = new NewUserInput();
+            _showCreate = false;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudo crear el usuario: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ChangeRoleAsync(UserRowDto user)
+    {
+        try
+        {
+            var role = PendingRoleFor(user);
+            await UsersAdmin.ChangeRoleAsync(user.Id, role);
+            Snackbar.Add($"Rol de '{user.Username}' cambiado a '{role}'.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudo cambiar el rol: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private static string? NullIfBlank(string value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value;
+
+    private sealed class NewUserInput
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string SecondName { get; set; } = string.Empty;
+        public string FirstLastName { get; set; } = string.Empty;
+        public string SecondLastName { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
+        public string TempPassword { get; set; } = string.Empty;
+    }
+}

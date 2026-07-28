@@ -1,9 +1,29 @@
 # HSM — Architecture Decisions
 
-Hospital Management System. Greenfield rewrite, porting ~40 modules from a legacy codebase.
+Hospital Management System. Rewrite on .NET, porting ~40 modules from the legacy systems.
 Scope: ERP, CRM, HR, HIS, RIS, LIS, PACS integration.
 
 This document records **what was chosen and why**. Implementation detail is deliberately out of scope.
+
+## 0. Context — this is not greenfield
+
+Two systems precede this one, and both shape the constraints:
+
+- **Legacy SanoSoft** runs the hospital in production today, on Oracle. It stays
+  untouched for the life of this project; the Oracle database is reachable but
+  strictly `SELECT`/`UPDATE`-only — no DDL, no schema changes, ever. The
+  cutover strategy is **pg-native**: the new application owns its own
+  PostgreSQL data completely, with a one-time Oracle-to-PostgreSQL bulk
+  migration at cutoff per module family
+  (`docs/brainstorms/2026-07-02-legacy-oracle-coexistence-requirements.md`).
+  There is no runtime Oracle read-through in the new stack.
+- **The TypeScript monolith** (NestJS/TypeORM/Angular) was this project's first
+  delivery vehicle. It was deliberately frozen, tagged
+  `freeze/typescript-2026-07-27`, and removed from the working tree; it serves
+  as the rewrite's *reference specification* — 58 HTTP operations captured in
+  `docs/reference/2026-07-27-frozen-api-contract.openapi.json`, with behavior
+  pinned by contract tests written from the frozen source, not transliterated
+  from it.
 
 ---
 
@@ -20,7 +40,7 @@ This document records **what was chosen and why**. Implementation detail is deli
 | **Offline** | Not required. The app is useless without live backend data. |
 | **Licensing** | Commercial product, possibly deployed for other hospitals. Avoid AGPL / SSPL / ELv2 dependencies. |
 | **Hiring** | Loja, Ecuador. Small pool. A real constraint on language choice. |
-| **Sunk cost** | Near zero — only auth/users modules exist. |
+| **Sunk cost** | Real but bounded: the frozen TypeScript monolith shipped 58 HTTP operations across auth, users, settings, templates, communications, documents, and a FHIR clinical spine, plus an Angular frontend. It was frozen as a reference spec rather than extended — the change-tracking defect (§3) made continuing on TypeORM more expensive than rebuilding. The earlier "near zero — only auth/users" claim understated this by roughly an order of magnitude. |
 
 ---
 
@@ -32,7 +52,7 @@ This document records **what was chosen and why**. Implementation detail is deli
 | **Backend framework** | ASP.NET Core |
 | **ORM** | EF Core + Npgsql, bound concretely to PostgreSQL |
 | **Frontend** | Blazor Server (Blazor WASM deferred for mobile) |
-| **Component library** | MudBlazor or Syncfusion — to evaluate |
+| **Component library** | MudBlazor (MIT — Syncfusion's commercial terms fail the licensing constraint) |
 | **Data store** | PostgreSQL |
 | **Blob store** | RustFS (S3-compatible, Apache 2.0) |
 | **Search store** | PostgreSQL FTS + Meilisearch, split by collection |
@@ -329,15 +349,39 @@ Future PWA installability requires HTTPS with a **trusted** certificate; self-si
 
 ---
 
-## 9. Sequencing
+## 9. Sequencing — freeze and rebuild (as executed)
 
-1. **Establish the client isolation boundary** (§5.2). Everything else depends on getting this right first.
-2. Define the store ports and wire OpenTelemetry.
-3. Prove one vertical slice end to end — domain, persistence, handler, UI service, Blazor page, REST controller.
-4. **Validate RustFS S3 compatibility** before storing anything clinical.
-5. **Run a backup and restore drill** to a spare machine, and time it.
-6. Port modules.
-7. **Mobile, when prioritized:** add the WebAssembly host, route mobile traffic to it, solve auth state across render modes.
+The sequence did not start from zero; it started from a working TypeScript
+monolith that was frozen and used as the specification
+(`docs/plans/2026-07-27-001-feat-dotnet-blazor-rewrite-plan.md`):
+
+1. **Freeze**: land outstanding work, capture the machine-readable contract
+   snapshot from the running API, merge, tag `freeze/typescript-2026-07-27`.
+2. **Strip and retarget**: one reviewable commit removes the Node stack; CI is
+   rebuilt around the preserved `pr-gate` check name (no ruleset edits); the
+   devcontainer and compose stack move to the .NET SDK, Meilisearch, and an
+   OTLP collector.
+3. **Foundation before modules**: solution skeleton with central versions and
+   warnings-as-errors; the client isolation boundary (§5.2) established and
+   proven red/green by architecture tests; store ports with adapters proven
+   against real Postgres/RustFS/Meilisearch — including the EF change-tracking
+   orphan-removal proof that motivated the stack; OpenTelemetry wired in both
+   hosts; a written definition of done with a scope-revision counter
+   (`docs/plans/2026-07-27-002-minor-release-definition-of-done.md`).
+4. **Modules, contract-test-first, auth first**: behavior tests written from
+   the frozen snapshot/source before each C# implementation — identity/auth,
+   users/roles/settings, templates/communications, documents, then the
+   remaining contract surface (patient lookup, FHIR Patient, health), each
+   gated on its definition-of-done capability.
+5. **RustFS S3 compatibility validated before the documents module** built on
+   it — multipart, presigned URLs, versioning, all against the real store.
+6. **Admin UI**: MudBlazor shell through the boundary, then exactly five
+   administrative screens.
+7. **Release gate**: walk the definition of done, merge the anchor to
+   `development` through real CI.
+8. **Still ahead:** backup and restore drill (highest-severity operational
+   gap), LXC provisioning, clinical module ports, and — when prioritized —
+   the WebAssembly mobile host with auth across render modes.
 
 ---
 
@@ -379,3 +423,5 @@ Future PWA installability requires HTTPS with a **trusted** certificate; self-si
 | 20 | Single Proxmox host, one LXC per service | Fault isolation and independent limits — **not** redundancy | ✅ Decided |
 | 21 | Off-box backups with WAL archiving | Same-host snapshots are not backups | ✅ Decided |
 | 22 | LTS-only version policy | .NET 10 → .NET 12; skip odd-numbered STS | ✅ Decided |
+| 23 | Component library: MudBlazor | MIT licensing vs. Syncfusion commercial terms; product may ship to other hospitals | ✅ Decided |
+| 24 | Freeze-and-rebuild delivery | TypeScript monolith tagged as reference spec; contract-test-first rebuild, not transliteration | ✅ Executed |

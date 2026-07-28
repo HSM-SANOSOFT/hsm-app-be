@@ -1,0 +1,99 @@
+@page "/login"
+@layout AnonymousLayout
+@attribute [ExcludeFromInteractiveRouting]
+@inject ISignInUiService SignIn
+@inject NavigationManager Navigation
+
+@* Sign-in (plan U18, screen 1). Statically rendered on purpose: the session
+   cookies ride the HTTP response of this form post — a circuit cannot set
+   them. The UI service validates credentials through the in-process login
+   handler and issues the same cookies the REST login sets. *@
+
+<PageTitle>Iniciar sesión — HSM</PageTitle>
+
+<MudCard Class="pa-4" Style="width: 100%;" data-testid="login-card">
+    <MudCardHeader>
+        <MudText Typo="Typo.h5">Iniciar sesión</MudText>
+    </MudCardHeader>
+    <MudCardContent>
+        @if (_error is not null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mb-4" data-testid="login-error">
+                @_error
+            </MudAlert>
+        }
+        <EditForm Model="Model" method="post" OnValidSubmit="SignInAsync" FormName="login">
+            <div class="hsm-field">
+                <label for="username">Nombre de usuario</label>
+                <InputText id="username" @bind-Value="Model.Username" autocomplete="username" />
+            </div>
+            <div class="hsm-field mt-4">
+                <label for="password">Contraseña</label>
+                <InputText id="password" type="password" @bind-Value="Model.Password"
+                           autocomplete="current-password" />
+            </div>
+            <MudButton ButtonType="ButtonType.Submit"
+                       Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       FullWidth="true"
+                       Class="mt-6"
+                       data-testid="login-submit">
+                Ingresar
+            </MudButton>
+        </EditForm>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private string? _error;
+
+    [SupplyParameterFromForm]
+    private InputModel? Input { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    // Form posts may supply null; the model materializes lazily (BL0008).
+    private InputModel Model => Input ??= new InputModel();
+
+    private async Task SignInAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Model.Username) || string.IsNullOrWhiteSpace(Model.Password))
+        {
+            _error = "Ingrese el nombre de usuario y la contraseña.";
+            return;
+        }
+
+        var result = await SignIn.SignInAsync(Model.Username, Model.Password);
+        if (!result.Succeeded)
+        {
+            _error = result.Error ?? "Usuario o contraseña incorrectos.";
+            return;
+        }
+
+        Navigation.NavigateTo(SafeReturnUrl(), forceLoad: true);
+    }
+
+    // Open-redirect guard: only same-site relative targets survive; anything
+    // absolute or protocol-relative falls back to the shell root.
+    private string SafeReturnUrl()
+    {
+        var target = ReturnUrl ?? string.Empty;
+        if (target.Length == 0
+            || target.Contains("://", StringComparison.Ordinal)
+            || target.StartsWith("//", StringComparison.Ordinal)
+            || target.StartsWith('\\'))
+        {
+            return "/";
+        }
+
+        return target.StartsWith('/') ? target : "/" + target;
+    }
+
+    private sealed class InputModel
+    {
+        public string Username { get; set; } = string.Empty;
+
+        public string Password { get; set; } = string.Empty;
+    }
+}

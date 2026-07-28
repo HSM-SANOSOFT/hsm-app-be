@@ -7,9 +7,8 @@ on:
     paths-ignore:
       - 'docker/**'
       - '.github/**'
-      - 'husky/**'
       - '.vscode/**'
-      - 'extra/**'
+      - 'docs/**'
 permissions:
   contents: read
   packages: write
@@ -17,13 +16,11 @@ permissions:
 jobs:
   lint:
     uses: ./.github/workflows/lint.yml
-  migration-drift:
-    uses: ./.github/workflows/migration-drift.yml
   build:
-    needs: [lint, migration-drift]
+    needs: [lint]
     strategy:
       matrix:
-        app_type: [main, worker]
+        app_type: [web, worker]
       max-parallel: 2
     uses: ./.github/workflows/build.yml
     with:
@@ -32,7 +29,7 @@ jobs:
     needs: build
     strategy:
       matrix:
-        app_type: [main, worker]
+        app_type: [web, worker]
       max-parallel: 2
     uses: ./.github/workflows/deploy.yml
     with:
