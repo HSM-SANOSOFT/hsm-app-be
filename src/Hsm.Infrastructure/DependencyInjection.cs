@@ -208,6 +208,7 @@ public static class DependencyInjection
         services.AddScoped<ChangeUserRoleHandler>();
         services.AddScoped<GetSettingsHandler>();
         services.AddScoped<UpdateSettingsHandler>();
+        services.AddScoped<ListSettingsAuditHandler>();
     }
 
     /// <summary>
@@ -248,6 +249,11 @@ public static class DependencyInjection
         services.AddScoped<ForgotPasswordHandler>();
         services.AddScoped<ResetPasswordHandler>();
         services.AddScoped<RecoverUsernameHandler>();
+
+        // In-process UI surface only (plan U18): no /v1 routes map to these.
+        services.AddScoped<ListIntegrationAccountsHandler>();
+        services.AddScoped<IssueIntegrationTokensHandler>();
+        services.AddScoped<RevokeIntegrationTokensHandler>();
     }
 
     private sealed class EnvironmentPolicy(bool isDev) : IEnvironmentPolicy

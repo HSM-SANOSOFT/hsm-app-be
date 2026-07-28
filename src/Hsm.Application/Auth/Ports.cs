@@ -66,6 +66,11 @@ public interface IIntegrationRefreshTokenStore
 public interface IIntegrationAccountStore
 {
     Task AddAsync(IntegrationAccount account, CancellationToken ct = default);
+
+    Task<IntegrationAccount?> FindByIdAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>Live (non-deleted) accounts, newest first.</summary>
+    Task<IReadOnlyList<IntegrationAccount>> ListAsync(CancellationToken ct = default);
 }
 
 /// <summary>Persistence port for password-reset tokens.</summary>

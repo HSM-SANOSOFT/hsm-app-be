@@ -155,3 +155,17 @@ public sealed class UpdateSettingsHandler(
         return await reader.HandleAsync(category, ct);
     }
 }
+
+/// <summary>
+/// Audit-trail read for the settings screen (plan U18): the rows
+/// <see cref="UpdateSettingsHandler"/> writes, newest first. The frozen REST
+/// surface has no such operation — this query exists for the in-process UI
+/// surface only and adds no /v1 route; secrets are already masked at write
+/// time, so the read is a plain projection.
+/// </summary>
+public sealed class ListSettingsAuditHandler(IAppSettingStore store)
+{
+    public Task<IReadOnlyList<AppSettingAudit>> HandleAsync(
+        string category, int limit = 50, CancellationToken ct = default) =>
+        store.ListAuditAsync(category, limit, ct);
+}

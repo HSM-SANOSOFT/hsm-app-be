@@ -91,6 +91,19 @@ builder.Services.AddScoped<GetSystemStatusHandler>();
 builder.Services.AddScoped<ISystemStatusUiService, SystemStatusUiService>();
 builder.Services.AddScoped<ICurrentUserUiService, CurrentUserUiService>();
 
+// Administrative screens (plan U18): each screen's data path goes through a
+// contracts-declared UI service; the admin-gated ones re-check the role from
+// the authenticated principal because no endpoint guard fronts an in-process
+// call. Sign-in runs in static SSR and needs the live HttpContext to set the
+// session cookies.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<UiServiceGate>();
+builder.Services.AddScoped<ISignInUiService, SignInUiService>();
+builder.Services.AddScoped<IUsersAdminUiService, UsersAdminUiService>();
+builder.Services.AddScoped<IIntegrationAccountsUiService, IntegrationAccountsUiService>();
+builder.Services.AddScoped<ISettingsAdminUiService, SettingsAdminUiService>();
+builder.Services.AddScoped<IDocumentsAdminUiService, DocumentsAdminUiService>();
+
 // Auth web surface (plan U12): cookie posture + CSRF from configuration.
 builder.Services.AddSingleton(new AuthWebOptions
 {

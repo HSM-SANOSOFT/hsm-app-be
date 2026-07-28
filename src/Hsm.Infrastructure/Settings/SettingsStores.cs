@@ -20,6 +20,14 @@ public sealed class AppSettingStore(HsmDbContext db) : IAppSettingStore
 
     public async Task AddAuditAsync(AppSettingAudit audit, CancellationToken ct = default) =>
         await db.AppSettingAudits.AddAsync(audit, ct);
+
+    public async Task<IReadOnlyList<AppSettingAudit>> ListAuditAsync(
+        string category, int limit, CancellationToken ct = default) =>
+        await db.AppSettingAudits
+            .Where(a => a.Category == category)
+            .OrderByDescending(a => a.ChangedAt)
+            .Take(limit)
+            .ToListAsync(ct);
 }
 
 /// <summary>

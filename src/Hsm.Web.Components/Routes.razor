@@ -7,7 +7,21 @@
     <Found Context="routeData">
         <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
             <NotAuthorized>
-                <RedirectToLogin />
+                @* Anonymous visitors go to sign-in; an authenticated session
+                   lacking the required role is told so — bouncing it to the
+                   sign-in page would loop. Static-SSR requests never reach
+                   this branch: the endpoint metadata answers 302/403 first. *@
+                @if (context.User.Identity is { IsAuthenticated: true })
+                {
+                    <MudText Typo="Typo.h4" Class="mb-4">Acceso denegado</MudText>
+                    <MudAlert Severity="Severity.Warning" data-testid="access-denied">
+                        Su cuenta no tiene permisos para acceder a esta sección.
+                    </MudAlert>
+                }
+                else
+                {
+                    <RedirectToLogin />
+                }
             </NotAuthorized>
         </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />

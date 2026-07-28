@@ -13,6 +13,10 @@ public interface IAppSettingStore
 
     /// <summary>Stages an audit entry.</summary>
     Task AddAuditAsync(AppSettingAudit audit, CancellationToken ct = default);
+
+    /// <summary>Audit entries for a category, newest first, capped at <paramref name="limit"/>.</summary>
+    Task<IReadOnlyList<AppSettingAudit>> ListAuditAsync(
+        string category, int limit, CancellationToken ct = default);
 }
 
 /// <summary>

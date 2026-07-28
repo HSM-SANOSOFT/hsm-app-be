@@ -10,11 +10,11 @@
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="stylesheet" href="@Assets["Hsm.Web.styles.css"]" />
     <ImportMap />
-    <HeadOutlet @rendermode="InteractiveServer" />
+    <HeadOutlet @rendermode="PageRenderMode" />
 </head>
 
 <body>
-    <Routes @rendermode="InteractiveServer" />
+    <Routes @rendermode="PageRenderMode" />
     <ReconnectModal />
     <div id="blazor-error-ui" data-nosnippet>
         Ha ocurrido un error inesperado.
@@ -26,3 +26,16 @@
 </body>
 
 </html>
+
+@code {
+    // For HttpContext.AcceptsInteractiveRouting().
+    [CascadingParameter]
+    private HttpContext HttpContext { get; set; } = default!;
+
+    // Pages marked [ExcludeFromInteractiveRouting] (the sign-in screen)
+    // render in static SSR: setting the session cookies requires a live HTTP
+    // response, which a circuit does not have. Everything else keeps the
+    // interactive server mode from plan U17.
+    private IComponentRenderMode? PageRenderMode =>
+        HttpContext.AcceptsInteractiveRouting() ? InteractiveServer : null;
+}

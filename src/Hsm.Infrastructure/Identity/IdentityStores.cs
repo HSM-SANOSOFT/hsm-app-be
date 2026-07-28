@@ -195,6 +195,15 @@ public sealed class IntegrationAccountStore(HsmDbContext db) : IIntegrationAccou
         account.UpdatedAt = now;
         await db.IntegrationAccounts.AddAsync(account, ct);
     }
+
+    public Task<IntegrationAccount?> FindByIdAsync(Guid id, CancellationToken ct = default) =>
+        db.IntegrationAccounts.FirstOrDefaultAsync(a => a.Id == id && a.DeletedAt == null, ct);
+
+    public async Task<IReadOnlyList<IntegrationAccount>> ListAsync(CancellationToken ct = default) =>
+        await db.IntegrationAccounts
+            .Where(a => a.DeletedAt == null)
+            .OrderByDescending(a => a.CreatedAt)
+            .ToListAsync(ct);
 }
 
 /// <summary>EF Core adapter for <see cref="IPasswordResetTokenStore"/>.</summary>

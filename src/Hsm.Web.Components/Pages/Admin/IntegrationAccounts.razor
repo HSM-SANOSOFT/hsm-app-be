@@ -1,0 +1,171 @@
+@page "/integraciones"
+@attribute [Authorize(Roles = UiRoles.Admin)]
+@inject IIntegrationAccountsUiService Integrations
+@inject ISnackbar Snackbar
+
+@* Integration accounts and tokens (plan U18, screen 3). The issued token
+   pair lives in ONE nullable field of this component and nowhere else:
+   dismissing the panel (or navigating away, which disposes the component)
+   destroys the only copy — the service and stores cannot re-produce it.
+   That is a security property, not a UX choice. *@
+
+<PageTitle>Cuentas de integración — HSM</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Cuentas de integración</MudText>
+
+@if (_issued is not null)
+{
+    <MudPaper Class="pa-4 mb-4" Elevation="3" data-testid="issued-tokens">
+        <MudAlert Severity="Severity.Warning" Class="mb-3">
+            Estos tokens se muestran una única vez. Cópielos ahora: al salir de
+            esta vista no podrán recuperarse, solo emitir unos nuevos.
+        </MudAlert>
+        <MudText Typo="Typo.subtitle1" Class="mb-2">
+            Tokens de «@_issued.AccountName»
+        </MudText>
+        <MudText Typo="Typo.body2">Token de acceso</MudText>
+        <code class="hsm-token" data-testid="issued-access-token">@_issued.AccessToken</code>
+        <MudText Typo="Typo.body2" Class="mt-2">Token de refresco</MudText>
+        <code class="hsm-token" data-testid="issued-refresh-token">@_issued.RefreshToken</code>
+        <div class="mt-3">
+            <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                       OnClick="DismissTokens" data-testid="dismiss-tokens">
+                Entendido, ocultar
+            </MudButton>
+        </div>
+    </MudPaper>
+}
+
+<MudPaper Class="pa-4 mb-4" Elevation="2" data-testid="provision-form">
+    <MudText Typo="Typo.h6" Class="mb-3">Nueva cuenta de integración</MudText>
+    <MudGrid Spacing="2">
+        <MudItem xs="12" sm="4">
+            <MudTextField T="string" @bind-Value="_name" Label="Nombre"
+                          Variant="Variant.Outlined" data-testid="new-account-name" />
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudTextField T="string" @bind-Value="_description" Label="Descripción"
+                          Variant="Variant.Outlined" data-testid="new-account-description" />
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudSelect T="string" @bind-Value="_functionality" Label="Funcionalidad"
+                       Variant="Variant.Outlined" data-testid="new-account-functionality">
+                @foreach (var functionality in UiIntegrationFunctionality.All)
+                {
+                    <MudSelectItem T="string" Value="@functionality">@functionality</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+    </MudGrid>
+    <MudButton Color="Color.Primary" Variant="Variant.Filled" Class="mt-3"
+               OnClick="ProvisionAsync" data-testid="provision-submit">
+        Crear cuenta y emitir tokens
+    </MudButton>
+</MudPaper>
+
+@if (_accounts is null)
+{
+    <MudProgressLinear Indeterminate="true" data-testid="accounts-loading" />
+}
+else
+{
+    <MudTable T="IntegrationAccountDto" Items="_accounts" Hover="true" Dense="true"
+              data-testid="accounts-table">
+        <HeaderContent>
+            <MudTh>Nombre</MudTh>
+            <MudTh>Descripción</MudTh>
+            <MudTh>Funcionalidad</MudTh>
+            <MudTh>Token</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Nombre">@context.Name</MudTd>
+            <MudTd DataLabel="Descripción">@context.Description</MudTd>
+            <MudTd DataLabel="Funcionalidad">@context.Functionality</MudTd>
+            <MudTd DataLabel="Token">
+                @if (context.HasActiveToken)
+                {
+                    <MudChip T="string" Color="Color.Success" Size="Size.Small">Activo</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string" Color="Color.Default" Size="Size.Small">Sin token</MudChip>
+                }
+            </MudTd>
+            <MudTd>
+                <MudButton Size="Size.Small" Color="Color.Secondary" Variant="Variant.Outlined"
+                           OnClick="@(() => IssueAsync(context))"
+                           data-testid="@($"issue-tokens-{context.Name}")">
+                    Emitir tokens
+                </MudButton>
+                <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined"
+                           Disabled="@(!context.HasActiveToken)"
+                           OnClick="@(() => RevokeAsync(context))"
+                           data-testid="@($"revoke-tokens-{context.Name}")">
+                    Revocar
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private IReadOnlyList<IntegrationAccountDto>? _accounts;
+    private IssuedIntegrationTokensDto? _issued;
+    private string _name = string.Empty;
+    private string _description = string.Empty;
+    private string _functionality = UiIntegrationFunctionality.Dev;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync() => _accounts = await Integrations.ListAccountsAsync();
+
+    // The ONLY sink of the issued pair: nulling the field destroys the last
+    // reference, so no later render can bring the secrets back.
+    private void DismissTokens() => _issued = null;
+
+    private async Task ProvisionAsync()
+    {
+        try
+        {
+            _issued = await Integrations.ProvisionAsync(
+                new NewIntegrationAccountDto(_name, _description, _functionality));
+            Snackbar.Add($"Cuenta '{_name}' creada.", Severity.Success);
+            _name = string.Empty;
+            _description = string.Empty;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudo crear la cuenta: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task IssueAsync(IntegrationAccountDto account)
+    {
+        try
+        {
+            _issued = await Integrations.IssueTokensAsync(account.Id);
+            Snackbar.Add($"Tokens emitidos para '{account.Name}'.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudieron emitir los tokens: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task RevokeAsync(IntegrationAccountDto account)
+    {
+        try
+        {
+            await Integrations.RevokeTokensAsync(account.Id);
+            Snackbar.Add($"Tokens de '{account.Name}' revocados.", Severity.Success);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"No se pudieron revocar los tokens: {ex.Message}", Severity.Error);
+        }
+    }
+}
