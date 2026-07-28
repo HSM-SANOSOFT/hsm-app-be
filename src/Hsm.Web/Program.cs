@@ -4,18 +4,22 @@ using Hsm.Contracts.Ui;
 using Hsm.Infrastructure;
 using Hsm.Web.Api;
 using Hsm.Web.Auth;
-using Hsm.Web.Components;
 using Hsm.Web.Coms;
 using Hsm.Web.Docs;
 using Hsm.Web.Fhir;
 using Hsm.Web.Health;
+using Hsm.Web.Host;
 using Hsm.Web.Services;
 using Hsm.Web.Settings;
 using Hsm.Web.Telemetry;
 using Hsm.Web.Templates;
 using Hsm.Web.Users;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.AspNetCore.RateLimiting;
+using MudBlazor.Services;
 using Npgsql;
 using OpenTelemetry;
 using OpenTelemetry.Exporter;
@@ -53,6 +57,27 @@ builder.Services.AddScoped<CircuitHandler, MetricsCircuitHandler>();
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+builder.Services.AddMudServices();
+
+// Shell authentication (plan U17): the same access-token cookie the REST
+// surface issues signs the Blazor shell in. Pages marked [Authorize] carry
+// endpoint metadata, so anonymous visitors are challenged — redirected to
+// /login — before anything renders; the /v1 surface keeps its own frozen
+// guard chain and is untouched by this scheme.
+builder.Services
+    .AddAuthentication(HsmCookieAuthenticationHandler.SchemeName)
+    .AddScheme<AuthenticationSchemeOptions, HsmCookieAuthenticationHandler>(
+        HsmCookieAuthenticationHandler.SchemeName, displayName: null, configureOptions: null);
+builder.Services.AddAuthorization();
+
+// Blazor-side auth state: the host hands the validated HttpContext principal
+// to this provider at circuit start (and per statically rendered page).
+builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddScoped<HsmAuthenticationStateProvider>();
+builder.Services.AddScoped<AuthenticationStateProvider>(sp =>
+    sp.GetRequiredService<HsmAuthenticationStateProvider>());
+builder.Services.AddScoped<IHostEnvironmentAuthenticationStateProvider>(sp =>
+    sp.GetRequiredService<HsmAuthenticationStateProvider>());
 
 // Store-port adapters (EF Core/Npgsql, S3, Meilisearch, Redis cache) bound
 // from configuration (plan U9).
@@ -64,6 +89,7 @@ builder.Services.AddScoped<GetSystemStatusHandler>();
 // UI services: interfaces declared in Hsm.Contracts, implemented by this
 // host with in-process handler calls (client-isolation boundary, plan U8).
 builder.Services.AddScoped<ISystemStatusUiService, SystemStatusUiService>();
+builder.Services.AddScoped<ICurrentUserUiService, CurrentUserUiService>();
 
 // Auth web surface (plan U12): cookie posture + CSRF from configuration.
 builder.Services.AddSingleton(new AuthWebOptions
@@ -121,7 +147,11 @@ app.UseRateLimiter();
 // middleware ran before guards.
 app.Use(async (ctx, next) =>
 {
-    if (!CsrfProtection.ShouldSkip(ctx)
+    // The Blazor transport (/_blazor negotiate POSTs) is outside the frozen
+    // CSRF surface: the client never carries the x-csrf-token header, and
+    // page-level form posts are protected by antiforgery below.
+    if (!ctx.Request.Path.StartsWithSegments("/_blazor")
+        && !CsrfProtection.ShouldSkip(ctx)
         && !ctx.RequestServices.GetRequiredService<CsrfProtection>().Validate(ctx))
     {
         // The frozen failure surfaced from the express layer, outside the
@@ -135,6 +165,11 @@ app.Use(async (ctx, next) =>
     await next();
 });
 
+// Shell session: authenticate from the access-token cookie, then enforce the
+// [Authorize] endpoint metadata Blazor pages carry. Must precede antiforgery.
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.UseAntiforgery();
 
 app.MapStaticAssets();
@@ -146,7 +181,9 @@ app.MapSettingsEndpoints();
 app.MapTemplateEndpoints();
 app.MapComsEndpoints();
 app.MapDocsEndpoints();
+// Routable pages live in the component library; the host only maps them.
 app.MapRazorComponents<App>()
+    .AddAdditionalAssemblies(typeof(Hsm.Web.Components.Routes).Assembly)
     .AddInteractiveServerRenderMode();
 
 app.Run();

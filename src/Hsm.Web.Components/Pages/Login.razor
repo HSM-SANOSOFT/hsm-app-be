@@ -1,0 +1,33 @@
+@page "/login"
+@layout AnonymousLayout
+
+@* U17 placeholder sign-in page: proves the unauthenticated redirect target
+   renders. U18 builds the working sign-in screen here. *@
+
+<PageTitle>Iniciar sesión — HSM</PageTitle>
+
+<MudCard Class="pa-4" Style="width: 100%;">
+    <MudCardHeader>
+        <MudText Typo="Typo.h5">Iniciar sesión</MudText>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudTextField T="string"
+                      Label="Nombre de usuario"
+                      Variant="Variant.Outlined"
+                      Disabled="true" />
+        <MudTextField T="string"
+                      Label="Contraseña"
+                      InputType="InputType.Password"
+                      Variant="Variant.Outlined"
+                      Class="mt-3"
+                      Disabled="true" />
+        <MudText Typo="Typo.body2" Class="mt-3 mud-text-secondary">
+            El inicio de sesión desde esta pantalla estará disponible próximamente.
+        </MudText>
+    </MudCardContent>
+    <MudCardActions>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="true">
+            Ingresar
+        </MudButton>
+    </MudCardActions>
+</MudCard>

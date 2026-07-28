@@ -1,0 +1,33 @@
+@page "/Error"
+@layout AnonymousLayout
+@using System.Diagnostics
+
+@* Terminal failure surface (the host's exception handler re-executes here
+   outside Development). Kept free of HttpContext so it renders identically
+   from any host. *@
+
+<PageTitle>Error — HSM</PageTitle>
+
+<MudCard Class="pa-4" Style="width: 100%;">
+    <MudCardHeader>
+        <MudText Typo="Typo.h5" Color="Color.Error">Ha ocurrido un error</MudText>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudText Typo="Typo.body1">
+            Se produjo un error al procesar la solicitud. Intente nuevamente; si el
+            problema persiste, contacte al administrador del sistema.
+        </MudText>
+        @if (!string.IsNullOrEmpty(_requestId))
+        {
+            <MudText Typo="Typo.body2" Class="mt-3">
+                Identificador de la solicitud: <code>@_requestId</code>
+            </MudText>
+        }
+    </MudCardContent>
+</MudCard>
+
+@code {
+    private string? _requestId;
+
+    protected override void OnInitialized() => _requestId = Activity.Current?.Id;
+}

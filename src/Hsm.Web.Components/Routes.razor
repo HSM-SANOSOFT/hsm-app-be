@@ -1,0 +1,15 @@
+@* The application's routing root. Routable pages live in this assembly; the
+   host maps this component and supplies the authentication state. Pages
+   carrying [Authorize] are additionally enforced at the endpoint level by the
+   host's authentication scheme — this router-level guard covers interactive
+   (circuit) navigations, which never leave the SignalR connection. *@
+<Router AppAssembly="typeof(Routes).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+            <NotAuthorized>
+                <RedirectToLogin />
+            </NotAuthorized>
+        </AuthorizeRouteView>
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+</Router>
