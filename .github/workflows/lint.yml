@@ -14,8 +14,4 @@ jobs:
           dotnet-version: 10.0.x
       - name: Verify formatting and analyzers
         run: |
-          if [ ! -f Hsm.sln ]; then
-            echo "No Hsm.sln yet (pre-U7) — lint trivially green."
-            exit 0
-          fi
           dotnet format Hsm.sln --verify-no-changes

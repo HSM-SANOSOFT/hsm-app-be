@@ -8,10 +8,8 @@ name: PR Validation
 # the branch rulesets — it only succeeds if every upstream job did. Its name is
 # referenced by all three rulesets in .github/rulesets/ — do not rename it.
 #
-# .NET retarget (rewrite plan U4): each build/test job no-ops with success while
-# the solution does not exist yet (pre-U7), so `pr-gate` always reports a real
-# result instead of a structural failure. The guards disappear naturally once
-# Hsm.sln lands.
+# .NET retarget (rewrite plan U4/U20): all jobs run real dotnet work — the
+# pre-U7 trivially-green guards were removed at the release gate.
 
 on:
   pull_request:
@@ -66,10 +64,6 @@ jobs:
           dotnet-version: 10.0.x
       - name: Build (warnings as errors via Directory.Build.props)
         run: |
-          if [ ! -f Hsm.sln ]; then
-            echo "No Hsm.sln yet (pre-U7) — build trivially green."
-            exit 0
-          fi
           dotnet build Hsm.sln --configuration Release
 
   # --- unit tests: no live infrastructure (Domain/Application/Architecture) ------
@@ -83,10 +77,6 @@ jobs:
           dotnet-version: 10.0.x
       - name: Run unit tests
         run: |
-          if [ ! -f Hsm.sln ]; then
-            echo "No Hsm.sln yet (pre-U7) — unit tests trivially green."
-            exit 0
-          fi
           # Contract suites needing a live host (Postgres and, for Docs,
           # RustFS) carry the Infra trait via their shared base classes and
           # run in the integration-tests job below; everything untraited
@@ -171,17 +161,9 @@ jobs:
           dotnet-version: 10.0.x
       - name: Run integration tests
         run: |
-          if [ ! -f Hsm.sln ]; then
-            echo "No Hsm.sln yet (pre-U7) — integration tests trivially green."
-            exit 0
-          fi
           dotnet test tests/Hsm.Integration.Tests --configuration Release
       - name: Run infra-backed contract tests (auth, dedicated database)
         run: |
-          if [ ! -f Hsm.sln ]; then
-            echo "No Hsm.sln yet (pre-U7) — contract tests trivially green."
-            exit 0
-          fi
           dotnet test tests/Hsm.Contract.Tests --configuration Release
 
   # --- single required status check -> reference this name in the rulesets --------
