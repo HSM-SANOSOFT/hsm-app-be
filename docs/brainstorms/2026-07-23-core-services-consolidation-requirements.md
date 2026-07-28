@@ -2,12 +2,25 @@
 title: Legacy core microservices → monolith consolidation (v1 minor) - Requirements
 type: feat
 date: 2026-07-23
-status: active
+status: superseded
+superseded_by: docs/brainstorms/2026-07-27-dotnet-blazor-stack-pivot-requirements.md
 module: apps/backend/api, apps/backend/worker, packages/database, packages/config, packages/common, packages/storage
 tags: [architecture, backend, consolidation, hexagonal, ports-and-adapters, oracle, fhir, microservices]
 ---
 
 # Legacy core microservices → monolith consolidation (v1 minor)
+
+> **SUPERSEDED — as to delivery vehicle.** The TypeScript monorepo this
+> document targeted (`@hsm/api` + `@hsm/worker`) was deliberately killed as
+> the delivery vehicle for this minor: it was frozen at tag
+> `freeze/typescript-2026-07-27` and the minor was rebuilt on
+> .NET/ASP.NET Core per
+> `docs/brainstorms/2026-07-27-dotnet-blazor-stack-pivot-requirements.md` and
+> `docs/plans/2026-07-27-001-feat-dotnet-blazor-rewrite-plan.md`.
+> The **contract scope defined here carried forward into C#** — the six legacy
+> microservices' external surface remains the specification, now pinned by the
+> frozen OpenAPI snapshot in `docs/reference/` and the contract-test suite.
+> Module paths below refer to the frozen TypeScript tree.
 
 ## Problem Frame
 
