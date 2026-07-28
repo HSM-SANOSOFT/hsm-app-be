@@ -1,4 +1,5 @@
 using Hsm.Domain.Coms;
+using Hsm.Domain.Docs;
 using Hsm.Domain.Identity;
 using Hsm.Domain.Proving;
 using Hsm.Domain.Settings;
@@ -24,6 +25,13 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options) : DbContext(op
     public DbSet<Template> Templates => Set<Template>();
     public DbSet<TemplateParseLog> TemplateParseLogs => Set<TemplateParseLog>();
 
+    public DbSet<Document> Documents => Set<Document>();
+    public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
+    public DbSet<DocumentStorageObject> DocumentStorageObjects => Set<DocumentStorageObject>();
+    public DbSet<DocumentLink> DocumentLinks => Set<DocumentLink>();
+    public DbSet<DocumentGenerated> DocumentGeneratedRecords => Set<DocumentGenerated>();
+    public DbSet<DocumentAuditLog> DocumentAuditLogs => Set<DocumentAuditLog>();
+
     public DbSet<EmailBatch> EmailBatches => Set<EmailBatch>();
     public DbSet<EmailRecipient> EmailRecipients => Set<EmailRecipient>();
     public DbSet<EmailSuppression> EmailSuppressions => Set<EmailSuppression>();
@@ -35,6 +43,7 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options) : DbContext(op
         ConfigureSettings(modelBuilder);
         ConfigureTemplates(modelBuilder);
         ConfigureComs(modelBuilder);
+        ConfigureDocs(modelBuilder);
         modelBuilder.Entity<ProvingRoot>(root =>
         {
             root.ToTable("proving_roots");
@@ -266,6 +275,88 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options) : DbContext(op
                 .WithMany()
                 .HasForeignKey(e => e.RecipientId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+    }
+
+    /// <summary>
+    /// Document tables mirror the frozen docs.* schema (table names included,
+    /// hyphens and all): metadata rows only — the binary itself lives in the
+    /// blob store, and a schema-inspection test proves no binary-capable
+    /// column exists on any of these tables. Versions are relational (one
+    /// blob key per version row); links and audits hang off the document and
+    /// cascade with the ROW's hard delete only — the API soft-deletes, so in
+    /// practice they survive (frozen semantics).
+    /// </summary>
+    private static void ConfigureDocs(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Document>(document =>
+        {
+            document.ToTable("documents");
+            document.HasKey(d => d.Id);
+            document.Property(d => d.Title).HasMaxLength(500);
+            document.Property(d => d.Type).HasMaxLength(20);
+            document.Property(d => d.Status).HasMaxLength(20);
+            document.Property(d => d.Source).HasMaxLength(20);
+            document.HasIndex(d => new { d.CreatedBy, d.CreatedAt });
+            document.HasMany(d => d.Versions)
+                .WithOne()
+                .HasForeignKey(v => v.DocumentId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+            document.HasMany(d => d.Links)
+                .WithOne()
+                .HasForeignKey(l => l.DocumentId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+            document.HasMany(d => d.Audits)
+                .WithOne()
+                .HasForeignKey(a => a.DocumentId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DocumentVersion>(version =>
+        {
+            version.ToTable("documents-version");
+            version.HasKey(v => v.Id);
+            version.HasIndex(v => new { v.DocumentId, v.Version }).IsUnique();
+            version.HasOne(v => v.Storage)
+                .WithOne()
+                .HasForeignKey<DocumentStorageObject>(s => s.VersionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            version.HasOne(v => v.Generated)
+                .WithOne()
+                .HasForeignKey<DocumentGenerated>(g => g.VersionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DocumentStorageObject>(storage =>
+        {
+            storage.ToTable("document-storage-object");
+            storage.HasKey(s => s.Id);
+            storage.Property(s => s.Path).HasMaxLength(1024);
+            storage.Property(s => s.Bucket).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<DocumentLink>(link =>
+        {
+            link.ToTable("document-link");
+            link.HasKey(l => l.Id);
+            link.HasIndex(l => new { l.EntityId, l.EntityType });
+        });
+
+        modelBuilder.Entity<DocumentGenerated>(generated =>
+        {
+            generated.ToTable("documents-generated");
+            generated.HasKey(g => g.Id);
+            generated.Property(g => g.DataJson).HasColumnName("data").HasColumnType("jsonb");
+        });
+
+        modelBuilder.Entity<DocumentAuditLog>(audit =>
+        {
+            audit.ToTable("document-audit-log");
+            audit.HasKey(a => a.Id);
+            audit.Property(a => a.Action).HasMaxLength(100);
         });
     }
 

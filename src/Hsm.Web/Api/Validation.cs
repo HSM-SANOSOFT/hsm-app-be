@@ -519,6 +519,13 @@ public sealed class QueryValidator
         return value;
     }
 
+    /// <summary>An optional free-form string param (frozen @IsOptional + @IsString).</summary>
+    public string? OptionalString(string field)
+    {
+        _knownParams.Add(field);
+        return _query.TryGetValue(field, out var values) ? values[^1] : null;
+    }
+
     /// <summary>A required enum param (frozen @IsNotEmpty + @IsEnum).</summary>
     public string RequiredEnum(string field, IReadOnlyList<string> oneOf)
     {

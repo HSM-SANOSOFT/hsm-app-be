@@ -82,6 +82,12 @@ Complete when:
 - Document generation produces a PDF via QuestPDF (no browser dependency).
 - No document binary is stored in a database column (test inspects schema).
 
+Recorded capability narrowing (not a route drop; not a scope addition, counter
+unaffected): **EXCEL generation is dropped for the minor** — the frozen system
+rendered EXCEL via exceljs; the rebuild renders PDF only, and an EXCEL request
+fails the generation job exactly as the frozen WORD path did (test-pinned).
+Revisit with the first module that needs spreadsheet output.
+
 ### C5 — Remaining contract surface (plan U16)
 
 Complete when:

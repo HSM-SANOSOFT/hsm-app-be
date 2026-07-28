@@ -2,12 +2,14 @@ using Amazon.Runtime;
 using Amazon.S3;
 using Hsm.Application.Auth;
 using Hsm.Application.Coms;
+using Hsm.Application.Docs;
 using Hsm.Application.Ports;
 using Hsm.Application.Proving;
 using Hsm.Application.Settings;
 using Hsm.Application.Templates;
 using Hsm.Application.Users;
 using Hsm.Infrastructure.Coms;
+using Hsm.Infrastructure.Docs;
 using Hsm.Infrastructure.Identity;
 using Hsm.Infrastructure.Persistence;
 using Hsm.Infrastructure.Search;
@@ -52,9 +54,29 @@ public static class DependencyInjection
                 ForcePathStyle = configuration.GetValue("Storage:S3:ForcePathStyle", defaultValue: true),
                 AuthenticationRegion = configuration["Storage:S3:Region"] ?? "us-east-1",
             }));
-        services.AddSingleton<IObjectStorage>(sp => new S3ObjectStorage(
-            sp.GetRequiredService<IAmazonS3>(),
-            configuration["Storage:S3:Bucket"] ?? "hsm"));
+        // Presigned URLs may sign against a second, externally reachable
+        // endpoint (frozen STRG_S3_HOST_EXTERNAL) so browsers outside the
+        // container network can use them; unset means the main client signs.
+        services.AddSingleton<IObjectStorage>(sp =>
+        {
+            var externalEndpoint = configuration["Storage:S3:ExternalEndpoint"];
+            var presignClient = string.IsNullOrEmpty(externalEndpoint)
+                ? null
+                : new AmazonS3Client(
+                    new BasicAWSCredentials(
+                        configuration["Storage:S3:AccessKey"],
+                        configuration["Storage:S3:SecretKey"]),
+                    new AmazonS3Config
+                    {
+                        ServiceURL = externalEndpoint,
+                        ForcePathStyle = configuration.GetValue("Storage:S3:ForcePathStyle", defaultValue: true),
+                        AuthenticationRegion = configuration["Storage:S3:Region"] ?? "us-east-1",
+                    });
+            return new S3ObjectStorage(
+                sp.GetRequiredService<IAmazonS3>(),
+                configuration["Storage:S3:Bucket"] ?? "hsm",
+                presignClient);
+        });
 
         // Search: one Meilisearch client, engine-per-collection resolution.
         services.AddSingleton(_ => new MeilisearchClient(
@@ -65,8 +87,46 @@ public static class DependencyInjection
         AddIdentity(services, configuration);
         AddUsersAndSettings(services);
         AddTemplatesAndComs(services, configuration);
+        AddDocs(services, configuration);
 
         return services;
+    }
+
+    /// <summary>
+    /// Documents adapters and handlers (plan U15). Generation dispatch mirrors
+    /// the coms worker-topology decision: in-process channel behind the
+    /// dispatcher port, frozen retry posture (3 attempts, 1s delay, 2s
+    /// exponential backoff), QuestPDF instead of headless Chrome.
+    /// </summary>
+    private static void AddDocs(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddScoped<IDocumentStore, DocumentStore>();
+        services.AddSingleton<IDocumentPdfRenderer, QuestPdfDocumentRenderer>();
+        services.AddSingleton(new DocsOptions
+        {
+            Bucket = configuration["Docs:Bucket"] ?? "hsm-docs",
+        });
+
+        services.AddSingleton(new DocsQueueOptions
+        {
+            MaxAttempts = configuration.GetValue("Docs:MaxAttempts", defaultValue: 3),
+            InitialDelay = TimeSpan.FromMilliseconds(
+                configuration.GetValue("Docs:InitialDelayMs", defaultValue: 1000)),
+            RetryBaseDelay = TimeSpan.FromMilliseconds(
+                configuration.GetValue("Docs:RetryBaseDelayMs", defaultValue: 2000)),
+        });
+        services.AddSingleton<ChannelDocsDispatcher>();
+        services.AddSingleton<IDocsJobDispatcher>(sp => sp.GetRequiredService<ChannelDocsDispatcher>());
+        services.AddHostedService<DocsJobProcessor>();
+
+        services.AddScoped<ListDocumentsHandler>();
+        services.AddScoped<GenerateDocumentHandler>();
+        services.AddScoped<GetDocumentHandler>();
+        services.AddScoped<GetDocumentUrlHandler>();
+        services.AddScoped<DeleteDocumentHandler>();
+        services.AddScoped<PresignDocumentsHandler>();
+        services.AddScoped<UploadDocumentsHandler>();
+        services.AddScoped<GenerateDocumentJobHandler>();
     }
 
     /// <summary>

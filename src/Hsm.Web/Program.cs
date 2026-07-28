@@ -6,6 +6,7 @@ using Hsm.Web.Api;
 using Hsm.Web.Auth;
 using Hsm.Web.Components;
 using Hsm.Web.Coms;
+using Hsm.Web.Docs;
 using Hsm.Web.Services;
 using Hsm.Web.Settings;
 using Hsm.Web.Telemetry;
@@ -140,6 +141,7 @@ app.MapUserEndpoints();
 app.MapSettingsEndpoints();
 app.MapTemplateEndpoints();
 app.MapComsEndpoints();
+app.MapDocsEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
