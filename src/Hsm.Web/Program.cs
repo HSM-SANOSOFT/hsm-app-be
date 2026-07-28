@@ -7,6 +7,8 @@ using Hsm.Web.Auth;
 using Hsm.Web.Components;
 using Hsm.Web.Coms;
 using Hsm.Web.Docs;
+using Hsm.Web.Fhir;
+using Hsm.Web.Health;
 using Hsm.Web.Services;
 using Hsm.Web.Settings;
 using Hsm.Web.Telemetry;
@@ -136,6 +138,8 @@ app.Use(async (ctx, next) =>
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.MapHealthEndpoints();
+app.MapFhirEndpoints();
 app.MapAuthEndpoints();
 app.MapUserEndpoints();
 app.MapSettingsEndpoints();

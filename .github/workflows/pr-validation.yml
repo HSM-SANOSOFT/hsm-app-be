@@ -87,11 +87,12 @@ jobs:
             echo "No Hsm.sln yet (pre-U7) — unit tests trivially green."
             exit 0
           fi
-          # Contract.Tests.Auth/Users/Settings/Templates/Coms/Docs need live
-          # Postgres (and, for Docs, RustFS) — they run in the integration-tests
-          # job below.
+          # Contract.Tests.Auth/Users/Settings/Templates/Coms/Docs/Fhir need
+          # live Postgres (and, for Docs, RustFS); Health/Routes boot the full
+          # host like the other contract suites — they all run in the
+          # integration-tests job below.
           dotnet test Hsm.sln --configuration Release \
-            --filter "FullyQualifiedName!~Integration&FullyQualifiedName!~Hsm.Contract.Tests.Auth&FullyQualifiedName!~Hsm.Contract.Tests.Users&FullyQualifiedName!~Hsm.Contract.Tests.Settings&FullyQualifiedName!~Hsm.Contract.Tests.Templates&FullyQualifiedName!~Hsm.Contract.Tests.Coms&FullyQualifiedName!~Hsm.Contract.Tests.Docs"
+            --filter "FullyQualifiedName!~Integration&FullyQualifiedName!~Hsm.Contract.Tests.Auth&FullyQualifiedName!~Hsm.Contract.Tests.Users&FullyQualifiedName!~Hsm.Contract.Tests.Settings&FullyQualifiedName!~Hsm.Contract.Tests.Templates&FullyQualifiedName!~Hsm.Contract.Tests.Coms&FullyQualifiedName!~Hsm.Contract.Tests.Docs&FullyQualifiedName!~Hsm.Contract.Tests.Fhir&FullyQualifiedName!~Hsm.Contract.Tests.Health&FullyQualifiedName!~Hsm.Contract.Tests.Routes"
 
   # --- integration tests: real Postgres/Redis/RustFS, same shape as local dev ----
   # Mocks cannot prove EF Core change tracking, migration correctness, or S3

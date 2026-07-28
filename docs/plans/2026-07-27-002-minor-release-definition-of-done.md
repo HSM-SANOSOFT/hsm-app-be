@@ -95,10 +95,27 @@ Complete when:
   normalization and not-found behavior, gated by integration credentials.
 - Every operation in the frozen snapshot is either implemented with a passing
   contract test or recorded in this document as deliberately dropped, with
-  reason. Current deliberate drops: **none**.
+  reason. Current deliberate drops (also pinned by the route-closure contract
+  test, `tests/Hsm.Contract.Tests/Routes/RouteClosureTests.cs`):
+  - `GET /fhir/R4/Encounter`, `POST /fhir/R4/Encounter`,
+    `GET /fhir/R4/Encounter/{id}`, `GET /fhir/R4/ServiceRequest`,
+    `POST /fhir/R4/ServiceRequest`, `GET /fhir/R4/ServiceRequest/{id}` —
+    the origin scope boundary excludes clinical modules beyond the contract's
+    patient lookup (orders, encounters, LIS/RIS routing); these six operations
+    are that surface. **Follow-up:** rebuild them with their clinical modules
+    on the FHIR seam the Patient surface established (raw-resource responses,
+    OperationOutcome errors, clinical roles gate, reference pre-resolution per
+    the frozen encounter/service-request services). **Consumer impact:** the
+    frozen system answered these paths; the rebuilt application returns a
+    plain 404 there — integration (A3) consumers of the FHIR
+    Encounter/ServiceRequest surface see a contract change until the follow-up
+    lands. (This entry records a narrowing already stated by the origin scope
+    boundary and the clause below — a clarification/removal, not a scope
+    addition; the revision counter is unaffected.)
 - FHIR R4 `Encounter`/`ServiceRequest` write/search surface beyond the
   contract's patient scope is a recorded follow-up, not silently missing
-  (origin scope boundary: clinical modules are out of the minor).
+  (origin scope boundary: clinical modules are out of the minor) — recorded
+  above as of plan U16.
 
 ### C6 — Admin UI shell (plan U17)
 

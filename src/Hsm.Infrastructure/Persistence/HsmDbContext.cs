@@ -1,3 +1,4 @@
+using Hsm.Domain.Clinical;
 using Hsm.Domain.Coms;
 using Hsm.Domain.Docs;
 using Hsm.Domain.Identity;
@@ -32,6 +33,9 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options) : DbContext(op
     public DbSet<DocumentGenerated> DocumentGeneratedRecords => Set<DocumentGenerated>();
     public DbSet<DocumentAuditLog> DocumentAuditLogs => Set<DocumentAuditLog>();
 
+    public DbSet<Patient> Patients => Set<Patient>();
+    public DbSet<PatientIdentifier> PatientIdentifiers => Set<PatientIdentifier>();
+
     public DbSet<EmailBatch> EmailBatches => Set<EmailBatch>();
     public DbSet<EmailRecipient> EmailRecipients => Set<EmailRecipient>();
     public DbSet<EmailSuppression> EmailSuppressions => Set<EmailSuppression>();
@@ -40,6 +44,7 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options) : DbContext(op
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ConfigureIdentity(modelBuilder);
+        ConfigureClinical(modelBuilder);
         ConfigureSettings(modelBuilder);
         ConfigureTemplates(modelBuilder);
         ConfigureComs(modelBuilder);
@@ -144,6 +149,43 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options) : DbContext(op
                 .WithMany()
                 .HasForeignKey(t => t.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    /// <summary>
+    /// Clinical patient tables mirror the frozen schema's semantics
+    /// (patient.entity.ts / patient-identifier.entity.ts): searchable scalars
+    /// as real columns, complex FHIR datatypes as jsonb, and the normalized
+    /// identifier child table with the unique (system, value) index whose
+    /// frozen name the 409 path referenced.
+    /// </summary>
+    private static void ConfigureClinical(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Patient>(patient =>
+        {
+            patient.ToTable("patient");
+            patient.HasKey(p => p.Id);
+            patient.Property(p => p.BirthDate).HasColumnName("birth_date");
+            patient.Property(p => p.NameJson).HasColumnName("name").HasColumnType("jsonb");
+            patient.Property(p => p.TelecomJson).HasColumnName("telecom").HasColumnType("jsonb");
+            patient.Property(p => p.AddressJson).HasColumnName("address").HasColumnType("jsonb");
+            patient.HasMany(p => p.Identifiers)
+                .WithOne()
+                .HasForeignKey(i => i.PatientId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+            // The frozen relation was eager — identifier rows always travel
+            // with the patient.
+            patient.Navigation(p => p.Identifiers).AutoInclude();
+        });
+
+        modelBuilder.Entity<PatientIdentifier>(identifier =>
+        {
+            identifier.ToTable("patient_identifier");
+            identifier.HasKey(i => i.Id);
+            identifier.HasIndex(i => new { i.System, i.Value })
+                .IsUnique()
+                .HasDatabaseName("uq_patient_identifier_system_value");
         });
     }
 

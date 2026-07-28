@@ -1,6 +1,7 @@
 using Amazon.Runtime;
 using Amazon.S3;
 using Hsm.Application.Auth;
+using Hsm.Application.Clinical;
 using Hsm.Application.Coms;
 using Hsm.Application.Docs;
 using Hsm.Application.Ports;
@@ -8,6 +9,7 @@ using Hsm.Application.Proving;
 using Hsm.Application.Settings;
 using Hsm.Application.Templates;
 using Hsm.Application.Users;
+using Hsm.Infrastructure.Clinical;
 using Hsm.Infrastructure.Coms;
 using Hsm.Infrastructure.Docs;
 using Hsm.Infrastructure.Identity;
@@ -85,6 +87,7 @@ public static class DependencyInjection
         services.AddSingleton<ISearchIndexResolver, SearchIndexResolver>();
 
         AddIdentity(services, configuration);
+        AddClinical(services);
         AddUsersAndSettings(services);
         AddTemplatesAndComs(services, configuration);
         AddDocs(services, configuration);
@@ -174,6 +177,19 @@ public static class DependencyInjection
         services.AddScoped<ReceiveWebhookHandler>();
         services.AddScoped<SendEmailJobHandler>();
         services.AddScoped<ProcessWebhookJobHandler>();
+    }
+
+    /// <summary>
+    /// Clinical patient adapter and handlers (plan U16): the pg-native
+    /// patient-lookup surface behind /fhir/R4/Patient.
+    /// </summary>
+    private static void AddClinical(IServiceCollection services)
+    {
+        services.AddScoped<IPatientStore, PatientStore>();
+
+        services.AddScoped<CreatePatientHandler>();
+        services.AddScoped<GetPatientHandler>();
+        services.AddScoped<SearchPatientsHandler>();
     }
 
     /// <summary>

@@ -96,6 +96,7 @@ public sealed class ApiResponse
 {
     public required int Status { get; init; }
     public required string RawBody { get; init; }
+    public string? ContentType { get; init; }
     public JsonElement? Json { get; init; }
     public required IReadOnlyList<string> SetCookies { get; init; }
 
@@ -135,6 +136,7 @@ public sealed class ApiResponse
                 RawBody = raw,
                 Json = json,
                 SetCookies = cookies,
+                ContentType = response.Content.Headers.ContentType?.ToString(),
             };
         }
     }

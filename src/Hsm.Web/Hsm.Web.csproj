@@ -7,6 +7,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- FHIR R4 validation/parsing at the API edge only (frozen @medplum/core
+         validateResource replacement). Application/Domain never see it. -->
+    <PackageReference Include="Hl7.Fhir.R4" />
     <PackageReference Include="Npgsql.OpenTelemetry" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
