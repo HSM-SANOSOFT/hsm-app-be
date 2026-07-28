@@ -1,7 +1,7 @@
 ---
 title: ".NET / Blazor rewrite — freeze, strip, rebuild the minor release"
 type: feat
-status: active
+status: completed
 date: 2026-07-27
 origin: docs/brainstorms/2026-07-27-dotnet-blazor-stack-pivot-requirements.md
 ---
