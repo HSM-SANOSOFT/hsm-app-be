@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Hsm.Contract.Tests.Auth;
 using Hsm.Domain.Coms;
 using Microsoft.EntityFrameworkCore;
 

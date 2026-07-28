@@ -1,43 +1,18 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
-using Hsm.Contract.Tests.Auth;
 
 namespace Hsm.Contract.Tests.Docs;
 
 /// <summary>
-/// Base for the U15 docs contract tests: schema + bucket readiness, an
-/// authenticated bearer (docs routes accept ANY authenticated, onboarded
-/// role), multipart upload helpers, and the frozen-envelope assertions.
+/// Base for the U15 docs contract tests: the shared plumbing plus multipart
+/// upload helpers and the generation-status poll (docs routes accept ANY
+/// authenticated, onboarded role).
 /// </summary>
-public abstract class DocsContractTest(DocsApiFactory factory) : IAsyncLifetime
+public abstract class DocsContractTest(DocsApiFactory factory) : ContractTest<DocsApiFactory>(factory)
 {
-    protected DocsApiFactory Factory { get; } = factory;
-
-    protected HttpClient Client { get; private set; } = null!;
-
-    public async Task InitializeAsync()
-    {
-        await Factory.EnsureSchemaAsync();
-        Client = Factory.CreateApiClient();
-    }
-
-    public Task DisposeAsync()
-    {
-        Client.Dispose();
-        return Task.CompletedTask;
-    }
-
-    protected static string Unique(string prefix) => $"{prefix}_{Guid.NewGuid():N}";
-
     /// <summary>Seeds a doctor (any-role surface) and returns a bearer access token.</summary>
-    protected async Task<string> BearerAsync(string role = "doctor")
-    {
-        var username = Unique("docs");
-        await Factory.SeedUserAsync(username, "Docs-Passw0rd", role, DateTimeOffset.UtcNow);
-        var login = await Api.PostJsonAsync(
-            Client, "/v1/auth/login", new { username, password = "Docs-Passw0rd" });
-        return login.AccessToken;
-    }
+    protected async Task<string> BearerAsync(string role = "doctor") =>
+        (await base.BearerAsync(role, onboarded: true)).Bearer;
 
     protected async Task<ApiResponse> DeleteAsync(string path, string? bearer = null, object? body = null)
     {
@@ -149,57 +124,8 @@ public abstract class DocsContractTest(DocsApiFactory factory) : IAsyncLifetime
         }
     }
 
-    /// <summary>Pins the frozen success-envelope metadata.</summary>
-    protected static void AssertSuccessEnvelope(ApiResponse response, int statusCode, string path)
-    {
-        Assert.True(
-            statusCode == response.Status,
-            $"expected {statusCode}, got {response.Status}: {response.RawBody}");
-        var metadata = response.Metadata;
-        Assert.True(metadata.GetProperty("success").GetBoolean());
-        Assert.Equal(statusCode, metadata.GetProperty("statusCode").GetInt32());
-        Assert.Equal(path, metadata.GetProperty("path").GetString());
-        Assert.Equal("Request processed successfully.", metadata.GetProperty("message").GetString());
-        Assert.Equal("v1", metadata.GetProperty("apiVersion").GetString());
-    }
-
-    /// <summary>Pins the frozen error-envelope metadata and stable issue.code.</summary>
-    protected static JsonElement AssertErrorEnvelope(ApiResponse response, int statusCode, string expectedCode)
-    {
-        Assert.True(
-            statusCode == response.Status,
-            $"expected {statusCode}, got {response.Status}: {response.RawBody}");
-        var metadata = response.Metadata;
-        Assert.False(metadata.GetProperty("success").GetBoolean());
-        Assert.Equal(statusCode, metadata.GetProperty("statusCode").GetInt32());
-        Assert.Equal("Request processed unsuccessfully.", metadata.GetProperty("message").GetString());
-        var issue = response.Issue;
-        Assert.Equal(expectedCode, issue.GetProperty("code").GetString());
-        return issue;
-    }
-
-    /// <summary>Asserts a COMMON.VALIDATION 400 carrying a constraint for a field.</summary>
-    protected static void AssertValidationFailure(ApiResponse response, string field, string constraint)
-    {
-        var issue = AssertErrorEnvelope(response, 400, "COMMON.VALIDATION");
-        var match = issue.GetProperty("errors").EnumerateArray()
-            .FirstOrDefault(e => e.GetProperty("field").GetString() == field);
-        Assert.True(
-            match.ValueKind == JsonValueKind.Object,
-            $"no validation entry for field '{field}': {response.RawBody}");
-        Assert.Contains(
-            constraint,
-            match.GetProperty("constraints").EnumerateArray().Select(c => c.GetString()));
-    }
-
     /// <summary>Pins the frozen buildPaginationMeta block on list responses.</summary>
     protected static void AssertPagination(
-        ApiResponse response, int page, int pageSize, int totalItems, int totalPages)
-    {
-        var pagination = response.Metadata.GetProperty("extra").GetProperty("pagination");
-        Assert.Equal(page, pagination.GetProperty("page").GetInt32());
-        Assert.Equal(pageSize, pagination.GetProperty("pageSize").GetInt32());
-        Assert.Equal(totalItems, pagination.GetProperty("totalItems").GetInt32());
-        Assert.Equal(totalPages, pagination.GetProperty("totalPages").GetInt32());
-    }
+        ApiResponse response, int page, int pageSize, int totalItems, int totalPages) =>
+        EnvelopeAssert.Pagination(response, page, pageSize, totalItems, totalPages);
 }

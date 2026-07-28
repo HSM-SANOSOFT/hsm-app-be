@@ -1,4 +1,3 @@
-using Hsm.Contract.Tests.Auth;
 
 namespace Hsm.Contract.Tests.Users;
 

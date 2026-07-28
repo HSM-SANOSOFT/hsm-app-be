@@ -15,7 +15,9 @@ public sealed class TemplateStore(HsmDbContext db) : ITemplateStore
     public async Task<Template?> FindByIdentifierAsync(
         string identifier, bool withChildren = false, bool withBase = false, CancellationToken ct = default)
     {
-        var query = Query(withChildren, withBase);
+        // Identifier lookups feed read-only flows (get, render, send, docs
+        // generation); mutating flows load via FindByIdAsync.
+        var query = Query(withChildren, withBase).AsNoTracking();
         // The frozen id-or-name rule: a UUID-shaped identifier matches id OR name.
         if (Guid.TryParse(identifier, out var id))
         {
@@ -27,7 +29,7 @@ public sealed class TemplateStore(HsmDbContext db) : ITemplateStore
 
     public async Task<IReadOnlyList<Template>> ListAsync(string? category, CancellationToken ct = default)
     {
-        var query = Query(withChildren: true, withBase: false);
+        var query = Query(withChildren: true, withBase: false).AsNoTracking();
         if (category is not null)
         {
             query = query.Where(t => t.Category == category);

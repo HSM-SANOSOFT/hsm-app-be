@@ -61,6 +61,5 @@ public class ApiException : Exception
     /// HttpException('Too Many Requests', 429), whose envelope carries ONLY
     /// the status-mapped code — no message. Preserved here.
     /// </summary>
-    public static ApiException TooManyRequests() =>
-        new(429, message: null, code: null, errorLabel: null) { IssueMessage = null };
+    public static ApiException TooManyRequests() => new(429);
 }

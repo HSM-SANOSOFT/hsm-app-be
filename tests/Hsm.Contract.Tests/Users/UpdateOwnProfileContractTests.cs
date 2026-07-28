@@ -1,4 +1,3 @@
-using Hsm.Contract.Tests.Auth;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hsm.Contract.Tests.Users;

@@ -19,24 +19,18 @@ public static class ApiErrorHandling
                 return;
             }
 
-            try
-            {
-                await next();
-            }
-            catch (ApiException exception) when (!ctx.Response.HasStarted)
-            {
-                await ApiEnvelope.WriteErrorAsync(ctx, exception.StatusCode, ApiEnvelope.IssueFor(exception));
-            }
-            catch (Exception) when (!ctx.Response.HasStarted)
-            {
+            await ApiErrorGuard.RunAsync(
+                ctx,
+                () => next(),
+                (c, exception) =>
+                    ApiEnvelope.WriteErrorAsync(c, exception.StatusCode, ApiEnvelope.IssueFor(exception)),
                 // The frozen API surfaced unhandled errors as a bare Nest 500;
                 // here the envelope invariant is kept (issue.code COMMON.INTERNAL)
                 // — a deliberate, documented divergence.
-                await ApiEnvelope.WriteErrorAsync(
-                    ctx,
+                c => ApiEnvelope.WriteErrorAsync(
+                    c,
                     StatusCodes.Status500InternalServerError,
-                    new JsonObject { ["message"] = "Internal server error" });
-            }
+                    new JsonObject { ["message"] = "Internal server error" }));
         });
     }
 }

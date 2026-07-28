@@ -2,7 +2,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 
-namespace Hsm.Contract.Tests.Auth;
+namespace Hsm.Contract.Tests;
 
 /// <summary>HTTP + envelope helpers shared by the auth contract tests.</summary>
 public static class Api

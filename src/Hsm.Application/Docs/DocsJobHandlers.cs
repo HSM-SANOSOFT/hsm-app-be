@@ -54,7 +54,9 @@ public sealed class GenerateDocumentJobHandler(
 
             var data = JsonNode.Parse(job.DataJson) as JsonObject ?? [];
             var html = await parser.ParseAsync(template, data, userId: null, ct);
-            var pdf = pdfRenderer.Render(html);
+            // The synchronous QuestPDF render runs off the consumer's async
+            // flow so a long layout cannot stall queue throughput.
+            var pdf = await Task.Run(() => pdfRenderer.Render(html), ct);
 
             var fileId = Guid.NewGuid();
             var key = StorageKeys.MakeKey(template.Doc.DocumentCode, fileId.ToString());

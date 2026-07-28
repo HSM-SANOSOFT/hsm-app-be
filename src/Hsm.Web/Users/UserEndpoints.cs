@@ -1,6 +1,5 @@
-using System.Globalization;
 using System.Text.Json.Nodes;
-using Hsm.Application.Auth;
+using Hsm.Application;
 using Hsm.Application.Users;
 using Hsm.Domain.Identity;
 using Hsm.Web.Api;
@@ -33,9 +32,7 @@ public static class UserEndpoints
 
     private static async Task<IResult> UpdateOwnProfile(HttpContext ctx, UpdateOwnProfileHandler handler)
     {
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        RequestAuth.RequireRoles(ctx, principal);
-        await RequestAuth.RequireOnboardingCompletedAsync(ctx, principal);
+        var principal = await RequestAuth.GateAsync(ctx);
 
         // Frozen UpdateOwnProfileDto: ONLY firstName and email. Any role/roles
         // property is rejected by the whitelist — self-escalation is
@@ -52,9 +49,7 @@ public static class UserEndpoints
 
     private static async Task<IResult> ChangeOwnPassword(HttpContext ctx, ChangeOwnPasswordHandler handler)
     {
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        RequestAuth.RequireRoles(ctx, principal);
-        await RequestAuth.RequireOnboardingCompletedAsync(ctx, principal);
+        var principal = await RequestAuth.GateAsync(ctx);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var currentPassword = body.RequiredString("currentPassword");
@@ -68,9 +63,7 @@ public static class UserEndpoints
 
     private static async Task<IResult> ListUsers(HttpContext ctx, ListUsersHandler handler)
     {
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        RequestAuth.RequireRoles(ctx, principal, Roles.Admin);
-        await RequestAuth.RequireOnboardingCompletedAsync(ctx, principal);
+        await RequestAuth.GateAsync(ctx, Roles.Admin);
 
         var query = QueryValidator.Read(ctx);
         var page = query.OptionalInt("page", min: 1) ?? 1;
@@ -80,24 +73,14 @@ public static class UserEndpoints
 
         var result = await handler.HandleAsync(page, limit);
         var data = new JsonArray([.. result.Users.Select(u => (JsonNode?)UserJson(u, includeRoles: true))]);
-        var extra = new JsonObject
-        {
-            ["pagination"] = new JsonObject
-            {
-                ["page"] = result.Page,
-                ["pageSize"] = result.PageSize,
-                ["totalItems"] = result.TotalItems,
-                ["totalPages"] = result.TotalPages,
-            },
-        };
-        return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, data, extra: extra);
+        return ApiEnvelope.Success(
+            ctx, StatusCodes.Status200OK, data,
+            extra: ApiEnvelope.Pagination(result.Page, result.PageSize, result.TotalItems));
     }
 
     private static async Task<IResult> CreateStaff(HttpContext ctx, CreateStaffHandler handler)
     {
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        RequestAuth.RequireRoles(ctx, principal, Roles.Admin);
-        await RequestAuth.RequireOnboardingCompletedAsync(ctx, principal);
+        await RequestAuth.GateAsync(ctx, Roles.Admin);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var username = body.RequiredString("username");
@@ -123,9 +106,7 @@ public static class UserEndpoints
 
     private static async Task<IResult> GetUser(HttpContext ctx, string id, GetUserHandler handler)
     {
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        RequestAuth.RequireRoles(ctx, principal, Roles.Admin);
-        await RequestAuth.RequireOnboardingCompletedAsync(ctx, principal);
+        await RequestAuth.GateAsync(ctx, Roles.Admin);
 
         // No UUID pipe in the frozen route: a malformed id reached the driver
         // and failed as a 500. Guid.Parse reproduces that observable surface
@@ -136,9 +117,7 @@ public static class UserEndpoints
 
     private static async Task<IResult> ChangeUserRole(HttpContext ctx, string id, ChangeUserRoleHandler handler)
     {
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        RequestAuth.RequireRoles(ctx, principal, Roles.Admin);
-        await RequestAuth.RequireOnboardingCompletedAsync(ctx, principal);
+        await RequestAuth.GateAsync(ctx, Roles.Admin);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var role = body.RequiredString("role", oneOf: RoleCatalog.All, oneOfConstraint: "isIn");
@@ -166,14 +145,14 @@ public static class UserEndpoints
             ["secondLastName"] = user.SecondLastName,
             ["phoneNumber"] = user.PhoneNumber,
             ["gender"] = user.Gender,
-            ["lastLoginAt"] = Iso(user.LastLoginAt),
-            ["onboardingCompletedAt"] = Iso(user.OnboardingCompletedAt),
+            ["lastLoginAt"] = IsoTimestamp.Of(user.LastLoginAt),
+            ["onboardingCompletedAt"] = IsoTimestamp.Of(user.OnboardingCompletedAt),
             ["isActive"] = user.IsActive,
             ["emailVerified"] = user.EmailVerified,
             ["phoneVerified"] = user.PhoneVerified,
-            ["createdAt"] = Iso(user.CreatedAt),
-            ["updatedAt"] = Iso(user.UpdatedAt),
-            ["deletedAt"] = Iso(user.DeletedAt),
+            ["createdAt"] = IsoTimestamp.Of(user.CreatedAt),
+            ["updatedAt"] = IsoTimestamp.Of(user.UpdatedAt),
+            ["deletedAt"] = IsoTimestamp.Of(user.DeletedAt),
         };
         if (includeRoles)
         {
@@ -185,7 +164,7 @@ public static class UserEndpoints
                     ["id"] = role.Id.ToString(),
                     ["domain"] = role.Domain,
                     ["role"] = role.Role,
-                    ["createdAt"] = Iso(role.CreatedAt),
+                    ["createdAt"] = IsoTimestamp.Of(role.CreatedAt),
                 });
             }
 
@@ -194,7 +173,4 @@ public static class UserEndpoints
 
         return json;
     }
-
-    private static string? Iso(DateTimeOffset? value) =>
-        value?.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);
 }

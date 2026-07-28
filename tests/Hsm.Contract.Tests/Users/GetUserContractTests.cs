@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Hsm.Contract.Tests.Auth;
 
 namespace Hsm.Contract.Tests.Users;
 

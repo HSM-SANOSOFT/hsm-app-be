@@ -106,25 +106,30 @@ public sealed class DeleteDocumentHandler(IDocumentStore store, IObjectStorage s
 
         await store.SoftDeleteAsync(id, ct);
 
-        foreach (var version in document.Versions)
-        {
-            if (version.Storage is null)
+        // Independent blob deletes run concurrently (bounded), each still
+        // best-effort: the frozen deleteFiles swallows per-object failures
+        // (logged only) — the API still answers { deleted: true }.
+        using var throttle = new SemaphoreSlim(4);
+        await Task.WhenAll(document.Versions
+            .Where(version => version.Storage is not null)
+            .Select(async version =>
             {
-                continue;
-            }
-
-            var (folderName, fileId) = StorageKeys.Split(version.Storage.Path);
-            try
-            {
-                await storage.DeleteAsync(
-                    StorageKeys.MakeKey(folderName, fileId), version.Storage.Bucket, ct);
-            }
-            catch (ObjectStorageException)
-            {
-                // Frozen deleteFiles swallows per-object failures (logged
-                // only) — the API still answers { deleted: true }.
-            }
-        }
+                await throttle.WaitAsync(ct);
+                try
+                {
+                    var (folderName, fileId) = StorageKeys.Split(version.Storage!.Path);
+                    await storage.DeleteAsync(
+                        StorageKeys.MakeKey(folderName, fileId), version.Storage.Bucket, ct);
+                }
+                catch (ObjectStorageException)
+                {
+                    // Swallowed, as in the frozen path.
+                }
+                finally
+                {
+                    throttle.Release();
+                }
+            }));
     }
 }
 
@@ -176,7 +181,11 @@ public sealed class PresignDocumentsHandler(IObjectStorage storage)
 /// </summary>
 public sealed class UploadDocumentsHandler(IDocumentStore store, IObjectStorage storage)
 {
-    public sealed record FileUpload(string FileName, string ContentType, long Size, byte[] Content);
+    /// <summary>
+    /// One multipart file part. <paramref name="Content"/> is the caller's
+    /// buffered form stream — read once here, disposed with the request.
+    /// </summary>
+    public sealed record FileUpload(string FileName, string ContentType, long Size, Stream Content);
 
     public sealed record PayloadFile(string FolderName, string FileName);
 
@@ -218,9 +227,12 @@ public sealed class UploadDocumentsHandler(IDocumentStore store, IObjectStorage 
             fileByName.TryAdd(name, file);
         }
 
-        var matched = new List<(string Bucket, string FolderName, FileUpload File)>();
+        // Per-item grouped matching — the bucket stays derivable from the
+        // payload item, so only (folderName, file) pairs are carried.
+        var matched = new List<IReadOnlyList<(string FolderName, FileUpload File)>>();
         foreach (var item in command.Payload)
         {
+            var itemFiles = new List<(string FolderName, FileUpload File)>();
             foreach (var payloadFile in item.Files)
             {
                 if (!fileQueues.TryGetValue(payloadFile.FileName, out var queue) || queue.Count == 0)
@@ -237,8 +249,10 @@ public sealed class UploadDocumentsHandler(IDocumentStore store, IObjectStorage 
                     fileQueues.Remove(payloadFile.FileName);
                 }
 
-                matched.Add((item.Bucket, payloadFile.FolderName, file));
+                itemFiles.Add((payloadFile.FolderName, file));
             }
+
+            matched.Add(itemFiles);
         }
 
         if (fileQueues.Count > 0)
@@ -249,24 +263,23 @@ public sealed class UploadDocumentsHandler(IDocumentStore store, IObjectStorage 
                 errorLabel: "Internal Server Error");
         }
 
-        // Blob uploads first (frozen order), grouped back per payload item.
+        // Blob uploads first (frozen order), grouped per payload item;
+        // independent puts run concurrently (bounded) with result order
+        // preserved by index.
         var s3Result = new List<UploadedItem>();
         var records = new List<UploadedDocumentRecord>();
-        var index = 0;
-        foreach (var item in command.Payload)
+        var puts = new List<Task>();
+        using var throttle = new SemaphoreSlim(4);
+        foreach (var (item, itemFiles) in command.Payload.Zip(matched))
         {
-            var uploaded = new List<UploadedFile>();
-            foreach (var _ in item.Files)
+            var uploaded = new UploadedFile[itemFiles.Count];
+            for (var i = 0; i < itemFiles.Count; i++)
             {
-                var (bucket, folderName, file) = matched[index++];
+                var (folderName, file) = itemFiles[i];
                 var fileId = Guid.NewGuid();
                 var key = StorageKeys.MakeKey(folderName, fileId.ToString());
-                using (var content = new MemoryStream(file.Content))
-                {
-                    await storage.PutAsync(key, content, file.ContentType, bucket, ct);
-                }
-
-                uploaded.Add(new UploadedFile(fileId.ToString(), file.FileName, key));
+                uploaded[i] = new UploadedFile(fileId.ToString(), file.FileName, key);
+                puts.Add(PutThrottledAsync(throttle, key, file, item.Bucket, ct));
 
                 // Frozen quirk preserved: mimeType/size come from the FIRST
                 // file carrying this name, not necessarily the matched one.
@@ -278,7 +291,7 @@ public sealed class UploadDocumentsHandler(IDocumentStore store, IObjectStorage 
                     Size: original?.Size,
                     FileId: fileId,
                     Key: key,
-                    Bucket: bucket,
+                    Bucket: item.Bucket,
                     CreatedBy: userId,
                     EntityId: command.EntityId,
                     EntityType: command.EntityType));
@@ -287,7 +300,23 @@ public sealed class UploadDocumentsHandler(IDocumentStore store, IObjectStorage 
             s3Result.Add(new UploadedItem(item.Bucket, uploaded));
         }
 
+        await Task.WhenAll(puts);
+
         var documentIds = await store.AddUploadedDocumentsAsync(records, ct);
         return new Result(s3Result, documentIds);
+    }
+
+    private async Task PutThrottledAsync(
+        SemaphoreSlim throttle, string key, FileUpload file, string bucket, CancellationToken ct)
+    {
+        await throttle.WaitAsync(ct);
+        try
+        {
+            await storage.PutAsync(key, file.Content, file.ContentType, bucket, ct);
+        }
+        finally
+        {
+            throttle.Release();
+        }
     }
 }

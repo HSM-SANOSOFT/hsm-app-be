@@ -1,4 +1,3 @@
-using System.Globalization;
 using Hsm.Application.Errors;
 using Hsm.Domain.Identity;
 
@@ -45,7 +44,7 @@ public sealed class TokenIssuer(
     /// bcrypt hash of the new refresh token, atomically. Routes to the store
     /// matching the principal's mode — the stores are never mixed.
     /// </summary>
-    public async Task RotateRefreshTokenAsync(AuthPrincipal principal, string refreshToken, CancellationToken ct = default)
+    private async Task RotateRefreshTokenAsync(AuthPrincipal principal, string refreshToken, CancellationToken ct = default)
     {
         // Pre-digest before bcrypt — see TokenDigests.
         var hash = hasher.Hash(TokenDigests.Sha256Hex(refreshToken));
@@ -79,8 +78,7 @@ public sealed class TokenIssuer(
     }
 
     /// <summary>The frozen serializeOnboarding: ISO string or null.</summary>
-    public static string? SerializeOnboarding(DateTimeOffset? value) =>
-        value?.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);
+    public static string? SerializeOnboarding(DateTimeOffset? value) => IsoTimestamp.Of(value);
 
     /// <summary>Builds the JWT principal for a user row (roles flattened).</summary>
     public static AuthPrincipal PrincipalFor(User user) => new()

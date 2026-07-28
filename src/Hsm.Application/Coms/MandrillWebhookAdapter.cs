@@ -9,9 +9,7 @@ namespace Hsm.Application.Coms;
 public sealed record NormalizedWebhookEvent(
     string EventType,
     string RecipientEmail,
-    string? ProviderMessageId,
-    DateTimeOffset Timestamp,
-    string? Reason);
+    string? ProviderMessageId);
 
 /// <summary>
 /// The frozen Mandrill adapter (mandrill-webhook.adapter.ts): normalizes a
@@ -38,19 +36,10 @@ public static class MandrillWebhookAdapter
         var msg = eventObject?["msg"] as JsonObject;
 
         var messageId = StringOf(msg?["_id"]);
-        var tsNode = eventObject?["ts"];
-        var timestamp = tsNode is not null
-            && tsNode.GetValueKind() == JsonValueKind.Number
-            && tsNode.AsValue().TryGetValue<double>(out var seconds)
-                ? DateTimeOffset.FromUnixTimeMilliseconds((long)(seconds * 1000))
-                : DateTimeOffset.UtcNow;
-
         return new NormalizedWebhookEvent(
             MapEventType(StringOf(eventObject?["event"]) ?? string.Empty),
             StringOf(msg?["email"]) ?? string.Empty,
-            string.IsNullOrEmpty(messageId) ? null : messageId,
-            timestamp,
-            StringOf(msg?["diag"]));
+            string.IsNullOrEmpty(messageId) ? null : messageId);
     }
 
     /// <summary>The frozen provider-event → common-event map.</summary>

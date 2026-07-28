@@ -1,4 +1,3 @@
-using Hsm.Application.Auth;
 using Hsm.Application.Clinical;
 using Hsm.Application.Errors;
 using Hsm.Domain.Identity;
@@ -42,7 +41,7 @@ public static class FhirEndpoints
     private static Task SearchPatients(HttpContext ctx, SearchPatientsHandler handler) =>
         FhirResponses.ExecuteAsync(ctx, async () =>
         {
-            await GateAsync(ctx);
+            await RequestAuth.GateAsync(ctx, ClinicalStaffRoles);
             var (system, value) = ReadIdentifierToken(ctx);
             var patients = await handler.HandleAsync(system, value, ctx.RequestAborted);
             return FhirResponses.SearchsetBundle([.. patients.Select(PatientFhirMapper.ToJson)]);
@@ -52,7 +51,7 @@ public static class FhirEndpoints
     private static Task ReadPatient(HttpContext ctx, string id, GetPatientHandler handler) =>
         FhirResponses.ExecuteAsync(ctx, async () =>
         {
-            await GateAsync(ctx);
+            await RequestAuth.GateAsync(ctx, ClinicalStaffRoles);
             var patient = await handler.HandleAsync(id, ctx.RequestAborted);
             return FhirResponses.Resource(PatientFhirMapper.ToJson(patient));
         });
@@ -61,24 +60,13 @@ public static class FhirEndpoints
     private static Task CreatePatient(HttpContext ctx, CreatePatientHandler handler) =>
         FhirResponses.ExecuteAsync(ctx, async () =>
         {
-            await GateAsync(ctx);
-            var body = await ReadJsonBodyAsync(ctx);
-            var input = PatientFhirMapper.Parse(body);
+            await RequestAuth.GateAsync(ctx, ClinicalStaffRoles);
+            var (body, rawUtf8) = await ReadJsonBodyAsync(ctx);
+            var input = PatientFhirMapper.Parse(body, rawUtf8);
             var patient = await handler.HandleAsync(input, ctx.RequestAborted);
             return FhirResponses.Resource(
                 PatientFhirMapper.ToJson(patient), StatusCodes.Status201Created);
         });
-
-    /// <summary>
-    /// The frozen global guard chain on FHIR routes: authenticate, clinical
-    /// roles (admin bypass), then the onboarding gate.
-    /// </summary>
-    private static async Task GateAsync(HttpContext ctx)
-    {
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        RequestAuth.RequireRoles(ctx, principal, ClinicalStaffRoles);
-        await RequestAuth.RequireOnboardingCompletedAsync(ctx, principal);
-    }
 
     /// <summary>
     /// The frozen FhirSearchPipe for the Patient config: every query param
@@ -114,11 +102,28 @@ public static class FhirEndpoints
         };
     }
 
-    private static async Task<System.Text.Json.Nodes.JsonNode?> ReadJsonBodyAsync(HttpContext ctx)
+    /// <summary>
+    /// Reads the request body ONCE as UTF-8 bytes — both the JsonNode view
+    /// (field mapping) and the Firely validation parse consume the same
+    /// buffer, with no re-serialization round trip.
+    /// </summary>
+    private static async Task<(System.Text.Json.Nodes.JsonNode? Node, byte[] RawUtf8)> ReadJsonBodyAsync(
+        HttpContext ctx)
     {
+        if (!ctx.Request.HasJsonContentType())
+        {
+            // ReadFromJsonAsync's frozen posture, preserved: a non-JSON
+            // content type escapes as the generic 500 OperationOutcome.
+            throw new InvalidOperationException(
+                $"Unable to read the request as JSON because the request content type '{ctx.Request.ContentType}' is not a known JSON content type.");
+        }
+
+        using var buffer = new MemoryStream();
+        await ctx.Request.Body.CopyToAsync(buffer, ctx.RequestAborted);
+        var rawUtf8 = buffer.ToArray();
         try
         {
-            return await ctx.Request.ReadFromJsonAsync<System.Text.Json.Nodes.JsonNode>(ctx.RequestAborted);
+            return (System.Text.Json.Nodes.JsonNode.Parse(rawUtf8), rawUtf8);
         }
         catch (System.Text.Json.JsonException)
         {

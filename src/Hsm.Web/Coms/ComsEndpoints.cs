@@ -1,11 +1,9 @@
-using System.Globalization;
 using System.Text.Json.Nodes;
-using Hsm.Application.Auth;
+using Hsm.Application;
 using Hsm.Application.Coms;
 using Hsm.Domain.Coms;
 using Hsm.Web.Api;
 using Hsm.Web.Auth;
-using Hsm.Web.Templates;
 
 namespace Hsm.Web.Coms;
 
@@ -35,7 +33,7 @@ public static class ComsEndpoints
 
     private static async Task<IResult> SendEmail(HttpContext ctx, SendEmailHandler handler)
     {
-        var principal = await AuthorizeAsync(ctx);
+        var principal = await RequestAuth.GateAsync(ctx);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var fromEmail = body.OptionalEmail("fromEmail");
@@ -59,14 +57,14 @@ public static class ComsEndpoints
 
     private static async Task<IResult> SendSms(HttpContext ctx)
     {
-        await AuthorizeAsync(ctx);
+        await RequestAuth.GateAsync(ctx);
         // The frozen sendSms() is a stub: 201, success envelope, no data key.
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, includeData: false);
     }
 
     private static async Task<IResult> ListBatches(HttpContext ctx, ListEmailBatchesHandler handler)
     {
-        await AuthorizeAsync(ctx);
+        await RequestAuth.GateAsync(ctx);
 
         var query = QueryValidator.Read(ctx);
         var templateId = query.OptionalUuid("templateId");
@@ -83,19 +81,19 @@ public static class ComsEndpoints
             new BatchListFilter(templateId, overallStatus, createdBy, fromDate, toDate, page, limit));
         var data = new JsonArray([.. batches.Select(b => (JsonNode?)BatchJson(b, includeRecipients: false))]);
         return ApiEnvelope.Success(
-            ctx, StatusCodes.Status200OK, data, extra: TemplateEndpoints.SyntheticPagination(batches.Count));
+            ctx, StatusCodes.Status200OK, data, extra: ApiEnvelope.SinglePagePagination(batches.Count));
     }
 
     private static async Task<IResult> GetBatch(HttpContext ctx, string id, GetEmailBatchHandler handler)
     {
-        await AuthorizeAsync(ctx);
+        await RequestAuth.GateAsync(ctx);
         var batch = await handler.HandleAsync(Guid.Parse(id));
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, BatchJson(batch, includeRecipients: true));
     }
 
     private static async Task<IResult> ResendBatch(HttpContext ctx, string id, ResendEmailBatchHandler handler)
     {
-        await AuthorizeAsync(ctx);
+        await RequestAuth.GateAsync(ctx);
         var jobId = await handler.HandleAsync(Guid.Parse(id));
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status201Created, new JsonObject { ["jobId"] = jobId });
@@ -103,7 +101,7 @@ public static class ComsEndpoints
 
     private static async Task<IResult> ListRecipients(HttpContext ctx, ListEmailRecipientsHandler handler)
     {
-        await AuthorizeAsync(ctx);
+        await RequestAuth.GateAsync(ctx);
 
         var query = QueryValidator.Read(ctx);
         var batchId = query.OptionalUuid("batchId");
@@ -118,13 +116,13 @@ public static class ComsEndpoints
             new RecipientListFilter(batchId, toEmail, status, page, limit));
         var data = new JsonArray([.. recipients.Select(r => (JsonNode?)RecipientJson(r))]);
         return ApiEnvelope.Success(
-            ctx, StatusCodes.Status200OK, data, extra: TemplateEndpoints.SyntheticPagination(recipients.Count));
+            ctx, StatusCodes.Status200OK, data, extra: ApiEnvelope.SinglePagePagination(recipients.Count));
     }
 
     private static async Task<IResult> GetRecipient(
         HttpContext ctx, string id, GetEmailRecipientHandler handler)
     {
-        await AuthorizeAsync(ctx);
+        await RequestAuth.GateAsync(ctx);
         var recipient = await handler.HandleAsync(Guid.Parse(id));
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, RecipientJson(recipient));
     }
@@ -132,7 +130,7 @@ public static class ComsEndpoints
     private static async Task<IResult> ResendRecipient(
         HttpContext ctx, string id, ResendEmailRecipientHandler handler)
     {
-        await AuthorizeAsync(ctx);
+        await RequestAuth.GateAsync(ctx);
         var jobId = await handler.HandleAsync(Guid.Parse(id));
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status201Created, new JsonObject { ["jobId"] = jobId });
@@ -145,20 +143,12 @@ public static class ComsEndpoints
         using var buffer = new MemoryStream();
         await ctx.Request.Body.CopyToAsync(buffer);
 
-        var headers = ctx.Request.Headers.ToDictionary(
-            h => h.Key.ToLowerInvariant(), h => h.Value.ToString(), StringComparer.Ordinal);
-        var received = await handler.HandleAsync(provider, headers, buffer.ToArray());
+        // Only the signature header matters to the handler (header lookup is
+        // case-insensitive already) — no materialized header dictionary.
+        string? signature = ctx.Request.Headers[MandrillSignatureVerifier.SignatureHeader];
+        var received = await handler.HandleAsync(provider, signature, buffer.ToArray());
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status201Created, new JsonObject { ["received"] = received });
-    }
-
-    /// <summary>The frozen guard chain: authenticated, any role, onboarding complete.</summary>
-    private static async Task<AuthPrincipal> AuthorizeAsync(HttpContext ctx)
-    {
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        RequestAuth.RequireRoles(ctx, principal);
-        await RequestAuth.RequireOnboardingCompletedAsync(ctx, principal);
-        return principal;
     }
 
     /// <summary>The frozen EmailBatchEntity serialization (raw entity through the envelope).</summary>
@@ -178,7 +168,7 @@ public static class ComsEndpoints
             ["providerMessageId"] = batch.ProviderMessageId,
             ["overallStatus"] = batch.OverallStatus,
             ["createdBy"] = batch.CreatedBy?.ToString(),
-            ["createdAt"] = Iso(batch.CreatedAt),
+            ["createdAt"] = IsoTimestamp.Of(batch.CreatedAt),
         };
         if (includeRecipients)
         {
@@ -199,10 +189,7 @@ public static class ComsEndpoints
         ["toEmail"] = recipient.ToEmail,
         ["messageId"] = recipient.MessageId,
         ["status"] = recipient.Status,
-        ["sentAt"] = recipient.SentAt is null ? null : Iso(recipient.SentAt.Value),
+        ["sentAt"] = IsoTimestamp.Of(recipient.SentAt),
         ["errorMessage"] = recipient.ErrorMessage,
     };
-
-    private static string Iso(DateTimeOffset value) =>
-        value.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);
 }

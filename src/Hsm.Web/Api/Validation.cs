@@ -20,6 +20,35 @@ public sealed class ApiValidationException(
 }
 
 /// <summary>
+/// The shared failure collector behind body and query validation: ordered
+/// failures, grouped per field with distinct constraint keys when thrown as
+/// the frozen ValidationPipe envelope.
+/// </summary>
+public sealed class ValidationFailures
+{
+    private readonly List<(string Field, string Key, string Message)> _failures = [];
+
+    public int Count => _failures.Count;
+
+    public void Add(string field, string key, string message) => _failures.Add((field, key, message));
+
+    public void ThrowIfAny()
+    {
+        if (_failures.Count == 0)
+        {
+            return;
+        }
+
+        var messages = _failures.Select(f => f.Message).ToList();
+        var byField = _failures
+            .GroupBy(f => f.Field)
+            .Select(g => (g.Key, (IReadOnlyList<string>)g.Select(f => f.Key).Distinct().ToList()))
+            .ToList();
+        throw new ApiValidationException(messages, byField);
+    }
+}
+
+/// <summary>
 /// Request-body validation reproducing the observable surface of the frozen
 /// global ValidationPipe: class-validator constraint keys and messages,
 /// whitelist enforcement (unknown properties are rejected), and all failures
@@ -31,29 +60,63 @@ public sealed class BodyValidator
 
     private readonly JsonObject _body;
     private readonly HashSet<string> _knownFields = new(StringComparer.Ordinal);
-    private readonly List<(string Field, string Key, string Message)> _failures = [];
+    private readonly ValidationFailures _failures = new();
 
     private BodyValidator(JsonObject body) => _body = body;
 
     /// <summary>Reads the JSON object body; a missing body validates as empty.</summary>
     public static async Task<BodyValidator> ReadAsync(HttpContext ctx)
     {
-        using var reader = new StreamReader(ctx.Request.Body);
-        var text = await reader.ReadToEndAsync();
-        if (string.IsNullOrWhiteSpace(text))
+        // Buffered as UTF-8 bytes and parsed directly — no intermediate
+        // string decode.
+        using var buffer = new MemoryStream();
+        await ctx.Request.Body.CopyToAsync(buffer, ctx.RequestAborted);
+        if (!buffer.TryGetBuffer(out var segment))
+        {
+            segment = new ArraySegment<byte>(buffer.ToArray());
+        }
+
+        var bytes = SkipUtf8Preamble(segment.AsMemory());
+        if (IsBlank(bytes.Span))
         {
             return new BodyValidator([]);
         }
 
         try
         {
-            return new BodyValidator(JsonNode.Parse(text) as JsonObject ?? []);
+            return new BodyValidator(JsonNode.Parse(bytes.Span) as JsonObject ?? []);
         }
         catch (JsonException)
         {
             throw new ApiValidationException(["Malformed JSON body"], [("body", MalformedJsonConstraint)]);
         }
     }
+
+    private static ReadOnlyMemory<byte> SkipUtf8Preamble(ReadOnlyMemory<byte> bytes) =>
+        bytes.Span.StartsWith((ReadOnlySpan<byte>)[0xEF, 0xBB, 0xBF]) ? bytes[3..] : bytes;
+
+    private static bool IsBlank(ReadOnlySpan<byte> bytes)
+    {
+        foreach (var b in bytes)
+        {
+            if (b is not ((byte)' ' or (byte)'\t' or (byte)'\r' or (byte)'\n'))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// A validator over a nested object sharing this body's failure list,
+    /// with failures reported under <paramref name="pathPrefix"/>.
+    /// </summary>
+    public NestedValidator Scope(JsonObject node, string pathPrefix) =>
+        new(node, pathPrefix, _failures);
+
+    /// <summary>The body's failure list, for traversals that report into it directly.</summary>
+    internal ValidationFailures Failures => _failures;
 
     public string? OptionalString(string field, bool notEmpty = false)
     {
@@ -441,22 +504,9 @@ public sealed class BodyValidator
         }
     }
 
-    public void ThrowIfInvalid()
-    {
-        if (_failures.Count == 0)
-        {
-            return;
-        }
+    public void ThrowIfInvalid() => _failures.ThrowIfAny();
 
-        var messages = _failures.Select(f => f.Message).ToList();
-        var byField = _failures
-            .GroupBy(f => f.Field)
-            .Select(g => (g.Key, (IReadOnlyList<string>)g.Select(f => f.Key).Distinct().ToList()))
-            .ToList();
-        throw new ApiValidationException(messages, byField);
-    }
-
-    private void Fail(string field, string key, string message) => _failures.Add((field, key, message));
+    private void Fail(string field, string key, string message) => _failures.Add(field, key, message);
 
     private static bool LooksLikeEmail(string value)
     {
@@ -480,7 +530,7 @@ public sealed class QueryValidator
 {
     private readonly IQueryCollection _query;
     private readonly HashSet<string> _knownParams = new(StringComparer.Ordinal);
-    private readonly List<(string Field, string Key, string Message)> _failures = [];
+    private readonly ValidationFailures _failures = new();
 
     private QueryValidator(IQueryCollection query) => _query = query;
 
@@ -638,20 +688,89 @@ public sealed class QueryValidator
         }
     }
 
-    public void ThrowIfInvalid()
-    {
-        if (_failures.Count == 0)
-        {
-            return;
-        }
+    public void ThrowIfInvalid() => _failures.ThrowIfAny();
 
-        var messages = _failures.Select(f => f.Message).ToList();
-        var byField = _failures
-            .GroupBy(f => f.Field)
-            .Select(g => (g.Key, (IReadOnlyList<string>)g.Select(f => f.Key).Distinct().ToList()))
-            .ToList();
-        throw new ApiValidationException(messages, byField);
+    private void Fail(string field, string key, string message) => _failures.Add(field, key, message);
+}
+
+/// <summary>
+/// Validation over a nested JSON object, reporting into the parent's failure
+/// list under a path prefix — the frozen @ValidateNested surfaces.
+/// </summary>
+public sealed class NestedValidator
+{
+    private readonly JsonObject _node;
+    private readonly string _prefix;
+    private readonly ValidationFailures _failures;
+
+    internal NestedValidator(JsonObject node, string pathPrefix, ValidationFailures failures)
+    {
+        _node = node;
+        _prefix = pathPrefix;
+        _failures = failures;
     }
 
-    private void Fail(string field, string key, string message) => _failures.Add((field, key, message));
+    /// <summary>A required, non-empty string (frozen nested @IsNotEmpty: one constraint for every failure shape).</summary>
+    public string NonEmptyString(string field)
+    {
+        var node = _node[field];
+        if (node is null
+            || node.GetValueKind() != JsonValueKind.String
+            || node.GetValue<string>().Length == 0)
+        {
+            _failures.Add($"{_prefix}.{field}", "isNotEmpty", $"{_prefix}.{field} should not be empty");
+            return string.Empty;
+        }
+
+        return node.GetValue<string>();
+    }
+
+    /// <summary>A required email (frozen nested @IsEmail — the '@' probe class-validator applied here).</summary>
+    public string Email(string field)
+    {
+        var node = _node[field];
+        var text = node?.GetValueKind() == JsonValueKind.String ? node.GetValue<string>() : null;
+        if (text is null || !text.Contains('@', StringComparison.Ordinal))
+        {
+            _failures.Add($"{_prefix}.{field}", "isEmail", $"{_prefix}.{field} must be an email");
+            return string.Empty;
+        }
+
+        return text;
+    }
+
+    /// <summary>A required enum (frozen nested @IsEnum: one constraint for every failure shape).</summary>
+    public string Enum(string field, IReadOnlyList<string> oneOf)
+    {
+        var node = _node[field];
+        var text = node?.GetValueKind() == JsonValueKind.String ? node.GetValue<string>() : null;
+        if (text is null || !oneOf.Contains(text, StringComparer.Ordinal))
+        {
+            _failures.Add(
+                $"{_prefix}.{field}", "isEnum",
+                $"{_prefix}.{field} must be one of the following values: {string.Join(", ", oneOf)}");
+            return string.Empty;
+        }
+
+        return text;
+    }
+}
+
+/// <summary>Route-parameter parsing pinned to the two frozen id postures.</summary>
+public static class RouteParams
+{
+    /// <summary>The frozen ParseUUIDPipe surface: a malformed id is a 400.</summary>
+    public static Guid PipedUuid(string id) =>
+        Guid.TryParse(id, out var parsed)
+            ? parsed
+            : throw ApiException.BadRequest("Validation failed (uuid is expected)");
+
+    /// <summary>
+    /// The frozen no-pipe routes: a malformed id reached PostgreSQL, whose
+    /// uuid-cast failure surfaced as a bare 500. Pinned.
+    /// </summary>
+    public static Guid UnpipedUuid(string id) =>
+        Guid.TryParse(id, out var parsed)
+            ? parsed
+            : throw new ApiException(500, "Internal server error");
 }

@@ -13,6 +13,14 @@ public interface IUserStore
     /// <summary>Active (isActive) account owning the email, or null.</summary>
     Task<User?> FindActiveByEmailAsync(string email, CancellationToken ct = default);
 
+    /// <summary>
+    /// Scalar onboarding probe for the request guard: whether a live user row
+    /// exists and, if so, its onboardingCompletedAt — without loading the
+    /// aggregate.
+    /// </summary>
+    Task<(bool Found, DateTimeOffset? OnboardingCompletedAt)> OnboardingStateAsync(
+        Guid id, CancellationToken ct = default);
+
     /// <summary>Stages a new user with role rows resolved via the role catalog.</summary>
     Task AddAsync(User user, IEnumerable<string> roles, CancellationToken ct = default);
 
@@ -26,12 +34,11 @@ public interface IUserStore
     /// (the caller supplies the surrounding transaction) and stages the
     /// replacements — the frozen delete-then-insert order, so re-assigning a
     /// held role cannot trip the (user, domain, role) unique index. Unknown
-    /// roles resolve to no domain and are skipped, as in AddAsync.
+    /// roles resolve to no domain and are skipped, as in AddAsync. Returns
+    /// the staged replacement rows.
     /// </summary>
-    Task ReplaceRolesAsync(Guid userId, IEnumerable<string> roles, CancellationToken ct = default);
-
-    /// <summary>Fresh, untracked role rows for a user.</summary>
-    Task<IReadOnlyList<UserRole>> RolesOfAsync(Guid userId, CancellationToken ct = default);
+    Task<IReadOnlyList<UserRole>> ReplaceRolesAsync(
+        Guid userId, IEnumerable<string> roles, CancellationToken ct = default);
 }
 
 /// <summary>Refresh-token store for human users — never shared with integrations.</summary>

@@ -37,24 +37,22 @@ public static class HealthEndpoints
             ["details"] = new JsonObject(),
         });
 
+    /// <summary>The npm_package_version analog: the host assembly's semantic
+    /// version, resolved once. Build metadata (+sha) is stripped — the frozen
+    /// endpoint never exposed it.</summary>
+    private static readonly string? AssemblyVersion = Assembly.GetExecutingAssembly()
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        .Split('+')[0];
+
     private static IResult Version(HttpContext ctx, IConfiguration configuration)
     {
         var configured = configuration["API_VERSION"];
         var version = string.IsNullOrEmpty(configured)
-            ? AssemblyVersion() ?? "0.0.0"
+            ? AssemblyVersion ?? "0.0.0"
             : configured;
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, new JsonObject
         {
             ["version"] = version,
         });
-    }
-
-    /// <summary>The npm_package_version analog: the host assembly's semantic version.</summary>
-    private static string? AssemblyVersion()
-    {
-        var informational = Assembly.GetExecutingAssembly()
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-        // Strip build metadata (+sha) — the frozen endpoint never exposed it.
-        return informational?.Split('+')[0];
     }
 }

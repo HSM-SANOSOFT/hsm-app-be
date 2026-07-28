@@ -1,145 +1,83 @@
-using System.Threading.Channels;
 using Hsm.Application.Coms;
+using Hsm.Infrastructure.Jobs;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Hsm.Infrastructure.Coms;
 
 /// <summary>One queued communications job (frozen BullMQ 'coms' queue job).</summary>
-public abstract record ComsJob(string JobId)
+public abstract record ComsJob
 {
-    public sealed record SendEmail(string JobId, Guid BatchId, Guid? RecipientId) : ComsJob(JobId);
+    public sealed record SendEmail(Guid BatchId, Guid? RecipientId) : ComsJob;
 
-    public sealed record ProcessWebhookEvent(string JobId, Guid WebhookEventId) : ComsJob(JobId);
-}
-
-/// <summary>Retry posture for the dispatcher (frozen BullMQ job options).</summary>
-public sealed class ComsQueueOptions
-{
-    /// <summary>Frozen attempts: 5 for both send-email and process-webhook-event.</summary>
-    public int MaxAttempts { get; init; } = 5;
-
-    /// <summary>Base delay for exponential backoff (frozen: 5000ms send / 3000ms webhook).</summary>
-    public TimeSpan RetryBaseDelay { get; init; } = TimeSpan.FromSeconds(5);
+    public sealed record ProcessWebhookEvent(Guid WebhookEventId) : ComsJob;
 }
 
 /// <summary>
-/// WORKER-TOPOLOGY DECISION (plan U14, deferred to implementation): the
-/// frozen system pushed sends through BullMQ/Redis to a separate worker
-/// process — a queue hop whose main rationale (Node's single thread) does not
-/// apply here. Communications still need genuinely asynchronous dispatch
-/// (an HTTP send must return before SMTP round-trips), so the send processing
-/// is COLLAPSED INTO THE HOST PROCESS: an in-process channel consumed by
-/// <see cref="ComsJobProcessor"/> on the thread pool, preserving the frozen
-/// retry semantics (5 attempts, exponential backoff). The hand-off stays
-/// behind the <see cref="IComsJobDispatcher"/> port, so a distributed queue
-/// adapter can replace this one — hosted by Hsm.Worker, which registers the
-/// same processor — if cross-process dispatch is ever needed again; nothing
-/// above the port would change.
+/// Retry posture for the coms dispatcher (frozen BullMQ job options: attempts
+/// 5 for both send-email and process-webhook-event, backoff 5000ms/3000ms
+/// exponential).
 /// </summary>
-public sealed class ChannelComsDispatcher : IComsJobDispatcher
+public sealed class ComsQueueOptions : JobRetryOptions
 {
-    private readonly Channel<ComsJob> _channel = Channel.CreateUnbounded<ComsJob>();
-    private long _nextJobId;
-
-    public ChannelReader<ComsJob> Reader => _channel.Reader;
-
-    public async Task<string> EnqueueSendEmailAsync(
-        Guid batchId, Guid? recipientId = null, CancellationToken ct = default)
+    public ComsQueueOptions()
     {
-        // Numeric-string ids, as BullMQ surfaced them to frozen clients.
-        var jobId = Interlocked.Increment(ref _nextJobId).ToString(System.Globalization.CultureInfo.InvariantCulture);
-        await _channel.Writer.WriteAsync(new ComsJob.SendEmail(jobId, batchId, recipientId), ct);
-        return jobId;
-    }
-
-    public async Task<string> EnqueueProcessWebhookEventAsync(
-        Guid webhookEventId, CancellationToken ct = default)
-    {
-        var jobId = Interlocked.Increment(ref _nextJobId).ToString(System.Globalization.CultureInfo.InvariantCulture);
-        await _channel.Writer.WriteAsync(new ComsJob.ProcessWebhookEvent(jobId, webhookEventId), ct);
-        return jobId;
+        MaxAttempts = 5;
+        RetryBaseDelay = TimeSpan.FromSeconds(5);
+        // Strictly serial (frozen worker): send and resend jobs can target
+        // the SAME batch — concurrent processing lets a retrying job's stale
+        // FAILED write land after a resend's SENT write.
+        MaxParallelJobs = 1;
     }
 }
 
 /// <summary>
-/// The background dispatcher (frozen worker ComsService/QueueWorkerHost): one
-/// scope per attempt, frozen retry posture, terminal failures logged — never
-/// thrown into the host.
+/// The in-process coms queue (see <see cref="ChannelJobDispatcher{TJob}"/>
+/// for the worker-topology decision) behind the
+/// <see cref="IComsJobDispatcher"/> port.
 /// </summary>
-public sealed partial class ComsJobProcessor(
+public sealed class ChannelComsDispatcher : ChannelJobDispatcher<ComsJob>, IComsJobDispatcher
+{
+    public string ReserveSendEmailJobId() => ReserveJobId();
+
+    public Task EnqueueSendEmailAsync(
+        string jobId, Guid batchId, Guid? recipientId = null, CancellationToken ct = default) =>
+        EnqueueReservedAsync(jobId, new ComsJob.SendEmail(batchId, recipientId), ct);
+
+    public Task<string> EnqueueProcessWebhookEventAsync(
+        Guid webhookEventId, CancellationToken ct = default) =>
+        EnqueueAsync(new ComsJob.ProcessWebhookEvent(webhookEventId), ct);
+}
+
+/// <summary>
+/// The background dispatcher (frozen worker ComsService/QueueWorkerHost):
+/// consume loop, retries, and logging come from the shared processor.
+/// </summary>
+public sealed class ComsJobProcessor(
     ChannelComsDispatcher queue,
     IServiceScopeFactory scopeFactory,
     ComsQueueOptions options,
-    ILogger<ComsJobProcessor> logger) : BackgroundService
+    ILogger<ComsJobProcessor> logger)
+    : ChannelJobProcessor<ComsJob>(queue, scopeFactory, options, logger)
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        await foreach (var job in queue.Reader.ReadAllAsync(stoppingToken))
-        {
-            await RunWithRetriesAsync(job, stoppingToken);
-        }
-    }
+    protected override string QueueName => "Coms";
 
-    private async Task RunWithRetriesAsync(ComsJob job, CancellationToken ct)
+    protected override async Task RunAsync(ComsJob job, IServiceProvider services, CancellationToken ct)
     {
-        for (var attempt = 1; attempt <= options.MaxAttempts; attempt++)
-        {
-            try
-            {
-                await RunAsync(job, ct);
-                return;
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                return;
-            }
-            catch (Exception exception)
-            {
-                if (attempt == options.MaxAttempts)
-                {
-                    LogJobFailed(logger, exception, job.JobId, attempt);
-                    return;
-                }
-
-                LogJobRetry(logger, job.JobId, attempt, exception.Message);
-                try
-                {
-                    // Frozen: exponential backoff (delay * 2^(attempt-1)).
-                    await Task.Delay(options.RetryBaseDelay * Math.Pow(2, attempt - 1), ct);
-                }
-                catch (OperationCanceledException)
-                {
-                    return;
-                }
-            }
-        }
-    }
-
-    private async Task RunAsync(ComsJob job, CancellationToken ct)
-    {
-        using var scope = scopeFactory.CreateScope();
         switch (job)
         {
             case ComsJob.SendEmail send:
-                await scope.ServiceProvider.GetRequiredService<SendEmailJobHandler>()
+                await services.GetRequiredService<SendEmailJobHandler>()
                     .HandleAsync(send.BatchId, send.RecipientId, ct);
                 break;
             case ComsJob.ProcessWebhookEvent webhook:
-                await scope.ServiceProvider.GetRequiredService<ProcessWebhookJobHandler>()
+                await services.GetRequiredService<ProcessWebhookJobHandler>()
                     .HandleAsync(webhook.WebhookEventId, ct);
                 break;
             default:
                 throw new InvalidOperationException($"Unknown job type: {job.GetType().Name}");
         }
     }
-
-    [LoggerMessage(Level = LogLevel.Error, Message = "Coms job {JobId} failed after {Attempts} attempts")]
-    private static partial void LogJobFailed(ILogger logger, Exception exception, string jobId, int attempts);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Coms job {JobId} attempt {Attempt} failed: {Reason}; retrying")]
-    private static partial void LogJobRetry(ILogger logger, string jobId, int attempt, string reason);
 }
 
 /// <summary>

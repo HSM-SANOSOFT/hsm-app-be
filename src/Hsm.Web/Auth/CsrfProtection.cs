@@ -17,6 +17,8 @@ public sealed class CsrfProtection(AuthWebOptions options)
     public const string HeaderName = "x-csrf-token";
     public const string CookieName = "hsm.x-csrf-token";
 
+    private const string SessionItem = "Hsm.Csrf.SessionIdentifier";
+
     /// <summary>Issues (or reuses) the token for the current session and sets the cookie.</summary>
     public string IssueToken(HttpContext ctx)
     {
@@ -99,9 +101,22 @@ public sealed class CsrfProtection(AuthWebOptions options)
 
     /// <summary>
     /// The `sub` claim decoded (unverified) from the access cookie, or ""
-    /// when absent — the frozen sessionIdentifier.
+    /// when absent — the frozen sessionIdentifier. Decoded once per request
+    /// (middleware validation and token issuance both consult it).
     /// </summary>
     private static string SessionIdentifier(HttpContext ctx)
+    {
+        if (ctx.Items.TryGetValue(SessionItem, out var cached) && cached is string known)
+        {
+            return known;
+        }
+
+        var session = DecodeSessionIdentifier(ctx);
+        ctx.Items[SessionItem] = session;
+        return session;
+    }
+
+    private static string DecodeSessionIdentifier(HttpContext ctx)
     {
         var accessToken = ctx.Request.Cookies[AuthCookies.AccessCookie];
         if (string.IsNullOrEmpty(accessToken))

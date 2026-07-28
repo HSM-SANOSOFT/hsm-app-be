@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Hsm.Application.Errors;
@@ -27,7 +28,7 @@ public sealed class ReceiveWebhookHandler(
 
     public async Task<int> HandleAsync(
         string provider,
-        IReadOnlyDictionary<string, string> headers,
+        string? signature,
         byte[] rawBody,
         CancellationToken ct = default)
     {
@@ -40,7 +41,7 @@ public sealed class ReceiveWebhookHandler(
         var signingKey = await SigningKeyForAsync(provider, ct)
             ?? throw ApiException.BadRequest($"No signing key configured for provider: {provider}");
 
-        if (!MandrillSignatureVerifier.Verify(headers, rawBody, signingKey))
+        if (!MandrillSignatureVerifier.Verify(signature, rawBody, signingKey))
         {
             // Frozen UnauthorizedException('Webhook signature invalid'):
             // rejected before ANYTHING is parsed, persisted, or enqueued.
@@ -63,13 +64,20 @@ public sealed class ReceiveWebhookHandler(
             return 0;
         }
 
-        var rawJson = payload!.ToJsonString();
-        var received = 0;
+        var rawJson = Encoding.UTF8.GetString(rawBody);
+
+        // One SELECT covers the whole delivery's idempotency check; the same
+        // set then absorbs in-payload duplicates.
+        var seen = (await events.ExistingEventKeysAsync(
+                MandrillWebhookAdapter.Provider,
+                [.. normalized.Where(i => i.ProviderMessageId is not null).Select(i => i.ProviderMessageId!)],
+                ct))
+            .ToHashSet();
+
+        var added = new List<EmailWebhookEvent>();
         foreach (var item in normalized)
         {
-            if (item.ProviderMessageId is not null
-                && await events.DuplicateExistsAsync(
-                    MandrillWebhookAdapter.Provider, item.ProviderMessageId, item.EventType, ct))
+            if (item.ProviderMessageId is not null && !seen.Add((item.ProviderMessageId, item.EventType)))
             {
                 // Idempotent duplicate delivery: nothing recorded, nothing re-run.
                 continue;
@@ -86,12 +94,22 @@ public sealed class ReceiveWebhookHandler(
                 CreatedAt = DateTimeOffset.UtcNow,
             };
             await events.AddAsync(entity, ct);
-            await unitOfWork.SaveChangesAsync(ct);
-            await queue.EnqueueProcessWebhookEventAsync(entity.Id, ct);
-            received += 1;
+            added.Add(entity);
         }
 
-        return received;
+        if (added.Count == 0)
+        {
+            return 0;
+        }
+
+        // One SaveChanges for all new rows, then the enqueues.
+        await unitOfWork.SaveChangesAsync(ct);
+        foreach (var entity in added)
+        {
+            await queue.EnqueueProcessWebhookEventAsync(entity.Id, ct);
+        }
+
+        return added.Count;
     }
 
     /// <summary>

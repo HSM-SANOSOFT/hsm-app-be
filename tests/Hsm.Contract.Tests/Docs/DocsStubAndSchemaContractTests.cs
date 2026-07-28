@@ -1,5 +1,4 @@
 using Hsm.Application.Docs;
-using Hsm.Contract.Tests.Auth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 

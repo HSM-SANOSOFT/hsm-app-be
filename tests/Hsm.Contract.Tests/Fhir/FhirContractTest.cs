@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Hsm.Contract.Tests.Auth;
 
 namespace Hsm.Contract.Tests.Fhir;
 
@@ -9,38 +8,11 @@ namespace Hsm.Contract.Tests.Fhir;
 /// errors are FHIR OperationOutcome bodies typed application/fhir+json with
 /// the frozen status→issue-code map.
 /// </summary>
-public abstract class FhirContractTest(FhirApiFactory factory) : IAsyncLifetime
+public abstract class FhirContractTest(FhirApiFactory factory) : ContractTest<FhirApiFactory>(factory)
 {
-    protected FhirApiFactory Factory { get; } = factory;
-
-    protected HttpClient Client { get; private set; } = null!;
-
-    public async Task InitializeAsync()
-    {
-        await Factory.EnsureSchemaAsync();
-        Client = Factory.CreateApiClient();
-    }
-
-    public Task DisposeAsync()
-    {
-        Client.Dispose();
-        return Task.CompletedTask;
-    }
-
-    protected static string Unique(string prefix) => $"{prefix}_{Guid.NewGuid():N}";
-
     /// <summary>Seeds a user with <paramref name="role"/> and returns a bearer access token.</summary>
-    protected async Task<string> BearerAsync(
-        string role = "doctor", bool onboarded = true)
-    {
-        var username = Unique("fhir");
-        await Factory.SeedUserAsync(
-            username, "Fhir-Passw0rd", role, onboarded ? DateTimeOffset.UtcNow : null);
-        var login = await Api.PostJsonAsync(
-            Client, "/v1/auth/login", new { username, password = "Fhir-Passw0rd" });
-        Assert.True(login.Status == 201, $"login failed: {login.RawBody}");
-        return login.AccessToken;
-    }
+    protected new async Task<string> BearerAsync(string role = "doctor", bool onboarded = true) =>
+        (await base.BearerAsync(role, onboarded)).Bearer;
 
     /// <summary>Provisions an integration account and returns its bearer access token.</summary>
     protected async Task<string> IntegrationBearerAsync()

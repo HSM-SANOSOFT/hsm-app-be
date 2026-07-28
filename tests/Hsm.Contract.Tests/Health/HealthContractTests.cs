@@ -1,6 +1,4 @@
-using Hsm.Contract.Tests.Auth;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Hsm.Contract.Tests.Health;
 
@@ -10,25 +8,19 @@ namespace Hsm.Contract.Tests.Health;
 /// with empty info/error/details, wrapped in the success envelope — and the
 /// version endpoint exposes ONLY the semantic version.
 /// </summary>
+[Trait("Infra", "true")]
 public sealed class HealthContractTests(HealthContractTests.HealthApiFactory factory)
     : IClassFixture<HealthContractTests.HealthApiFactory>
 {
-    public sealed class HealthApiFactory : WebApplicationFactory<Program>
+    public sealed class HealthApiFactory : ContractApiFactory
     {
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
-        {
-            builder.UseSetting("Auth:JwtAccessSecret", "contract_test_at_secret_0123456789abcdef");
-            builder.UseSetting("Auth:JwtRefreshSecret", "contract_test_rt_secret_0123456789abcdef");
-            builder.UseSetting("Auth:CsrfSecret", "contract_test_csrf_secret_0123456789abcdef");
+        protected override string DatabaseName => "hsm_health_test";
+
+        protected override void ConfigureModule(IWebHostBuilder builder) =>
             builder.UseSetting("API_VERSION", "9.9.9-contract");
-        }
     }
 
-    private readonly HttpClient _client = factory.CreateClient(new WebApplicationFactoryClientOptions
-    {
-        AllowAutoRedirect = false,
-        HandleCookies = false,
-    });
+    private readonly HttpClient _client = factory.CreateApiClient();
 
     [Fact]
     public async Task Health_is_public_and_reports_the_frozen_empty_terminus_shape()

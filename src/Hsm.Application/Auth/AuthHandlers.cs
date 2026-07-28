@@ -52,45 +52,37 @@ public sealed class SignupHandler(
 
     public async Task<TokenPair> HandleAsync(Command command, CancellationToken ct = default)
     {
+        // Bcrypt work (password + refresh digest) happens BEFORE the
+        // transaction opens — the ResetPasswordHandler pattern: hashing cost
+        // must not extend a database transaction's lifetime.
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Username = command.Username,
+            Email = command.Email,
+            PasswordHash = hasher.Hash(command.Password),
+            FirstName = command.FirstName,
+            FirstLastName = command.FirstLastName,
+            SecondName = command.SecondName,
+            SecondLastName = command.SecondLastName,
+            PhoneNumber = command.PhoneNumber,
+            Gender = command.Gender,
+            OnboardingCompletedAt = DateTimeOffset.UtcNow,
+        };
+        var principal = TokenIssuer.PrincipalFor(user) with { Roles = [Roles.Patient] };
+        var tokens = issuer.GenerateTokens(principal);
+        var refreshHash = hasher.Hash(TokenDigests.Sha256Hex(tokens.RefreshToken));
+
         return await unitOfWork.ExecuteInTransactionAsync(
             async innerCt =>
             {
-                var user = new User
-                {
-                    Id = Guid.NewGuid(),
-                    Username = command.Username,
-                    Email = command.Email,
-                    PasswordHash = hasher.Hash(command.Password),
-                    FirstName = command.FirstName,
-                    FirstLastName = command.FirstLastName,
-                    SecondName = command.SecondName,
-                    SecondLastName = command.SecondLastName,
-                    PhoneNumber = command.PhoneNumber,
-                    Gender = command.Gender,
-                    OnboardingCompletedAt = DateTimeOffset.UtcNow,
-                };
                 await users.AddAsync(user, [Roles.Patient], innerCt);
-
-                var principal = new AuthPrincipal
-                {
-                    Id = user.Id.ToString(),
-                    Username = user.Username,
-                    Email = user.Email,
-                    FirstName = user.FirstName,
-                    FirstLastName = user.FirstLastName,
-                    Roles = [Roles.Patient],
-                    OnboardingCompletedAt = TokenIssuer.SerializeOnboarding(user.OnboardingCompletedAt),
-                    HasOnboardingClaim = true,
-                };
-                var tokens = issuer.GenerateTokens(principal);
-                await userTokens.AddAsync(user.Id, HashOf(tokens.RefreshToken), innerCt);
+                await userTokens.AddAsync(user.Id, refreshHash, innerCt);
                 await unitOfWork.SaveChangesAsync(innerCt);
                 return tokens;
             },
             ct);
     }
-
-    private string HashOf(string refreshToken) => hasher.Hash(TokenDigests.Sha256Hex(refreshToken));
 }
 
 /// <summary>
@@ -170,27 +162,29 @@ public sealed class SignupIntegrationHandler(
 
     public async Task<TokenPair> HandleAsync(Command command, CancellationToken ct = default)
     {
+        // Token minting and the bcrypt refresh digest happen BEFORE the
+        // transaction opens (the ResetPasswordHandler pattern).
+        var account = new IntegrationAccount
+        {
+            Id = Guid.NewGuid(),
+            Name = command.Name,
+            Description = command.Description,
+            Functionality = command.Functionality,
+        };
+        var principal = new AuthPrincipal
+        {
+            Id = account.Id.ToString(),
+            Name = account.Name,
+            Roles = [Roles.Integration],
+        };
+        var tokens = issuer.GenerateTokens(principal);
+        var refreshHash = hasher.Hash(TokenDigests.Sha256Hex(tokens.RefreshToken));
+
         return await unitOfWork.ExecuteInTransactionAsync(
             async innerCt =>
             {
-                var account = new IntegrationAccount
-                {
-                    Id = Guid.NewGuid(),
-                    Name = command.Name,
-                    Description = command.Description,
-                    Functionality = command.Functionality,
-                };
                 await accounts.AddAsync(account, innerCt);
-
-                var principal = new AuthPrincipal
-                {
-                    Id = account.Id.ToString(),
-                    Name = account.Name,
-                    Roles = [Roles.Integration],
-                };
-                var tokens = issuer.GenerateTokens(principal);
-                await integrationTokens.AddAsync(
-                    account.Id, hasher.Hash(TokenDigests.Sha256Hex(tokens.RefreshToken)), innerCt);
+                await integrationTokens.AddAsync(account.Id, refreshHash, innerCt);
                 await unitOfWork.SaveChangesAsync(innerCt);
                 return tokens;
             },

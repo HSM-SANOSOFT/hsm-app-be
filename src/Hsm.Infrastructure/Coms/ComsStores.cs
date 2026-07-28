@@ -23,7 +23,7 @@ public sealed class EmailBatchStore(HsmDbContext db) : IEmailBatchStore
     public async Task<IReadOnlyList<EmailBatch>> ListAsync(
         BatchListFilter filter, CancellationToken ct = default)
     {
-        IQueryable<EmailBatch> query = db.EmailBatches;
+        IQueryable<EmailBatch> query = db.EmailBatches.AsNoTracking();
         if (filter.TemplateId is not null)
         {
             query = query.Where(b => b.TemplateId == filter.TemplateId);
@@ -61,7 +61,7 @@ public sealed class EmailBatchStore(HsmDbContext db) : IEmailBatchStore
     public async Task<IReadOnlyList<EmailRecipient>> ListRecipientsAsync(
         RecipientListFilter filter, CancellationToken ct = default)
     {
-        IQueryable<EmailRecipient> query = db.EmailRecipients;
+        IQueryable<EmailRecipient> query = db.EmailRecipients.AsNoTracking();
         if (filter.BatchId is not null)
         {
             query = query.Where(r => r.BatchId == filter.BatchId);
@@ -96,10 +96,6 @@ public sealed class EmailBatchStore(HsmDbContext db) : IEmailBatchStore
             .ThenByDescending(x => x.Recipient.Id)
             .Select(x => x.Recipient)
             .FirstOrDefaultAsync(ct);
-
-    public async Task<IReadOnlyList<EmailRecipient>> RecipientsOfBatchAsync(
-        Guid batchId, CancellationToken ct = default) =>
-        await db.EmailRecipients.Where(r => r.BatchId == batchId).ToListAsync(ct);
 }
 
 /// <summary>EF Core adapter for <see cref="IEmailSuppressionStore"/>.</summary>
@@ -132,10 +128,20 @@ public sealed class EmailWebhookEventStore(HsmDbContext db) : IEmailWebhookEvent
     public async Task<EmailWebhookEvent?> FindAsync(Guid id, CancellationToken ct = default) =>
         await db.EmailWebhookEvents.FirstOrDefaultAsync(e => e.Id == id, ct);
 
-    public Task<bool> DuplicateExistsAsync(
-        string provider, string messageId, string eventType, CancellationToken ct = default) =>
-        db.EmailWebhookEvents.AnyAsync(
-            e => e.Provider == provider && e.MessageId == messageId && e.EventType == eventType, ct);
+    public async Task<IReadOnlyList<(string MessageId, string EventType)>> ExistingEventKeysAsync(
+        string provider, IReadOnlyCollection<string> messageIds, CancellationToken ct = default)
+    {
+        if (messageIds.Count == 0)
+        {
+            return [];
+        }
+
+        var rows = await db.EmailWebhookEvents
+            .Where(e => e.Provider == provider && e.MessageId != null && messageIds.Contains(e.MessageId))
+            .Select(e => new { e.MessageId, e.EventType })
+            .ToListAsync(ct);
+        return [.. rows.Select(r => (r.MessageId!, r.EventType))];
+    }
 
     public async Task AddAsync(EmailWebhookEvent webhookEvent, CancellationToken ct = default) =>
         await db.EmailWebhookEvents.AddAsync(webhookEvent, ct);

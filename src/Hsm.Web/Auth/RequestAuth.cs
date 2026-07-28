@@ -13,6 +13,9 @@ namespace Hsm.Web.Auth;
 /// </summary>
 public static class RequestAuth
 {
+    private const string AccessPrincipalItem = "Hsm.RequestAuth.AccessPrincipal";
+    private const string RefreshPrincipalItem = "Hsm.RequestAuth.RefreshPrincipal";
+
     /// <summary>The raw access token: access cookie, then bearer header.</summary>
     public static string? AccessToken(HttpContext ctx) =>
         Cookie(ctx, AuthCookies.AccessCookie) ?? Bearer(ctx);
@@ -45,6 +48,16 @@ public static class RequestAuth
             throw ApiException.Unauthorized();
         }
 
+        // Decode-once per request: a second consumer of the same token in the
+        // same request reuses the validated principal.
+        var cacheKey = kind == TokenKind.Access ? AccessPrincipalItem : RefreshPrincipalItem;
+        if (ctx.Items.TryGetValue(cacheKey, out var cached)
+            && cached is (string cachedRaw, AuthPrincipal cachedPrincipal)
+            && cachedRaw == raw)
+        {
+            return cachedPrincipal;
+        }
+
         var codec = ctx.RequestServices.GetRequiredService<IAuthTokenCodec>();
         var result = await codec.ValidateAsync(raw, kind);
         if (result.Principal is null)
@@ -54,7 +67,20 @@ public static class RequestAuth
                 : ApiException.Unauthorized("Invalid token", errorLabel: "INVALID_TOKEN");
         }
 
+        ctx.Items[cacheKey] = (raw, result.Principal);
         return result.Principal;
+    }
+
+    /// <summary>
+    /// The frozen guard chain in one call: authenticate the access token,
+    /// enforce roles, then the onboarding gate. Returns the principal.
+    /// </summary>
+    public static async Task<AuthPrincipal> GateAsync(HttpContext ctx, params string[] requiredRoles)
+    {
+        var principal = await AuthenticateAsync(ctx, TokenKind.Access);
+        RequireRoles(ctx, principal, requiredRoles);
+        await RequireOnboardingCompletedAsync(ctx, principal);
+        return principal;
     }
 
     /// <summary>
@@ -103,13 +129,13 @@ public static class RequestAuth
         }
 
         var users = ctx.RequestServices.GetRequiredService<IUserStore>();
-        var user = await users.FindByIdAsync(Guid.Parse(principal.Id));
-        if (user is null)
+        var (found, onboardingCompletedAt) = await users.OnboardingStateAsync(Guid.Parse(principal.Id));
+        if (!found)
         {
             throw ApiException.Forbidden("Account is no longer available");
         }
 
-        if (user.OnboardingCompletedAt is null)
+        if (onboardingCompletedAt is null)
         {
             throw ApiException.Forbidden("Onboarding required: complete first-login onboarding to continue");
         }

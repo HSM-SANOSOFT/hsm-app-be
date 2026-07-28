@@ -29,14 +29,14 @@ public static class PatientFhirMapper
     private static readonly JsonSerializerOptions FhirOptions =
         new JsonSerializerOptions().ForFhir(ModelInfo.ModelInspector);
 
-    public static CreatePatientInput Parse(JsonNode? body)
+    public static CreatePatientInput Parse(JsonNode? body, byte[] rawUtf8)
     {
         if (body is not JsonObject resource)
         {
             throw Unprocessable("FHIR resource body must be a JSON object");
         }
 
-        Validate(resource);
+        Validate(rawUtf8);
 
         var identifiers = new List<PatientIdentifierInput>();
         if (resource["identifier"] is JsonArray identifierArray)
@@ -116,12 +116,14 @@ public static class PatientFhirMapper
         return resource;
     }
 
-    private static void Validate(JsonObject resource)
+    private static void Validate(byte[] rawUtf8)
     {
         Resource parsed;
         try
         {
-            parsed = JsonSerializer.Deserialize<Resource>(resource.ToJsonString(), FhirOptions)!;
+            // The raw request bytes feed Firely directly — no
+            // JsonNode→string→parse round trip.
+            parsed = JsonSerializer.Deserialize<Resource>(rawUtf8, FhirOptions)!;
         }
         catch (DeserializationFailedException exception)
         {

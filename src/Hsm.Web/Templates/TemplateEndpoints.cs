@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Hsm.Application.Auth;
 using Hsm.Application.Templates;
 using Hsm.Domain.Templates;
 using Hsm.Web.Api;
@@ -30,7 +29,7 @@ public static class TemplateEndpoints
 
     private static async Task<IResult> ListTemplates(HttpContext ctx, ListTemplatesHandler handler)
     {
-        await AuthorizeAsync(ctx);
+        await RequestAuth.GateAsync(ctx);
 
         var query = QueryValidator.Read(ctx);
         var category = query.OptionalEnum("category", TemplateCategories.All);
@@ -40,20 +39,20 @@ public static class TemplateEndpoints
         var templates = await handler.HandleAsync(category);
         var data = new JsonArray([.. templates.Select(t => (JsonNode?)DetailJson(t))]);
         return ApiEnvelope.Success(
-            ctx, StatusCodes.Status200OK, data, extra: SyntheticPagination(templates.Count));
+            ctx, StatusCodes.Status200OK, data, extra: ApiEnvelope.SinglePagePagination(templates.Count));
     }
 
     private static async Task<IResult> GetTemplate(
         HttpContext ctx, string identifier, GetTemplateHandler handler)
     {
-        await AuthorizeAsync(ctx);
+        await RequestAuth.GateAsync(ctx);
         var template = await handler.HandleAsync(identifier);
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, WithBaseJson(template));
     }
 
     private static async Task<IResult> CreateTemplate(HttpContext ctx, CreateTemplateHandler handler)
     {
-        await AuthorizeAsync(ctx);
+        await RequestAuth.GateAsync(ctx);
         var command = await ReadTemplateBodyAsync(ctx, isCreate: true);
         var created = await handler.HandleAsync(command);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, WithBaseJson(created));
@@ -62,8 +61,8 @@ public static class TemplateEndpoints
     private static async Task<IResult> UpdateTemplate(
         HttpContext ctx, string id, UpdateTemplateHandler handler)
     {
-        await AuthorizeAsync(ctx);
-        var templateId = ParseUuid(id);
+        await RequestAuth.GateAsync(ctx);
+        var templateId = RouteParams.PipedUuid(id);
         var command = await ReadTemplateBodyAsync(ctx, isCreate: false);
         var updated = await handler.HandleAsync(templateId, command);
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, WithBaseJson(updated));
@@ -72,8 +71,8 @@ public static class TemplateEndpoints
     private static async Task<IResult> DeleteTemplate(
         HttpContext ctx, string id, DeleteTemplateHandler handler)
     {
-        await AuthorizeAsync(ctx);
-        var templateId = ParseUuid(id);
+        await RequestAuth.GateAsync(ctx);
+        var templateId = RouteParams.PipedUuid(id);
         await handler.HandleAsync(templateId);
         // Frozen controller: delete answers { id } (enveloped), 200.
         return ApiEnvelope.Success(
@@ -82,7 +81,7 @@ public static class TemplateEndpoints
 
     private static async Task<IResult> ValidateTemplate(HttpContext ctx, ValidateTemplateHandler handler)
     {
-        await AuthorizeAsync(ctx);
+        await RequestAuth.GateAsync(ctx);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var identifier = body.RequiredString("identifier");
@@ -107,7 +106,7 @@ public static class TemplateEndpoints
 
     private static async Task<IResult> DraftRender(HttpContext ctx, DraftRenderHandler handler)
     {
-        await AuthorizeAsync(ctx);
+        await RequestAuth.GateAsync(ctx);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var content = body.RequiredString("content");
@@ -120,35 +119,6 @@ public static class TemplateEndpoints
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status201Created, new JsonObject { ["html"] = html });
     }
-
-    /// <summary>The frozen guard chain: authenticated, any role, onboarding complete.</summary>
-    private static async Task AuthorizeAsync(HttpContext ctx)
-    {
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        RequestAuth.RequireRoles(ctx, principal);
-        await RequestAuth.RequireOnboardingCompletedAsync(ctx, principal);
-    }
-
-    /// <summary>The frozen ParseUUIDPipe surface: a malformed id is a 400.</summary>
-    internal static Guid ParseUuid(string id) =>
-        Guid.TryParse(id, out var parsed)
-            ? parsed
-            : throw Hsm.Application.Errors.ApiException.BadRequest("Validation failed (uuid is expected)");
-
-    /// <summary>
-    /// The frozen response interceptor's synthesized pagination for bare-array
-    /// payloads: page 1, pageSize = totalItems = the returned length.
-    /// </summary>
-    internal static JsonObject SyntheticPagination(int count) => new()
-    {
-        ["pagination"] = new JsonObject
-        {
-            ["page"] = 1,
-            ["pageSize"] = count,
-            ["totalItems"] = count,
-            ["totalPages"] = 1,
-        },
-    };
 
     internal static JsonArray IssuesJson(IReadOnlyList<TemplateSchemaIssue> issues) =>
         new([.. issues.Select(issue => (JsonNode?)new JsonObject
@@ -314,9 +284,10 @@ public static class TemplateEndpoints
             return null;
         }
 
-        var subject = RequiredNested(body, block, "email", "subject");
-        var fromEmail = RequiredNestedEmail(body, block, "email", "fromEmail");
-        var fromName = RequiredNested(body, block, "email", "fromName");
+        var scope = body.Scope(block, "email");
+        var subject = scope.NonEmptyString("subject");
+        var fromEmail = scope.Email("fromEmail");
+        var fromName = scope.NonEmptyString("fromName");
         var cc = OptionalNestedEmailArray(body, block, "email", "cc");
         var bcc = OptionalNestedEmailArray(body, block, "email", "bcc");
         bool? hasAttachment = null;
@@ -360,10 +331,11 @@ public static class TemplateEndpoints
             return null;
         }
 
-        var documentCode = RequiredNestedEnum(body, block, "doc", "documentCode", DocumentCodes.All);
-        var format = RequiredNestedEnum(body, block, "doc", "format", DocumentFormats.All);
-        var size = RequiredNestedEnum(body, block, "doc", "size", DocumentSizes.All);
-        var orientation = RequiredNestedEnum(body, block, "doc", "orientation", DocumentOrientations.All);
+        var scope = body.Scope(block, "doc");
+        var documentCode = scope.Enum("documentCode", DocumentCodes.All);
+        var format = scope.Enum("format", DocumentFormats.All);
+        var size = scope.Enum("size", DocumentSizes.All);
+        var orientation = scope.Enum("orientation", DocumentOrientations.All);
         RejectUnknownNested(body, block, "doc", ["documentCode", "format", "size", "orientation"]);
         return new DocShape(documentCode, format, size, orientation);
     }
@@ -389,54 +361,12 @@ public static class TemplateEndpoints
             return null;
         }
 
-        var provider = RequiredNested(body, block, "sms", "provider");
-        var templateName = RequiredNested(body, block, "sms", "templateName");
-        var from = RequiredNested(body, block, "sms", "from");
+        var scope = body.Scope(block, "sms");
+        var provider = scope.NonEmptyString("provider");
+        var templateName = scope.NonEmptyString("templateName");
+        var from = scope.NonEmptyString("from");
         RejectUnknownNested(body, block, "sms", ["provider", "templateName", "from"]);
         return new SmsShape(provider, templateName, from);
-    }
-
-    private static string RequiredNested(BodyValidator body, JsonObject block, string parent, string field)
-    {
-        var node = block[field];
-        if (node is null
-            || node.GetValueKind() != JsonValueKind.String
-            || node.GetValue<string>().Length == 0)
-        {
-            body.AddFailure($"{parent}.{field}", "isNotEmpty", $"{parent}.{field} should not be empty");
-            return string.Empty;
-        }
-
-        return node.GetValue<string>();
-    }
-
-    private static string RequiredNestedEmail(BodyValidator body, JsonObject block, string parent, string field)
-    {
-        var node = block[field];
-        var text = node?.GetValueKind() == JsonValueKind.String ? node.GetValue<string>() : null;
-        if (text is null || !text.Contains('@', StringComparison.Ordinal))
-        {
-            body.AddFailure($"{parent}.{field}", "isEmail", $"{parent}.{field} must be an email");
-            return string.Empty;
-        }
-
-        return text;
-    }
-
-    private static string RequiredNestedEnum(
-        BodyValidator body, JsonObject block, string parent, string field, IReadOnlyList<string> oneOf)
-    {
-        var node = block[field];
-        var text = node?.GetValueKind() == JsonValueKind.String ? node.GetValue<string>() : null;
-        if (text is null || !oneOf.Contains(text, StringComparer.Ordinal))
-        {
-            body.AddFailure(
-                $"{parent}.{field}", "isEnum",
-                $"{parent}.{field} must be one of the following values: {string.Join(", ", oneOf)}");
-            return string.Empty;
-        }
-
-        return text;
     }
 
     private static List<string>? OptionalNestedEmailArray(

@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text;
-using Hsm.Contract.Tests.Auth;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hsm.Contract.Tests.Coms;

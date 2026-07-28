@@ -1,6 +1,4 @@
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,17 +13,13 @@ namespace Hsm.Contract.Tests.Routes;
 /// drift in the other direction (no unaccounted-for implemented API route,
 /// no allowlisted operation that is silently implemented after all).
 /// </summary>
+[Trait("Infra", "true")]
 public sealed class RouteClosureTests(RouteClosureTests.RoutesFactory factory)
     : IClassFixture<RouteClosureTests.RoutesFactory>
 {
-    public sealed class RoutesFactory : WebApplicationFactory<Program>
+    public sealed class RoutesFactory : ContractApiFactory
     {
-        protected override void ConfigureWebHost(IWebHostBuilder builder)
-        {
-            builder.UseSetting("Auth:JwtAccessSecret", "contract_test_at_secret_0123456789abcdef");
-            builder.UseSetting("Auth:JwtRefreshSecret", "contract_test_rt_secret_0123456789abcdef");
-            builder.UseSetting("Auth:CsrfSecret", "contract_test_csrf_secret_0123456789abcdef");
-        }
+        protected override string DatabaseName => "hsm_routes_test";
     }
 
     /// <summary>

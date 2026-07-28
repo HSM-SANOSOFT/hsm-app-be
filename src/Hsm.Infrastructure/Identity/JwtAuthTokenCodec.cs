@@ -18,9 +18,30 @@ public sealed class AuthTokenOptions
 /// firstName, firstLastName, roles[], onboardingCompletedAt for users;
 /// sub + id, name, roles[] for integrations.
 /// </summary>
-public sealed class JwtAuthTokenCodec(AuthTokenOptions options) : IAuthTokenCodec
+public sealed class JwtAuthTokenCodec : IAuthTokenCodec
 {
     private static readonly JsonWebTokenHandler Handler = new();
+
+    private readonly SigningCredentials _accessCredentials;
+    private readonly SigningCredentials _refreshCredentials;
+    private readonly TokenValidationParameters _accessParameters;
+    private readonly TokenValidationParameters _accessParametersNoLifetime;
+    private readonly TokenValidationParameters _refreshParameters;
+    private readonly TokenValidationParameters _refreshParametersNoLifetime;
+
+    public JwtAuthTokenCodec(AuthTokenOptions options)
+    {
+        // The options are a singleton — keys, credentials, and the four
+        // validation-parameter variants are built once, not per call.
+        var accessKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.AccessSecret));
+        var refreshKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.RefreshSecret));
+        _accessCredentials = new SigningCredentials(accessKey, SecurityAlgorithms.HmacSha256);
+        _refreshCredentials = new SigningCredentials(refreshKey, SecurityAlgorithms.HmacSha256);
+        _accessParameters = ParametersFor(accessKey, validateLifetime: true);
+        _accessParametersNoLifetime = ParametersFor(accessKey, validateLifetime: false);
+        _refreshParameters = ParametersFor(refreshKey, validateLifetime: true);
+        _refreshParametersNoLifetime = ParametersFor(refreshKey, validateLifetime: false);
+    }
 
     public string Sign(AuthPrincipal principal, TokenKind kind, TimeSpan lifetime)
     {
@@ -73,21 +94,19 @@ public sealed class JwtAuthTokenCodec(AuthTokenOptions options) : IAuthTokenCode
             IssuedAt = now,
             NotBefore = now,
             Expires = now + lifetime,
-            SigningCredentials = new SigningCredentials(KeyFor(kind), SecurityAlgorithms.HmacSha256),
+            SigningCredentials = kind == TokenKind.Access ? _accessCredentials : _refreshCredentials,
         };
         return Handler.CreateToken(descriptor);
     }
 
     public async Task<TokenValidation> ValidateAsync(string token, TokenKind kind, bool ignoreExpiration = false)
     {
-        var parameters = new TokenValidationParameters
+        var parameters = (kind, ignoreExpiration) switch
         {
-            ValidateIssuer = false,
-            ValidateAudience = false,
-            ValidateLifetime = !ignoreExpiration,
-            IssuerSigningKey = KeyFor(kind),
-            // The frozen verifier had no clock tolerance.
-            ClockSkew = TimeSpan.Zero,
+            (TokenKind.Access, false) => _accessParameters,
+            (TokenKind.Access, true) => _accessParametersNoLifetime,
+            (_, false) => _refreshParameters,
+            (_, true) => _refreshParametersNoLifetime,
         };
 
         var result = await Handler.ValidateTokenAsync(token, parameters).ConfigureAwait(false);
@@ -135,6 +154,13 @@ public sealed class JwtAuthTokenCodec(AuthTokenOptions options) : IAuthTokenCode
         return payload.RootElement.TryGetProperty("onboardingCompletedAt", out _);
     }
 
-    private SymmetricSecurityKey KeyFor(TokenKind kind) =>
-        new(Encoding.UTF8.GetBytes(kind == TokenKind.Access ? options.AccessSecret : options.RefreshSecret));
+    private static TokenValidationParameters ParametersFor(SymmetricSecurityKey key, bool validateLifetime) => new()
+    {
+        ValidateIssuer = false,
+        ValidateAudience = false,
+        ValidateLifetime = validateLifetime,
+        IssuerSigningKey = key,
+        // The frozen verifier had no clock tolerance.
+        ClockSkew = TimeSpan.Zero,
+    };
 }

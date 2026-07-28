@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Hsm.Application.Auth;
 using Hsm.Application.Settings;
 using Hsm.Domain.Identity;
 using Hsm.Domain.Settings;
@@ -24,9 +23,7 @@ public static class SettingsEndpoints
 
     private static async Task<IResult> GetSettings(HttpContext ctx, GetSettingsHandler handler)
     {
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        RequestAuth.RequireRoles(ctx, principal, Roles.Admin);
-        await RequestAuth.RequireOnboardingCompletedAsync(ctx, principal);
+        await RequestAuth.GateAsync(ctx, Roles.Admin);
 
         var query = QueryValidator.Read(ctx);
         var category = query.RequiredEnum("category", SettingsCategories.All);
@@ -39,9 +36,7 @@ public static class SettingsEndpoints
 
     private static async Task<IResult> UpdateSettings(HttpContext ctx, UpdateSettingsHandler handler)
     {
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        RequestAuth.RequireRoles(ctx, principal, Roles.Admin);
-        await RequestAuth.RequireOnboardingCompletedAsync(ctx, principal);
+        var principal = await RequestAuth.GateAsync(ctx, Roles.Admin);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var category = body.RequiredEnum("category", SettingsCategories.All);

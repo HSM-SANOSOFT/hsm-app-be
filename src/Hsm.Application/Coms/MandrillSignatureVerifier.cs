@@ -15,10 +15,9 @@ public static class MandrillSignatureVerifier
 {
     public const string SignatureHeader = "x-mandrill-signature";
 
-    public static bool Verify(
-        IReadOnlyDictionary<string, string> headers, byte[] rawBody, string signingKey)
+    public static bool Verify(string? signature, byte[] rawBody, string signingKey)
     {
-        if (!headers.TryGetValue(SignatureHeader, out var signature) || string.IsNullOrEmpty(signature))
+        if (string.IsNullOrEmpty(signature))
         {
             return false;
         }

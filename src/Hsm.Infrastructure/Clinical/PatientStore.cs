@@ -13,12 +13,12 @@ namespace Hsm.Infrastructure.Clinical;
 public sealed class PatientStore(HsmDbContext db) : IPatientStore
 {
     public Task<Patient?> FindByIdAsync(Guid id, CancellationToken ct = default) =>
-        db.Patients.FirstOrDefaultAsync(p => p.Id == id, ct);
+        db.Patients.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, ct);
 
     public async Task<IReadOnlyList<Patient>> SearchByIdentifierAsync(
         string? system, string value, CancellationToken ct = default)
     {
-        var query = db.Patients.Where(p => p.Identifiers.Any(
+        var query = db.Patients.AsNoTracking().Where(p => p.Identifiers.Any(
             i => i.Value == value && (system == null || i.System == system)));
         return await query.OrderBy(p => p.CreatedAt).ToListAsync(ct);
     }
@@ -26,15 +26,22 @@ public sealed class PatientStore(HsmDbContext db) : IPatientStore
     public async Task<bool> AnyIdentifierExistsAsync(
         IReadOnlyList<(string System, string Value)> identifiers, CancellationToken ct = default)
     {
-        foreach (var (system, value) in identifiers)
+        if (identifiers.Count == 0)
         {
-            if (await db.PatientIdentifiers.AnyAsync(i => i.System == system && i.Value == value, ct))
-            {
-                return true;
-            }
+            return false;
         }
 
-        return false;
+        // One query: candidate rows matching any requested system AND any
+        // requested value, then the exact pair check in memory.
+        var systems = identifiers.Select(i => i.System).Distinct().ToList();
+        var values = identifiers.Select(i => i.Value).Distinct().ToList();
+        var candidates = await db.PatientIdentifiers.AsNoTracking()
+            .Where(i => systems.Contains(i.System) && values.Contains(i.Value))
+            .Select(i => new { i.System, i.Value })
+            .ToListAsync(ct);
+
+        var wanted = identifiers.ToHashSet();
+        return candidates.Any(c => wanted.Contains((c.System, c.Value)));
     }
 
     public async Task AddAsync(Patient patient, CancellationToken ct = default)

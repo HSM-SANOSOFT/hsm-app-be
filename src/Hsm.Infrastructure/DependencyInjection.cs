@@ -13,6 +13,7 @@ using Hsm.Infrastructure.Clinical;
 using Hsm.Infrastructure.Coms;
 using Hsm.Infrastructure.Docs;
 using Hsm.Infrastructure.Identity;
+using Hsm.Infrastructure.Jobs;
 using Hsm.Infrastructure.Persistence;
 using Hsm.Infrastructure.Search;
 using Hsm.Infrastructure.Settings;
@@ -118,9 +119,7 @@ public static class DependencyInjection
             RetryBaseDelay = TimeSpan.FromMilliseconds(
                 configuration.GetValue("Docs:RetryBaseDelayMs", defaultValue: 2000)),
         });
-        services.AddSingleton<ChannelDocsDispatcher>();
-        services.AddSingleton<IDocsJobDispatcher>(sp => sp.GetRequiredService<ChannelDocsDispatcher>());
-        services.AddHostedService<DocsJobProcessor>();
+        services.AddChannelJobQueue<IDocsJobDispatcher, ChannelDocsDispatcher, DocsJobProcessor>();
 
         services.AddScoped<ListDocumentsHandler>();
         services.AddScoped<GenerateDocumentHandler>();
@@ -163,9 +162,7 @@ public static class DependencyInjection
             RetryBaseDelay = TimeSpan.FromMilliseconds(
                 configuration.GetValue("Coms:RetryBaseDelayMs", defaultValue: 5000)),
         });
-        services.AddSingleton<ChannelComsDispatcher>();
-        services.AddSingleton<IComsJobDispatcher>(sp => sp.GetRequiredService<ChannelComsDispatcher>());
-        services.AddHostedService<ComsJobProcessor>();
+        services.AddChannelJobQueue<IComsJobDispatcher, ChannelComsDispatcher, ComsJobProcessor>();
 
         services.AddScoped<SendEmailHandler>();
         services.AddScoped<ListEmailBatchesHandler>();

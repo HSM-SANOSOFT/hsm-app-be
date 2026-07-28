@@ -38,9 +38,6 @@ public interface IEmailBatchStore
 
     /// <summary>The most recent recipient row (id DESC) for an address — the frozen webhook match rule.</summary>
     Task<EmailRecipient?> FindLatestRecipientByEmailAsync(string email, CancellationToken ct = default);
-
-    /// <summary>All recipient rows of a batch (for overall-status recomputation).</summary>
-    Task<IReadOnlyList<EmailRecipient>> RecipientsOfBatchAsync(Guid batchId, CancellationToken ct = default);
 }
 
 /// <summary>Persistence port for the suppression list.</summary>
@@ -59,20 +56,29 @@ public interface IEmailWebhookEventStore
 {
     Task<EmailWebhookEvent?> FindAsync(Guid id, CancellationToken ct = default);
 
-    /// <summary>True when an event with the same provider/messageId/eventType is already recorded.</summary>
-    Task<bool> DuplicateExistsAsync(
-        string provider, string messageId, string eventType, CancellationToken ct = default);
+    /// <summary>
+    /// The already-recorded (messageId, eventType) pairs for a provider among
+    /// <paramref name="messageIds"/> — one query for the whole delivery's
+    /// idempotency check.
+    /// </summary>
+    Task<IReadOnlyList<(string MessageId, string EventType)>> ExistingEventKeysAsync(
+        string provider, IReadOnlyCollection<string> messageIds, CancellationToken ct = default);
 
     Task AddAsync(EmailWebhookEvent webhookEvent, CancellationToken ct = default);
 }
 
 /// <summary>
-/// The background job hand-off (frozen BullMQ 'coms' queue). Enqueue returns
-/// the job id the frozen API surfaced to clients.
+/// The background job hand-off (frozen BullMQ 'coms' queue). Job ids are the
+/// values the frozen API surfaced to clients; send-email ids can be reserved
+/// ahead of enqueue so the id persists in the same transaction as its batch.
 /// </summary>
 public interface IComsJobDispatcher
 {
-    Task<string> EnqueueSendEmailAsync(Guid batchId, Guid? recipientId = null, CancellationToken ct = default);
+    /// <summary>Mints the id the next send-email enqueue will carry, without enqueuing.</summary>
+    string ReserveSendEmailJobId();
+
+    Task EnqueueSendEmailAsync(
+        string jobId, Guid batchId, Guid? recipientId = null, CancellationToken ct = default);
 
     Task<string> EnqueueProcessWebhookEventAsync(Guid webhookEventId, CancellationToken ct = default);
 }

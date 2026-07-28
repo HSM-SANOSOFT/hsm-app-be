@@ -1,6 +1,6 @@
-using System.Globalization;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using Hsm.Application;
 using Hsm.Application.Errors;
 
 namespace Hsm.Web.Api;
@@ -97,15 +97,37 @@ public static partial class ApiEnvelope
     }
 
     /// <summary>The frozen status→code fallback map (response.filter.ts).</summary>
-    private static string CodeForStatus(int status) => status switch
+    private static string CodeForStatus(int status) => ErrorStatusCodes.For(status).EnvelopeCode;
+
+    /// <summary>
+    /// The frozen buildPaginationMeta shape: metadata.extra.pagination with
+    /// query-driven page/pageSize and computed totals.
+    /// </summary>
+    public static JsonObject Pagination(int page, int pageSize, int totalItems) => new()
     {
-        401 => ApiErrorCode.Unauthorized,
-        403 => ApiErrorCode.Forbidden,
-        404 => ApiErrorCode.NotFound,
-        409 => ApiErrorCode.Conflict,
-        429 => ApiErrorCode.TooManyRequests,
-        400 or 422 => ApiErrorCode.Validation,
-        _ => ApiErrorCode.Internal,
+        ["pagination"] = new JsonObject
+        {
+            ["page"] = page,
+            ["pageSize"] = pageSize,
+            ["totalItems"] = totalItems,
+            ["totalPages"] = pageSize > 0 ? (int)Math.Ceiling(totalItems / (double)pageSize) : 0,
+        },
+    };
+
+    /// <summary>
+    /// The frozen response interceptor's synthesized pagination for bare-array
+    /// payloads: page 1, pageSize = totalItems = the returned length,
+    /// totalPages always 1.
+    /// </summary>
+    public static JsonObject SinglePagePagination(int count) => new()
+    {
+        ["pagination"] = new JsonObject
+        {
+            ["page"] = 1,
+            ["pageSize"] = count,
+            ["totalItems"] = count,
+            ["totalPages"] = 1,
+        },
     };
 
     private static JsonObject Metadata(HttpContext ctx, int statusCode, bool success)
@@ -115,7 +137,7 @@ public static partial class ApiEnvelope
         {
             ["success"] = success,
             ["statusCode"] = statusCode,
-            ["timestamp"] = DateTime.UtcNow.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture),
+            ["timestamp"] = IsoTimestamp.Of(DateTimeOffset.UtcNow),
             ["path"] = path,
             ["message"] = success ? "Request processed successfully." : "Request processed unsuccessfully.",
         };

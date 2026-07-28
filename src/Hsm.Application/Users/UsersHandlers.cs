@@ -137,13 +137,12 @@ public sealed class CreateStaffHandler(
 /// <summary>Admin-only paginated listing (frozen findAll): newest first, roles attached.</summary>
 public sealed class ListUsersHandler(IUserStore users)
 {
-    public sealed record Result(IReadOnlyList<User> Users, int Page, int PageSize, int TotalItems, int TotalPages);
+    public sealed record Result(IReadOnlyList<User> Users, int Page, int PageSize, int TotalItems);
 
     public async Task<Result> HandleAsync(int page, int limit, CancellationToken ct = default)
     {
         var (rows, totalItems) = await users.ListAsync(page, limit, ct);
-        var totalPages = limit > 0 ? (int)Math.Ceiling(totalItems / (double)limit) : 0;
-        return new Result(rows, page, limit, totalItems, totalPages);
+        return new Result(rows, page, limit, totalItems);
     }
 }
 
@@ -185,17 +184,17 @@ public sealed class ChangeUserRoleHandler(IUserStore users, IAuthUnitOfWork unit
         var user = await users.FindByIdAsync(userId, ct)
             ?? throw ApiException.NotFound($"User with id {userId} not found");
 
-        await unitOfWork.ExecuteInTransactionAsync(
+        var replaced = await unitOfWork.ExecuteInTransactionAsync(
             async innerCt =>
             {
-                await users.ReplaceRolesAsync(userId, [role], innerCt);
+                var rows = await users.ReplaceRolesAsync(userId, [role], innerCt);
                 await unitOfWork.SaveChangesAsync(innerCt);
-                return true;
+                return rows;
             },
             ct);
 
-        // Frozen re-read: return the user with the fresh role rows.
-        user.Roles = [.. await users.RolesOfAsync(userId, ct)];
+        // Return the user with the freshly persisted role rows — no re-read.
+        user.Roles = [.. replaced];
         return user;
     }
 }

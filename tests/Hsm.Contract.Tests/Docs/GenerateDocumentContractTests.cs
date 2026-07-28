@@ -1,5 +1,4 @@
 using System.Text.RegularExpressions;
-using Hsm.Contract.Tests.Auth;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hsm.Contract.Tests.Docs;

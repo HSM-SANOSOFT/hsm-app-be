@@ -60,6 +60,10 @@ public sealed class SendEmailHandler(
         }
 
         var suppressed = await suppressions.SuppressedAmongAsync([.. command.ToEmails], ct);
+        // The job id is reserved BEFORE the transaction (it depends on nothing
+        // post-commit) so it persists with the batch in ONE commit; the job
+        // itself is enqueued only after that commit.
+        var jobId = queue.ReserveSendEmailJobId();
         var batch = new EmailBatch
         {
             Id = Guid.NewGuid(),
@@ -68,6 +72,7 @@ public sealed class SendEmailHandler(
             FromName = command.FromName,
             DataJson = command.Data.ToJsonString(),
             DocumentIds = command.DocumentIds is null ? null : [.. command.DocumentIds],
+            JobId = jobId,
             OverallStatus = EmailBatchStatus.Pending,
             CreatedBy = userId,
             CreatedAt = DateTimeOffset.UtcNow,
@@ -94,9 +99,7 @@ public sealed class SendEmailHandler(
             },
             ct);
 
-        var jobId = await queue.EnqueueSendEmailAsync(batch.Id, recipientId: null, ct);
-        batch.JobId = jobId;
-        await unitOfWork.SaveChangesAsync(ct);
+        await queue.EnqueueSendEmailAsync(jobId, batch.Id, recipientId: null, ct);
 
         return (batch.Id, jobId);
     }
@@ -129,10 +132,11 @@ public sealed class ResendEmailBatchHandler(IEmailBatchStore store, IComsJobDisp
         var batch = await store.FindAsync(id, withRecipients: false, ct)
             ?? throw ComsErrors.BatchNotFound(id);
 
-        var jobId = await queue.EnqueueSendEmailAsync(id, recipientId: null, ct);
+        var jobId = queue.ReserveSendEmailJobId();
         batch.JobId = jobId;
         batch.OverallStatus = EmailBatchStatus.Pending;
         await unitOfWork.SaveChangesAsync(ct);
+        await queue.EnqueueSendEmailAsync(jobId, id, recipientId: null, ct);
         return jobId;
     }
 }
@@ -165,6 +169,8 @@ public sealed class ResendEmailRecipientHandler(IEmailBatchStore store, IComsJob
         var recipient = await store.FindRecipientAsync(id, ct)
             ?? throw ComsErrors.RecipientNotFound(id);
 
-        return await queue.EnqueueSendEmailAsync(recipient.BatchId, recipient.Id, ct);
+        var jobId = queue.ReserveSendEmailJobId();
+        await queue.EnqueueSendEmailAsync(jobId, recipient.BatchId, recipient.Id, ct);
+        return jobId;
     }
 }

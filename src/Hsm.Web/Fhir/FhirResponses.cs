@@ -1,5 +1,5 @@
 using System.Text.Json.Nodes;
-using Hsm.Application.Errors;
+using Hsm.Web.Api;
 
 namespace Hsm.Web.Fhir;
 
@@ -63,32 +63,19 @@ public static class FhirResponses
     /// instead of the /v1 error envelope (the frozen controller-scoped filter
     /// shadowing the global ResponseFilter).
     /// </summary>
-    public static async Task ExecuteAsync(HttpContext ctx, Func<Task<IResult>> endpoint)
-    {
-        try
-        {
-            var result = await endpoint();
-            await result.ExecuteAsync(ctx);
-        }
-        catch (ApiException exception) when (!ctx.Response.HasStarted)
-        {
-            await WriteOperationOutcomeAsync(ctx, exception.StatusCode, exception.IssueMessage ?? "Error");
-        }
-        catch (Exception) when (!ctx.Response.HasStarted)
-        {
-            await WriteOperationOutcomeAsync(
-                ctx, StatusCodes.Status500InternalServerError, "Internal server error");
-        }
-    }
+    public static Task ExecuteAsync(HttpContext ctx, Func<Task<IResult>> endpoint) =>
+        ApiErrorGuard.RunAsync(
+            ctx,
+            async () =>
+            {
+                var result = await endpoint();
+                await result.ExecuteAsync(ctx);
+            },
+            (c, exception) =>
+                WriteOperationOutcomeAsync(c, exception.StatusCode, exception.IssueMessage ?? "Error"),
+            c => WriteOperationOutcomeAsync(
+                c, StatusCodes.Status500InternalServerError, "Internal server error"));
 
     /// <summary>The frozen HTTP-status → FHIR IssueType map (fhir-operation-outcome.filter.ts).</summary>
-    private static string IssueCode(int statusCode) => statusCode switch
-    {
-        StatusCodes.Status404NotFound => "not-found",
-        StatusCodes.Status422UnprocessableEntity or StatusCodes.Status400BadRequest => "invalid",
-        StatusCodes.Status409Conflict => "duplicate",
-        StatusCodes.Status401Unauthorized or StatusCodes.Status403Forbidden => "forbidden",
-        >= StatusCodes.Status500InternalServerError => "exception",
-        _ => "processing",
-    };
+    private static string IssueCode(int statusCode) => ErrorStatusCodes.For(statusCode).FhirIssueCode;
 }
