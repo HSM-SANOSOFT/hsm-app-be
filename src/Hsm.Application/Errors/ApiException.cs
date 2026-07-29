@@ -1,3 +1,5 @@
+using Hsm.Application.Abstractions;
+
 namespace Hsm.Application.Errors;
 
 /// <summary>
@@ -44,6 +46,14 @@ public class ApiException : Exception
     /// <summary>issue.message; null renders an envelope without a message.</summary>
     public string? IssueMessage { get; init; }
 
+    /// <summary>
+    /// Set only by <see cref="Validation"/>: per-field failures the frozen
+    /// ValidationPipe envelope renders as issue.message (an array) and
+    /// issue.errors (per-field constraint keys) instead of the plain
+    /// IssueMessage string. Empty for every other factory.
+    /// </summary>
+    public IReadOnlyList<ValidationFailure> ValidationFailures { get; private init; } = [];
+
     public static ApiException Unauthorized(string? message = "Unauthorized", string? code = null, string? errorLabel = null) =>
         new(401, message, code, errorLabel);
 
@@ -68,4 +78,19 @@ public class ApiException : Exception
     /// the status-mapped code — no message. Preserved here.
     /// </summary>
     public static ApiException TooManyRequests() => new(429);
+
+    /// <summary>
+    /// A 400 whose envelope carries the frozen ValidationPipe shape: issue.code
+    /// COMMON.VALIDATION, issue.message as a string array, and issue.errors as
+    /// per-field machine-readable constraint keys — the same shape Hsm.Web's
+    /// edge-level ApiValidationException renders (see ApiEnvelope.IssueFor).
+    /// Thrown by ValidationBehavior when an IValidator reports failures. Kept
+    /// as a plain ApiException (not a subclass) so callers can catch/assert on
+    /// the base type uniformly.
+    /// </summary>
+    public static ApiException Validation(IReadOnlyList<ValidationFailure> failures) =>
+        new(400, string.Join("; ", failures.Select(f => f.Message)), ApiErrorCode.Validation)
+        {
+            ValidationFailures = failures,
+        };
 }

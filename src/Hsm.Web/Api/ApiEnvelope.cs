@@ -51,33 +51,22 @@ public static partial class ApiEnvelope
 
     public static JsonObject IssueFor(ApiException exception)
     {
-        var issue = new JsonObject();
-        if (exception is ApiValidationException validation)
+        if (exception is ApiValidationException webValidation)
         {
-            issue["code"] = ApiErrorCode.Validation;
-            var messages = new JsonArray();
-            foreach (var message in validation.Messages)
-            {
-                messages.Add(message);
-            }
-
-            issue["message"] = messages;
-            var errors = new JsonArray();
-            foreach (var (field, constraints) in validation.FieldConstraints)
-            {
-                var keys = new JsonArray();
-                foreach (var key in constraints)
-                {
-                    keys.Add(key);
-                }
-
-                errors.Add(new JsonObject { ["field"] = field, ["constraints"] = keys });
-            }
-
-            issue["errors"] = errors;
-            return issue;
+            return ValidationIssue(webValidation.Messages, webValidation.FieldConstraints);
         }
 
+        if (exception.ValidationFailures.Count > 0)
+        {
+            var messages = exception.ValidationFailures.Select(f => f.Message).ToList();
+            var byField = exception.ValidationFailures
+                .GroupBy(f => f.Field)
+                .Select(g => (g.Key, (IReadOnlyList<string>)g.Select(f => f.Key).Distinct().ToList()))
+                .ToList();
+            return ValidationIssue(messages, byField);
+        }
+
+        var issue = new JsonObject();
         if (exception.IssueMessage is not null)
         {
             issue["message"] = exception.IssueMessage;
@@ -93,6 +82,39 @@ public static partial class ApiEnvelope
             issue["code"] = exception.Code;
         }
 
+        return issue;
+    }
+
+    /// <summary>
+    /// The frozen ValidationPipe issue shape shared by Hsm.Web's edge-level
+    /// ApiValidationException and Hsm.Application's ApiException.Validation:
+    /// issue.message as an ordered string array, issue.errors as per-field
+    /// distinct constraint keys.
+    /// </summary>
+    private static JsonObject ValidationIssue(
+        IReadOnlyList<string> messages, IReadOnlyList<(string Field, IReadOnlyList<string> Constraints)> fieldConstraints)
+    {
+        var issue = new JsonObject { ["code"] = ApiErrorCode.Validation };
+        var messageArray = new JsonArray();
+        foreach (var message in messages)
+        {
+            messageArray.Add(message);
+        }
+
+        issue["message"] = messageArray;
+        var errors = new JsonArray();
+        foreach (var (field, constraints) in fieldConstraints)
+        {
+            var keys = new JsonArray();
+            foreach (var key in constraints)
+            {
+                keys.Add(key);
+            }
+
+            errors.Add(new JsonObject { ["field"] = field, ["constraints"] = keys });
+        }
+
+        issue["errors"] = errors;
         return issue;
     }
 
