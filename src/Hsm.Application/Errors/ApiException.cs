@@ -50,6 +50,12 @@ public class ApiException : Exception
     public static ApiException Forbidden(string message, string? errorLabel = "Forbidden") =>
         new(403, message, errorLabel: errorLabel);
 
+    /// <summary>
+    /// No caller-facing detail — used where the frozen contract expects only
+    /// the status-mapped code (e.g. pipeline-level role/onboarding gates).
+    /// </summary>
+    public static ApiException Forbidden() => new(403, errorLabel: "Forbidden");
+
     public static ApiException BadRequest(string message, string? errorLabel = "Bad Request") =>
         new(400, message, errorLabel: errorLabel);
 
