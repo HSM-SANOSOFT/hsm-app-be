@@ -1,4 +1,7 @@
-using Hsm.Application.Clinical;
+using Hsm.Application.Abstractions;
+using Hsm.Application.Clinical.Commands.CreatePatient;
+using Hsm.Application.Clinical.Queries.GetPatient;
+using Hsm.Application.Clinical.Queries.SearchPatients;
 using Hsm.Application.Errors;
 using Hsm.Domain.Identity;
 using Hsm.Web.Auth;
@@ -11,6 +14,18 @@ namespace Hsm.Web.Fhir;
 /// /v1 prefix), raw FHIR responses, OperationOutcome errors, and the clinical
 /// PHI roles gate (KTD11) — a single broad clinical-staff grant, with the
 /// frozen RolesGuard's admin bypass and env-gated developer role.
+///
+/// The gate is enforced TWICE, deliberately (Task 10's message-assertion
+/// precedent): <see cref="RequestAuth.GateAsync"/> stays here because
+/// <c>PatientFhirContractTests.Non_clinical_roles_are_403</c> and
+/// <c>Integration_only_bearer_is_403</c> assert the exact frozen message
+/// "Insufficient permissions", which only <see cref="RequestAuth.RequireRoles"/>
+/// produces — <see cref="Hsm.Application.Abstractions.Behaviors.AuthorizationBehavior{TRequest,TResult}"/>
+/// throws a message-less 403. The three Patient request types ALSO carry
+/// <c>[RequireRole(...)]</c> (with admin as an explicit member — see
+/// <c>GetPatientQuery</c>'s XML doc) so the policy is real belt-and-suspenders:
+/// today the edge is the authority for the message, and the pipeline
+/// attribute is what Task 15 will lean on once this call is removed.
 ///
 /// The frozen Encounter and ServiceRequest facades are deliberately NOT here:
 /// plan Scope Boundaries exclude clinical modules beyond patient lookup, and
@@ -38,32 +53,33 @@ public static class FhirEndpoints
     }
 
     /// <summary>Search by business identifier (?identifier=system|value) → searchset Bundle.</summary>
-    private static Task SearchPatients(HttpContext ctx, SearchPatientsHandler handler) =>
+    private static Task SearchPatients(HttpContext ctx, IDispatcher dispatcher) =>
         FhirResponses.ExecuteAsync(ctx, async () =>
         {
             await RequestAuth.GateAsync(ctx, ClinicalStaffRoles);
             var (system, value) = ReadIdentifierToken(ctx);
-            var patients = await handler.HandleAsync(system, value, ctx.RequestAborted);
+            var patients = await dispatcher.Send(
+                new SearchPatientsQuery(system, value), ctx.RequestAborted);
             return FhirResponses.SearchsetBundle([.. patients.Select(PatientFhirMapper.ToJson)]);
         });
 
     /// <summary>Read by logical id → FHIR Patient (404 OperationOutcome when absent).</summary>
-    private static Task ReadPatient(HttpContext ctx, string id, GetPatientHandler handler) =>
+    private static Task ReadPatient(HttpContext ctx, string id, IDispatcher dispatcher) =>
         FhirResponses.ExecuteAsync(ctx, async () =>
         {
             await RequestAuth.GateAsync(ctx, ClinicalStaffRoles);
-            var patient = await handler.HandleAsync(id, ctx.RequestAborted);
+            var patient = await dispatcher.Send(new GetPatientQuery(id), ctx.RequestAborted);
             return FhirResponses.Resource(PatientFhirMapper.ToJson(patient));
         });
 
     /// <summary>Create from a validated FHIR Patient body → stored resource (201).</summary>
-    private static Task CreatePatient(HttpContext ctx, CreatePatientHandler handler) =>
+    private static Task CreatePatient(HttpContext ctx, IDispatcher dispatcher) =>
         FhirResponses.ExecuteAsync(ctx, async () =>
         {
             await RequestAuth.GateAsync(ctx, ClinicalStaffRoles);
             var (body, rawUtf8) = await ReadJsonBodyAsync(ctx);
             var input = PatientFhirMapper.Parse(body, rawUtf8);
-            var patient = await handler.HandleAsync(input, ctx.RequestAborted);
+            var patient = await dispatcher.Send(new CreatePatientCommand(input), ctx.RequestAborted);
             return FhirResponses.Resource(
                 PatientFhirMapper.ToJson(patient), StatusCodes.Status201Created);
         });

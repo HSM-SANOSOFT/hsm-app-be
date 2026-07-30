@@ -16,6 +16,9 @@ using Hsm.Application.Auth.Commands.Signup;
 using Hsm.Application.Auth.Commands.SignupIntegration;
 using Hsm.Application.Auth.Queries.ListIntegrationAccounts;
 using Hsm.Application.Clinical;
+using Hsm.Application.Clinical.Commands.CreatePatient;
+using Hsm.Application.Clinical.Queries.GetPatient;
+using Hsm.Application.Clinical.Queries.SearchPatients;
 using Hsm.Application.Coms;
 using Hsm.Application.Coms.Commands.DispatchEmailBatch;
 using Hsm.Application.Coms.Commands.ProcessWebhookEvent;
@@ -57,6 +60,7 @@ using Hsm.Application.Users.Commands.CreateStaffUser;
 using Hsm.Application.Users.Commands.UpdateOwnProfile;
 using Hsm.Application.Users.Queries.GetUser;
 using Hsm.Application.Users.Queries.ListUsers;
+using Hsm.Domain.Clinical;
 using Hsm.Domain.Coms;
 using Hsm.Domain.Docs;
 using Hsm.Domain.Identity;
@@ -266,9 +270,10 @@ public static class DependencyInjection
     {
         services.AddScoped<IPatientStore, PatientStore>();
 
-        services.AddScoped<CreatePatientHandler>();
-        services.AddScoped<GetPatientHandler>();
-        services.AddScoped<SearchPatientsHandler>();
+        services.AddScoped<IRequestHandler<CreatePatientCommand, Patient>, CreatePatientHandler>();
+        services.AddScoped<IRequestHandler<GetPatientQuery, Patient>, GetPatientHandler>();
+        services.AddScoped<
+            IRequestHandler<SearchPatientsQuery, IReadOnlyList<Patient>>, SearchPatientsHandler>();
     }
 
     /// <summary>
