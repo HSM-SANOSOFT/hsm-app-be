@@ -1,7 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Hsm.Application.Abstractions;
 using Hsm.Application.Settings;
-using Hsm.Domain.Identity;
+using Hsm.Application.Settings.Commands.UpdateSettings;
+using Hsm.Application.Settings.Queries.GetSettings;
 using Hsm.Domain.Settings;
 using Hsm.Web.Api;
 using Hsm.Web.Auth;
@@ -10,7 +12,8 @@ namespace Hsm.Web.Settings;
 
 /// <summary>
 /// The two frozen /v1/settings operations (settings.controller.ts), both
-/// admin-only. GET and PUT return 200 with the fresh category read-back.
+/// admin-only. Role policy rides on the request types (AuthorizationBehavior);
+/// GET and PUT return 200 with the fresh category read-back.
 /// </summary>
 public static class SettingsEndpoints
 {
@@ -21,22 +24,22 @@ public static class SettingsEndpoints
         settings.MapPut("", (Delegate)UpdateSettings);
     }
 
-    private static async Task<IResult> GetSettings(HttpContext ctx, GetSettingsHandler handler)
+    private static async Task<IResult> GetSettings(HttpContext ctx, IDispatcher dispatcher)
     {
-        await RequestAuth.GateAsync(ctx, Roles.Admin);
+        await RequestAuth.GateAsync(ctx);
 
         var query = QueryValidator.Read(ctx);
         var category = query.RequiredEnum("category", SettingsCategories.All);
         query.RejectUnknownParams();
         query.ThrowIfInvalid();
 
-        var view = await handler.HandleAsync(category);
+        var view = await dispatcher.Send(new GetSettingsQuery(category), ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, SettingsJson(view));
     }
 
-    private static async Task<IResult> UpdateSettings(HttpContext ctx, UpdateSettingsHandler handler)
+    private static async Task<IResult> UpdateSettings(HttpContext ctx, IDispatcher dispatcher)
     {
-        var principal = await RequestAuth.GateAsync(ctx, Roles.Admin);
+        await RequestAuth.GateAsync(ctx);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var category = body.RequiredEnum("category", SettingsCategories.All);
@@ -57,7 +60,7 @@ public static class SettingsEndpoints
         body.RejectUnknownFields();
         body.ThrowIfInvalid();
 
-        var view = await handler.HandleAsync(category, updates, principal.Id);
+        var view = await dispatcher.Send(new UpdateSettingsCommand(category, updates), ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, SettingsJson(view));
     }
 

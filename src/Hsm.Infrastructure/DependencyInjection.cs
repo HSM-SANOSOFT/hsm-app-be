@@ -8,6 +8,9 @@ using Hsm.Application.Docs;
 using Hsm.Application.Ports;
 using Hsm.Application.Proving;
 using Hsm.Application.Settings;
+using Hsm.Application.Settings.Commands.UpdateSettings;
+using Hsm.Application.Settings.Queries.GetSettings;
+using Hsm.Application.Settings.Queries.ListSettingsAudit;
 using Hsm.Application.Templates;
 using Hsm.Application.Users;
 using Hsm.Application.Users.Commands.ChangeOwnPassword;
@@ -17,6 +20,7 @@ using Hsm.Application.Users.Commands.UpdateOwnProfile;
 using Hsm.Application.Users.Queries.GetUser;
 using Hsm.Application.Users.Queries.ListUsers;
 using Hsm.Domain.Identity;
+using Hsm.Domain.Settings;
 using Hsm.Infrastructure.Clinical;
 using Hsm.Infrastructure.Coms;
 using Hsm.Infrastructure.Docs;
@@ -219,9 +223,10 @@ public static class DependencyInjection
         services.AddScoped<IRequestHandler<ListUsersQuery, ListUsersResult>, ListUsersHandler>();
         services.AddScoped<IRequestHandler<GetUserQuery, User>, GetUserHandler>();
 
-        services.AddScoped<GetSettingsHandler>();
-        services.AddScoped<UpdateSettingsHandler>();
-        services.AddScoped<ListSettingsAuditHandler>();
+        services.AddScoped<IRequestHandler<GetSettingsQuery, SettingsView>, GetSettingsHandler>();
+        services.AddScoped<IRequestHandler<UpdateSettingsCommand, SettingsView>, UpdateSettingsHandler>();
+        services.AddScoped<
+            IRequestHandler<ListSettingsAuditQuery, IReadOnlyList<AppSettingAudit>>, ListSettingsAuditHandler>();
     }
 
     /// <summary>
