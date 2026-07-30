@@ -25,6 +25,13 @@ using Hsm.Application.Settings.Commands.UpdateSettings;
 using Hsm.Application.Settings.Queries.GetSettings;
 using Hsm.Application.Settings.Queries.ListSettingsAudit;
 using Hsm.Application.Templates;
+using Hsm.Application.Templates.Commands.CreateTemplate;
+using Hsm.Application.Templates.Commands.DeleteTemplate;
+using Hsm.Application.Templates.Commands.UpdateTemplate;
+using Hsm.Application.Templates.Queries.DraftRender;
+using Hsm.Application.Templates.Queries.GetTemplate;
+using Hsm.Application.Templates.Queries.ListTemplates;
+using Hsm.Application.Templates.Queries.ValidateTemplate;
 using Hsm.Application.Users;
 using Hsm.Application.Users.Commands.ChangeOwnPassword;
 using Hsm.Application.Users.Commands.ChangeUserRole;
@@ -34,6 +41,7 @@ using Hsm.Application.Users.Queries.GetUser;
 using Hsm.Application.Users.Queries.ListUsers;
 using Hsm.Domain.Identity;
 using Hsm.Domain.Settings;
+using Hsm.Domain.Templates;
 using Hsm.Infrastructure.Clinical;
 using Hsm.Infrastructure.Coms;
 using Hsm.Infrastructure.Docs;
@@ -174,13 +182,17 @@ public static class DependencyInjection
         services.AddScoped<ITemplateStore, TemplateStore>();
         services.AddSingleton<ITemplateRenderer, Hsm.Infrastructure.Templates.HandlebarsTemplateRenderer>();
 
-        services.AddScoped<ListTemplatesHandler>();
-        services.AddScoped<GetTemplateHandler>();
-        services.AddScoped<CreateTemplateHandler>();
-        services.AddScoped<UpdateTemplateHandler>();
-        services.AddScoped<DeleteTemplateHandler>();
-        services.AddScoped<ValidateTemplateHandler>();
-        services.AddScoped<DraftRenderHandler>();
+        // Templates: command/query slices behind the dispatcher. Policy rides
+        // on the request type; ValidateTemplate/DraftRender are IQuery (never
+        // open a transaction — they compute, they do not persist).
+        services.AddScoped<IRequestHandler<ListTemplatesQuery, IReadOnlyList<Template>>, ListTemplatesHandler>();
+        services.AddScoped<IRequestHandler<GetTemplateQuery, Template>, GetTemplateHandler>();
+        services.AddScoped<IRequestHandler<CreateTemplateCommand, Template>, CreateTemplateHandler>();
+        services.AddScoped<IRequestHandler<UpdateTemplateCommand, Template>, UpdateTemplateHandler>();
+        services.AddScoped<IRequestHandler<DeleteTemplateCommand, Unit>, DeleteTemplateHandler>();
+        services.AddScoped<
+            IRequestHandler<ValidateTemplateQuery, ValidateTemplateResult>, ValidateTemplateHandler>();
+        services.AddScoped<IRequestHandler<DraftRenderQuery, string>, DraftRenderHandler>();
         services.AddScoped<TemplateParser>();
 
         services.AddScoped<IEmailBatchStore, EmailBatchStore>();

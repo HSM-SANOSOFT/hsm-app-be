@@ -1,6 +1,14 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Hsm.Application.Abstractions;
 using Hsm.Application.Templates;
+using Hsm.Application.Templates.Commands.CreateTemplate;
+using Hsm.Application.Templates.Commands.DeleteTemplate;
+using Hsm.Application.Templates.Commands.UpdateTemplate;
+using Hsm.Application.Templates.Queries.DraftRender;
+using Hsm.Application.Templates.Queries.GetTemplate;
+using Hsm.Application.Templates.Queries.ListTemplates;
+using Hsm.Application.Templates.Queries.ValidateTemplate;
 using Hsm.Domain.Templates;
 using Hsm.Web.Api;
 using Hsm.Web.Auth;
@@ -27,7 +35,7 @@ public static class TemplateEndpoints
         templates.MapDelete("/{id}", (Delegate)DeleteTemplate);
     }
 
-    private static async Task<IResult> ListTemplates(HttpContext ctx, ListTemplatesHandler handler)
+    private static async Task<IResult> ListTemplates(HttpContext ctx, IDispatcher dispatcher)
     {
         await RequestAuth.GateAsync(ctx);
 
@@ -36,50 +44,51 @@ public static class TemplateEndpoints
         query.RejectUnknownParams();
         query.ThrowIfInvalid();
 
-        var templates = await handler.HandleAsync(category);
+        var templates = await dispatcher.Send(new ListTemplatesQuery(category), ctx.RequestAborted);
         var data = new JsonArray([.. templates.Select(t => (JsonNode?)DetailJson(t))]);
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status200OK, data, extra: ApiEnvelope.SinglePagePagination(templates.Count));
     }
 
     private static async Task<IResult> GetTemplate(
-        HttpContext ctx, string identifier, GetTemplateHandler handler)
+        HttpContext ctx, string identifier, IDispatcher dispatcher)
     {
         await RequestAuth.GateAsync(ctx);
-        var template = await handler.HandleAsync(identifier);
+        var template = await dispatcher.Send(new GetTemplateQuery(identifier), ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, WithBaseJson(template));
     }
 
-    private static async Task<IResult> CreateTemplate(HttpContext ctx, CreateTemplateHandler handler)
+    private static async Task<IResult> CreateTemplate(HttpContext ctx, IDispatcher dispatcher)
     {
         await RequestAuth.GateAsync(ctx);
         var command = await ReadTemplateBodyAsync(ctx, isCreate: true);
-        var created = await handler.HandleAsync(command);
+        var created = await dispatcher.Send(new CreateTemplateCommand(command), ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, WithBaseJson(created));
     }
 
     private static async Task<IResult> UpdateTemplate(
-        HttpContext ctx, string id, UpdateTemplateHandler handler)
+        HttpContext ctx, string id, IDispatcher dispatcher)
     {
         await RequestAuth.GateAsync(ctx);
         var templateId = RouteParams.PipedUuid(id);
         var command = await ReadTemplateBodyAsync(ctx, isCreate: false);
-        var updated = await handler.HandleAsync(templateId, command);
+        var updated = await dispatcher.Send(
+            new UpdateTemplateCommand(templateId, command), ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, WithBaseJson(updated));
     }
 
     private static async Task<IResult> DeleteTemplate(
-        HttpContext ctx, string id, DeleteTemplateHandler handler)
+        HttpContext ctx, string id, IDispatcher dispatcher)
     {
         await RequestAuth.GateAsync(ctx);
         var templateId = RouteParams.PipedUuid(id);
-        await handler.HandleAsync(templateId);
+        await dispatcher.Send(new DeleteTemplateCommand(templateId), ctx.RequestAborted);
         // Frozen controller: delete answers { id } (enveloped), 200.
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status200OK, new JsonObject { ["id"] = templateId.ToString() });
     }
 
-    private static async Task<IResult> ValidateTemplate(HttpContext ctx, ValidateTemplateHandler handler)
+    private static async Task<IResult> ValidateTemplate(HttpContext ctx, IDispatcher dispatcher)
     {
         await RequestAuth.GateAsync(ctx);
 
@@ -89,7 +98,7 @@ public static class TemplateEndpoints
         body.RejectUnknownFields();
         body.ThrowIfInvalid();
 
-        var result = await handler.HandleAsync(identifier, data);
+        var result = await dispatcher.Send(new ValidateTemplateQuery(identifier, data), ctx.RequestAborted);
         var json = new JsonObject { ["valid"] = result.Valid };
         if (result.TemplateId is not null)
         {
@@ -104,7 +113,7 @@ public static class TemplateEndpoints
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, json);
     }
 
-    private static async Task<IResult> DraftRender(HttpContext ctx, DraftRenderHandler handler)
+    private static async Task<IResult> DraftRender(HttpContext ctx, IDispatcher dispatcher)
     {
         await RequestAuth.GateAsync(ctx);
 
@@ -115,7 +124,8 @@ public static class TemplateEndpoints
         body.RejectUnknownFields();
         body.ThrowIfInvalid();
 
-        var html = await handler.HandleAsync(content, baseTemplateId, sampleData);
+        var html = await dispatcher.Send(
+            new DraftRenderQuery(content, baseTemplateId, sampleData), ctx.RequestAborted);
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status201Created, new JsonObject { ["html"] = html });
     }
@@ -201,7 +211,7 @@ public static class TemplateEndpoints
     /// requirements keyed on the payload's own category, nested-block
     /// validation, and whitelist enforcement.
     /// </summary>
-    private static async Task<TemplateCommand> ReadTemplateBodyAsync(HttpContext ctx, bool isCreate)
+    private static async Task<TemplatePayload> ReadTemplateBodyAsync(HttpContext ctx, bool isCreate)
     {
         var body = await BodyValidator.ReadAsync(ctx);
 
@@ -257,7 +267,7 @@ public static class TemplateEndpoints
         body.RejectUnknownFields();
         body.ThrowIfInvalid();
 
-        return new TemplateCommand(
+        return new TemplatePayload(
             category, name, description, descriptionPresent, isActive, schema,
             content, baseTemplateId, basePresent, email, doc, sms);
     }
