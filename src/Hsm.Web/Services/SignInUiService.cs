@@ -1,4 +1,5 @@
-using Hsm.Application.Auth;
+using Hsm.Application.Abstractions;
+using Hsm.Application.Auth.Commands.Login;
 using Hsm.Application.Errors;
 using Hsm.Contracts.Ui;
 using Hsm.Web.Auth;
@@ -6,14 +7,18 @@ using Hsm.Web.Auth;
 namespace Hsm.Web.Services;
 
 /// <summary>
-/// Host-side sign-in (plan U18, screen 1): validates credentials through the
-/// in-process <see cref="LoginHandler"/> and sets THE SAME auth cookies the
-/// REST login sets, via the shared <see cref="AuthCookies"/> plumbing. The
-/// sign-in page renders in static SSR specifically so this service runs
-/// during a live HTTP response — cookies cannot be set from a circuit.
+/// Host-side sign-in (plan U18, screen 1): dispatches the same
+/// <see cref="LoginCommand"/> the REST route dispatches and sets THE SAME auth
+/// cookies, via the shared <see cref="AuthCookies"/> plumbing. The sign-in page
+/// renders in static SSR specifically so this service runs during a live HTTP
+/// response — cookies cannot be set from a circuit.
+///
+/// No <c>UiServiceGate</c> here, and no actor: signing in is the one operation
+/// whose caller has no principal yet, which is why
+/// <see cref="LoginCommand"/> is [AllowAnonymousRequest].
 /// </summary>
 public sealed class SignInUiService(
-    LoginHandler handler,
+    IDispatcher dispatcher,
     IHttpContextAccessor httpContextAccessor,
     AuthWebOptions options) : ISignInUiService
 {
@@ -26,8 +31,7 @@ public sealed class SignInUiService(
 
         try
         {
-            var principal = await handler.ValidateCredentialsAsync(username, password, cancellationToken);
-            var tokens = await handler.IssueAsync(principal, cancellationToken);
+            var tokens = await dispatcher.Send(new LoginCommand(username, password), cancellationToken);
             AuthCookies.Set(ctx, options, tokens);
             return SignInResult.Success;
         }

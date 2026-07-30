@@ -2,6 +2,19 @@ using Amazon.Runtime;
 using Amazon.S3;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
+using Hsm.Application.Auth.Commands.CompleteOnboarding;
+using Hsm.Application.Auth.Commands.ForgotPassword;
+using Hsm.Application.Auth.Commands.IssueIntegrationTokens;
+using Hsm.Application.Auth.Commands.Login;
+using Hsm.Application.Auth.Commands.Logout;
+using Hsm.Application.Auth.Commands.LogoutIntegration;
+using Hsm.Application.Auth.Commands.RecoverUsername;
+using Hsm.Application.Auth.Commands.RefreshTokens;
+using Hsm.Application.Auth.Commands.ResetPassword;
+using Hsm.Application.Auth.Commands.RevokeIntegrationTokens;
+using Hsm.Application.Auth.Commands.Signup;
+using Hsm.Application.Auth.Commands.SignupIntegration;
+using Hsm.Application.Auth.Queries.ListIntegrationAccounts;
 using Hsm.Application.Clinical;
 using Hsm.Application.Coms;
 using Hsm.Application.Docs;
@@ -257,21 +270,27 @@ public static class DependencyInjection
         services.AddSingleton<IEnvironmentPolicy>(new EnvironmentPolicy(environment == "dev"));
 
         services.AddScoped<TokenIssuer>();
-        services.AddScoped<LoginHandler>();
-        services.AddScoped<SignupHandler>();
-        services.AddScoped<SignupIntegrationHandler>();
-        services.AddScoped<RefreshHandler>();
-        services.AddScoped<LogoutHandler>();
-        services.AddScoped<LogoutIntegrationHandler>();
-        services.AddScoped<CompleteOnboardingHandler>();
-        services.AddScoped<ForgotPasswordHandler>();
-        services.AddScoped<ResetPasswordHandler>();
-        services.AddScoped<RecoverUsernameHandler>();
+
+        // Auth: command/query slices behind the dispatcher. Policy rides on the
+        // request type (see each command's attributes), so nothing here grants
+        // access — this is only handler wiring.
+        services.AddScoped<IRequestHandler<LoginCommand, TokenPair>, LoginHandler>();
+        services.AddScoped<IRequestHandler<SignupCommand, TokenPair>, SignupHandler>();
+        services.AddScoped<IRequestHandler<RefreshTokensCommand, TokenPair>, RefreshTokensHandler>();
+        services.AddScoped<IRequestHandler<LogoutCommand, Unit>, LogoutHandler>();
+        services.AddScoped<IRequestHandler<SignupIntegrationCommand, TokenPair>, SignupIntegrationHandler>();
+        services.AddScoped<IRequestHandler<LogoutIntegrationCommand, Unit>, LogoutIntegrationHandler>();
+        services.AddScoped<IRequestHandler<CompleteOnboardingCommand, TokenPair>, CompleteOnboardingHandler>();
+        services.AddScoped<IRequestHandler<ForgotPasswordCommand, Unit>, ForgotPasswordHandler>();
+        services.AddScoped<IRequestHandler<ResetPasswordCommand, Unit>, ResetPasswordHandler>();
+        services.AddScoped<IRequestHandler<RecoverUsernameCommand, Unit>, RecoverUsernameHandler>();
 
         // In-process UI surface only (plan U18): no /v1 routes map to these.
-        services.AddScoped<ListIntegrationAccountsHandler>();
-        services.AddScoped<IssueIntegrationTokensHandler>();
-        services.AddScoped<RevokeIntegrationTokensHandler>();
+        services.AddScoped<
+            IRequestHandler<ListIntegrationAccountsQuery, IReadOnlyList<IntegrationAccountListItem>>,
+            ListIntegrationAccountsHandler>();
+        services.AddScoped<IRequestHandler<IssueIntegrationTokensCommand, TokenPair>, IssueIntegrationTokensHandler>();
+        services.AddScoped<IRequestHandler<RevokeIntegrationTokensCommand, int>, RevokeIntegrationTokensHandler>();
     }
 
     private sealed class EnvironmentPolicy(bool isDev) : IEnvironmentPolicy

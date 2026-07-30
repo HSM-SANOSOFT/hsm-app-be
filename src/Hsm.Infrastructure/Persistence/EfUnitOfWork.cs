@@ -13,6 +13,13 @@ public sealed class EfUnitOfWork(HsmDbContext db) : IUnitOfWork
 {
     public async Task<T> ExecuteInTransactionAsync<T>(Func<CancellationToken, Task<T>> work, CancellationToken ct)
     {
+        if (db.Database.CurrentTransaction is not null)
+        {
+            // Reentrancy, same rule as AuthUnitOfWork: join the open
+            // transaction rather than asking EF for a nested one it will refuse.
+            return await work(ct);
+        }
+
         var strategy = db.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync(async () =>
         {

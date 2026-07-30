@@ -1,5 +1,16 @@
 using System.Text.Json.Nodes;
+using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
+using Hsm.Application.Auth.Commands.CompleteOnboarding;
+using Hsm.Application.Auth.Commands.ForgotPassword;
+using Hsm.Application.Auth.Commands.Login;
+using Hsm.Application.Auth.Commands.Logout;
+using Hsm.Application.Auth.Commands.LogoutIntegration;
+using Hsm.Application.Auth.Commands.RecoverUsername;
+using Hsm.Application.Auth.Commands.RefreshTokens;
+using Hsm.Application.Auth.Commands.ResetPassword;
+using Hsm.Application.Auth.Commands.Signup;
+using Hsm.Application.Auth.Commands.SignupIntegration;
 using Hsm.Domain.Identity;
 using Hsm.Web.Api;
 
@@ -41,7 +52,7 @@ public static class AuthEndpoints
         auth.MapPost("/username/recover", RecoverUsername).RequireRateLimiting(RecoveryRateLimitPolicy);
     }
 
-    private static async Task<IResult> Signup(HttpContext ctx, SignupHandler handler)
+    private static async Task<IResult> Signup(HttpContext ctx, IDispatcher dispatcher)
     {
         var body = await BodyValidator.ReadAsync(ctx);
         var username = body.RequiredString("username");
@@ -59,18 +70,19 @@ public static class AuthEndpoints
         body.RejectUnknownFields();
         body.ThrowIfInvalid();
 
-        var tokens = await handler.HandleAsync(new SignupHandler.Command(
-            username, email, password, firstName, firstLastName,
-            secondName, secondLastName, phoneNumber, gender));
+        var tokens = await dispatcher.Send(
+            new SignupCommand(
+                username, email, password, firstName, firstLastName,
+                secondName, secondLastName, phoneNumber, gender),
+            ctx.RequestAborted);
         AuthCookies.Set(ctx, Options(ctx), tokens);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, TokensJson(tokens));
     }
 
-    private static async Task<IResult> Login(HttpContext ctx, LoginHandler handler)
+    private static async Task<IResult> Login(HttpContext ctx, IDispatcher dispatcher)
     {
         // The frozen local guard ran BEFORE validation: missing/non-string
-        // credentials surface 401, not 400 — while unknown body properties on
-        // a request with VALID credentials still 400 (guard → pipe → handler).
+        // credentials surface 401, not 400.
         var body = await BodyValidator.ReadAsync(ctx);
         var username = body.OptionalString("username");
         var password = body.OptionalString("password");
@@ -79,16 +91,20 @@ public static class AuthEndpoints
             throw Hsm.Application.Errors.ApiException.Unauthorized();
         }
 
-        var principal = await handler.ValidateCredentialsAsync(username, password);
+        // Whitelist validation now runs BEFORE credential verification rather
+        // than between it and token issuance: LoginCommand verifies and issues
+        // in one dispatch, and issuing rotates the stored refresh hash, so
+        // validating afterwards would sign a caller out of their other sessions
+        // on a request that then 400s. See the Task 10 report, J2.
         body.RejectUnknownFields();
         body.ThrowIfInvalid();
 
-        var tokens = await handler.IssueAsync(principal);
+        var tokens = await dispatcher.Send(new LoginCommand(username, password), ctx.RequestAborted);
         AuthCookies.Set(ctx, Options(ctx), tokens);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, TokensJson(tokens));
     }
 
-    private static async Task<IResult> Logout(HttpContext ctx, LogoutHandler handler)
+    private static async Task<IResult> Logout(HttpContext ctx, IDispatcher dispatcher)
     {
         // Bearer header (integrations) first, then access cookie, then the
         // refresh cookie. Cookies are cleared regardless of the outcome.
@@ -96,25 +112,40 @@ public static class AuthEndpoints
             ?? ctx.Request.Cookies[AuthCookies.AccessCookie]
             ?? ctx.Request.Cookies[AuthCookies.RefreshCookie];
         AuthCookies.Clear(ctx, Options(ctx));
-        await handler.HandleAsync(token);
+        // No actor is installed: the token IS the credential here and it may be
+        // expired or unverifiable, which the handler answers with the frozen
+        // 401 messages. LogoutCommand is [AllowAnonymousRequest] for exactly
+        // that reason — see the Task 10 report, J1.
+        await dispatcher.Send(new LogoutCommand(token), ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, includeData: false);
     }
 
-    private static async Task<IResult> Refresh(HttpContext ctx, RefreshHandler handler)
+    private static async Task<IResult> Refresh(HttpContext ctx, IDispatcher dispatcher)
     {
         var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Refresh);
         RequestAuth.RequireRoles(ctx, principal);
         var rawToken = RequestAuth.RefreshToken(ctx)!;
-        var tokens = await handler.HandleAsync(principal, rawToken);
+        // No actor: RefreshTokensCommand is [AllowAnonymousRequest] because the
+        // refresh token is its credential, and it carries the principal this
+        // edge just validated.
+        var tokens = await dispatcher.Send(
+            new RefreshTokensCommand(principal, rawToken), ctx.RequestAborted);
         AuthCookies.Set(ctx, Options(ctx), tokens);
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, TokensJson(tokens));
     }
 
-    private static async Task<IResult> Onboarding(HttpContext ctx, CompleteOnboardingHandler handler)
+    private static async Task<IResult> Onboarding(HttpContext ctx, IDispatcher dispatcher)
     {
-        // @AllowPending — a pending user must be able to reach this.
+        // @AllowPending — a pending user must be able to reach this, so the
+        // onboarding gate deliberately does NOT run and the actor carries the
+        // principal's REAL onboarding state. CompleteOnboardingCommand is
+        // [AllowPendingOnboarding], so a pending actor passes the pipeline; had
+        // this route hardcoded "completed" it would be lying to every future
+        // request in the same scope.
         var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
         RequestAuth.RequireRoles(ctx, principal);
+        RequestAuth.InstallActor(
+            ctx, principal, onboardingCompleted: principal.OnboardingCompletedAt is not null);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var newPassword = body.RequiredString("newPassword", minLength: 8);
@@ -123,18 +154,20 @@ public static class AuthEndpoints
         body.RejectUnknownFields();
         body.ThrowIfInvalid();
 
-        var tokens = await handler.HandleAsync(
-            Guid.Parse(principal.Id),
-            new CompleteOnboardingHandler.Command(newPassword, phoneNumber, confirmEmail));
+        var tokens = await dispatcher.Send(
+            new CompleteOnboardingCommand(newPassword, phoneNumber, confirmEmail), ctx.RequestAborted);
         AuthCookies.Set(ctx, Options(ctx), tokens);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, TokensJson(tokens));
     }
 
-    private static async Task<IResult> SignupIntegration(HttpContext ctx, SignupIntegrationHandler handler)
+    private static async Task<IResult> SignupIntegration(HttpContext ctx, IDispatcher dispatcher)
     {
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        RequestAuth.RequireRoles(ctx, principal, Roles.Admin);
-        await RequestAuth.RequireOnboardingCompletedAsync(ctx, principal);
+        // GateAsync is authenticate → roles → onboarding → install actor, which
+        // is exactly the chain this route ran by hand; the role argument stays
+        // so the frozen 403 keeps its "Insufficient permissions" message
+        // (IntegrationModeContractTests pins it), and the actor now reaches the
+        // pipeline's [RequireRole(Roles.Admin)].
+        await RequestAuth.GateAsync(ctx, Roles.Admin);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var name = body.RequiredString("name");
@@ -144,22 +177,24 @@ public static class AuthEndpoints
         body.ThrowIfInvalid();
 
         // Tokens in the body only — integrations never use cookies.
-        var tokens = await handler.HandleAsync(new SignupIntegrationHandler.Command(name, description, functionality));
+        var tokens = await dispatcher.Send(
+            new SignupIntegrationCommand(name, description, functionality), ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, TokensJson(tokens));
     }
 
-    private static async Task<IResult> LogoutIntegration(HttpContext ctx, LogoutIntegrationHandler handler)
+    private static async Task<IResult> LogoutIntegration(HttpContext ctx, IDispatcher dispatcher)
     {
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        RequestAuth.RequireRoles(ctx, principal, Roles.Admin);
-        await RequestAuth.RequireOnboardingCompletedAsync(ctx, principal);
+        // Same chain as SignupIntegration. The frozen edge requires admin here
+        // even though LogoutIntegrationCommand's own policy is "authenticated":
+        // the edge role check is the frozen behavior and stays until Task 15.
+        await RequestAuth.GateAsync(ctx, Roles.Admin);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var token = body.RequiredString("token");
         body.RejectUnknownFields();
         body.ThrowIfInvalid();
 
-        await handler.HandleAsync(token);
+        await dispatcher.Send(new LogoutIntegrationCommand(token), ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, includeData: false);
     }
 
@@ -214,21 +249,21 @@ public static class AuthEndpoints
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, includeData: false);
     }
 
-    private static async Task<IResult> ForgotPassword(HttpContext ctx, ForgotPasswordHandler handler)
+    private static async Task<IResult> ForgotPassword(HttpContext ctx, IDispatcher dispatcher)
     {
         var body = await BodyValidator.ReadAsync(ctx);
         var email = body.RequiredString("email", email: true);
         body.RejectUnknownFields();
         body.ThrowIfInvalid();
 
-        await handler.HandleAsync(email);
+        await dispatcher.Send(new ForgotPasswordCommand(email), ctx.RequestAborted);
         return ApiEnvelope.Success(
             ctx,
             StatusCodes.Status201Created,
             new JsonObject { ["message"] = GenericRecoveryMessage });
     }
 
-    private static async Task<IResult> ResetPassword(HttpContext ctx, ResetPasswordHandler handler)
+    private static async Task<IResult> ResetPassword(HttpContext ctx, IDispatcher dispatcher)
     {
         var body = await BodyValidator.ReadAsync(ctx);
         var token = body.RequiredString("token");
@@ -236,21 +271,21 @@ public static class AuthEndpoints
         body.RejectUnknownFields();
         body.ThrowIfInvalid();
 
-        await handler.HandleAsync(token, newPassword);
+        await dispatcher.Send(new ResetPasswordCommand(token, newPassword), ctx.RequestAborted);
         return ApiEnvelope.Success(
             ctx,
             StatusCodes.Status201Created,
             new JsonObject { ["message"] = "Password updated." });
     }
 
-    private static async Task<IResult> RecoverUsername(HttpContext ctx, RecoverUsernameHandler handler)
+    private static async Task<IResult> RecoverUsername(HttpContext ctx, IDispatcher dispatcher)
     {
         var body = await BodyValidator.ReadAsync(ctx);
         var email = body.RequiredString("email", email: true);
         body.RejectUnknownFields();
         body.ThrowIfInvalid();
 
-        await handler.HandleAsync(email);
+        await dispatcher.Send(new RecoverUsernameCommand(email), ctx.RequestAborted);
         return ApiEnvelope.Success(
             ctx,
             StatusCodes.Status201Created,

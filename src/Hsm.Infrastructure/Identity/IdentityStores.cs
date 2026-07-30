@@ -244,6 +244,18 @@ public sealed class AuthUnitOfWork(HsmDbContext db) : IAuthUnitOfWork
 
     public async Task<T> ExecuteInTransactionAsync<T>(Func<CancellationToken, Task<T>> work, CancellationToken ct = default)
     {
+        if (db.Database.CurrentTransaction is not null)
+        {
+            // Join the transaction already open on this DbContext instead of
+            // asking EF for a nested one, which it refuses outright. The
+            // pipeline's TransactionBehavior opens a transaction around every
+            // ICommand, and shared collaborators below it — TokenIssuer's
+            // refresh rotation is the first — still ask for their own. Joining
+            // keeps the atomicity they were written for: their work commits or
+            // rolls back with the outer unit, which is strictly wider.
+            return await work(ct);
+        }
+
         var strategy = db.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync(async () =>
         {

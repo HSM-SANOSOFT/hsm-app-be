@@ -81,22 +81,32 @@ public static class RequestAuth
         var principal = await AuthenticateAsync(ctx, TokenKind.Access);
         RequireRoles(ctx, principal, requiredRoles);
         await RequireOnboardingCompletedAsync(ctx, principal);
-        InstallActor(ctx, principal);
+        InstallActor(ctx, principal, onboardingCompleted: true);
         return principal;
     }
 
     /// <summary>
     /// Publishes the gated principal as the request-scoped actor the
-    /// application pipeline authorizes against. Onboarding is recorded as
-    /// satisfied because <see cref="RequireOnboardingCompletedAsync"/> has just
-    /// enforced the frozen OnboardingGuard — including its admin/integration
-    /// exemptions and its authoritative database fallback, neither of which the
-    /// token claims alone can express.
+    /// application pipeline authorizes against. Without this a route that
+    /// authenticates by hand — rather than through <see cref="GateAsync"/> —
+    /// reaches the pipeline with no actor and every non-anonymous request 401s
+    /// despite a perfectly valid principal.
     /// </summary>
-    private static void InstallActor(HttpContext ctx, AuthPrincipal principal)
+    /// <param name="onboardingCompleted">
+    /// Pass <see langword="true"/> only where <see cref="RequireOnboardingCompletedAsync"/>
+    /// has just run: it enforces the frozen OnboardingGuard including its
+    /// admin/integration exemptions and its authoritative database fallback,
+    /// none of which the token claims alone can express, so recording
+    /// "satisfied" is a faithful restatement rather than a bypass. Routes that
+    /// deliberately tolerate a pending user (the frozen @AllowPending) must
+    /// instead pass the principal's real state, so the pipeline sees the truth.
+    /// </param>
+    public static void InstallActor(HttpContext ctx, AuthPrincipal principal, bool onboardingCompleted)
     {
+        ArgumentNullException.ThrowIfNull(ctx);
+        ArgumentNullException.ThrowIfNull(principal);
         ctx.RequestServices.GetRequiredService<AmbientPrincipal>().Set(
-            new RequestActor(principal.Id, principal.Roles, OnboardingCompleted: true));
+            new RequestActor(principal.Id, principal.Roles, onboardingCompleted));
     }
 
     /// <summary>
