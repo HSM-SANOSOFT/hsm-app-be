@@ -1,9 +1,10 @@
 using System.Text.Json.Nodes;
+using Hsm.Application.Abstractions;
 using Hsm.Application.Ports;
 using Hsm.Application.Templates;
 using Hsm.Domain.Docs;
 
-namespace Hsm.Application.Docs;
+namespace Hsm.Application.Docs.Commands.RenderDocument;
 
 /// <summary>
 /// The queued generation job (frozen worker docs-processor.service.ts), with
@@ -12,26 +13,29 @@ namespace Hsm.Application.Docs;
 /// PROCESSING → blob upload → one transaction (version max+1, storage object,
 /// provenance, optional link + entity fields) → COMPLETED; on any failure the
 /// uploaded blob is best-effort removed and the document row is marked FAILED
-/// before the error re-throws into the queue's retry policy.
+/// before the error re-throws into the queue's retry policy. Dispatched by
+/// direct <c>IRequestHandler</c> resolution, not <see cref="IDispatcher"/> —
+/// see <see cref="RenderDocumentCommand"/>'s doc comment for why.
 /// </summary>
-public sealed class GenerateDocumentJobHandler(
+public sealed class RenderDocumentHandler(
     IDocumentStore store,
     ITemplateStore templateStore,
     TemplateParser parser,
     IDocumentPdfRenderer pdfRenderer,
     IObjectStorage storage,
-    DocsOptions options)
+    DocsOptions options) : IRequestHandler<RenderDocumentCommand, Unit>
 {
-    public async Task HandleAsync(GenerateDocumentJob job, CancellationToken ct = default)
+    public async Task<Unit> HandleAsync(RenderDocumentCommand request, CancellationToken ct)
     {
-        await store.SetStatusAsync(job.DocumentId, DocumentStatuses.Processing, ct);
+        ArgumentNullException.ThrowIfNull(request);
+        await store.SetStatusAsync(request.DocumentId, DocumentStatuses.Processing, ct);
 
         string? uploadedKey = null;
         try
         {
             var template = await templateStore.FindByIdentifierAsync(
-                    job.TemplateIdentifier, withChildren: true, withBase: true, ct)
-                ?? throw new TemplateParseException($"Template '{job.TemplateIdentifier}' not found");
+                    request.TemplateIdentifier, withChildren: true, withBase: true, ct)
+                ?? throw new TemplateParseException($"Template '{request.TemplateIdentifier}' not found");
             if (!template.IsActive)
             {
                 throw new TemplateParseException($"Template '{template.Name}' is not active");
@@ -40,7 +44,7 @@ public sealed class GenerateDocumentJobHandler(
             if (template.Doc is null)
             {
                 throw new TemplateParseException(
-                    $"Template '{job.TemplateIdentifier}' is not a DOCS category template");
+                    $"Template '{request.TemplateIdentifier}' is not a DOCS category template");
             }
 
             // Frozen formats: PDF via the renderer port; EXCEL/WORD are not
@@ -52,7 +56,7 @@ public sealed class GenerateDocumentJobHandler(
                 throw new TemplateParseException($"Unsupported document format: {template.Doc.Format}");
             }
 
-            var data = JsonNode.Parse(job.DataJson) as JsonObject ?? [];
+            var data = JsonNode.Parse(request.DataJson) as JsonObject ?? [];
             var html = await parser.ParseAsync(template, data, userId: null, ct);
             // The synchronous QuestPDF render runs off the consumer's async
             // flow so a long layout cannot stall queue throughput.
@@ -69,7 +73,7 @@ public sealed class GenerateDocumentJobHandler(
             uploadedKey = key;
             await store.AddGeneratedVersionAsync(
                 new GeneratedVersionRecord(
-                    job.DocumentId,
+                    request.DocumentId,
                     filename,
                     "application/pdf",
                     pdf.Length,
@@ -77,11 +81,11 @@ public sealed class GenerateDocumentJobHandler(
                     key,
                     options.Bucket,
                     template.Name,
-                    job.DataJson,
-                    job.EntityId,
-                    job.EntityType),
+                    request.DataJson,
+                    request.EntityId,
+                    request.EntityType),
                 ct);
-            await store.SetStatusAsync(job.DocumentId, DocumentStatuses.Completed, ct);
+            await store.SetStatusAsync(request.DocumentId, DocumentStatuses.Completed, ct);
         }
         catch
         {
@@ -102,7 +106,7 @@ public sealed class GenerateDocumentJobHandler(
 
             try
             {
-                await store.SetStatusAsync(job.DocumentId, DocumentStatuses.Failed, CancellationToken.None);
+                await store.SetStatusAsync(request.DocumentId, DocumentStatuses.Failed, CancellationToken.None);
             }
             catch (Exception)
             {
@@ -111,5 +115,7 @@ public sealed class GenerateDocumentJobHandler(
 
             throw;
         }
+
+        return Unit.Value;
     }
 }

@@ -28,6 +28,14 @@ using Hsm.Application.Coms.Queries.GetEmailRecipient;
 using Hsm.Application.Coms.Queries.ListEmailBatches;
 using Hsm.Application.Coms.Queries.ListEmailRecipients;
 using Hsm.Application.Docs;
+using Hsm.Application.Docs.Commands.DeleteDocument;
+using Hsm.Application.Docs.Commands.GenerateDocument;
+using Hsm.Application.Docs.Commands.RenderDocument;
+using Hsm.Application.Docs.Commands.UploadDocuments;
+using Hsm.Application.Docs.Queries.GetDocument;
+using Hsm.Application.Docs.Queries.GetDocumentUrl;
+using Hsm.Application.Docs.Queries.ListDocuments;
+using Hsm.Application.Docs.Queries.PresignDocuments;
 using Hsm.Application.Ports;
 using Hsm.Application.Proving;
 using Hsm.Application.Settings;
@@ -50,6 +58,7 @@ using Hsm.Application.Users.Commands.UpdateOwnProfile;
 using Hsm.Application.Users.Queries.GetUser;
 using Hsm.Application.Users.Queries.ListUsers;
 using Hsm.Domain.Coms;
+using Hsm.Domain.Docs;
 using Hsm.Domain.Identity;
 using Hsm.Domain.Settings;
 using Hsm.Domain.Templates;
@@ -172,14 +181,23 @@ public static class DependencyInjection
         });
         services.AddChannelJobQueue<IDocsJobDispatcher, ChannelDocsDispatcher, DocsJobProcessor>();
 
-        services.AddScoped<ListDocumentsHandler>();
-        services.AddScoped<GenerateDocumentHandler>();
-        services.AddScoped<GetDocumentHandler>();
-        services.AddScoped<GetDocumentUrlHandler>();
-        services.AddScoped<DeleteDocumentHandler>();
-        services.AddScoped<PresignDocumentsHandler>();
-        services.AddScoped<UploadDocumentsHandler>();
-        services.AddScoped<GenerateDocumentJobHandler>();
+        // Docs: command/query slices behind the dispatcher. Policy rides on
+        // the request type, exactly as Templates/Users/Settings/Auth/Coms.
+        // RenderDocumentCommand is ALSO registered as IRequestHandler (for
+        // DocsJobProcessor's direct resolution — see its doc comment for why
+        // it does not go through IDispatcher).
+        services.AddScoped<
+            IRequestHandler<ListDocumentsQuery, ListDocumentsResult>, ListDocumentsHandler>();
+        services.AddScoped<
+            IRequestHandler<GenerateDocumentCommand, GenerateDocumentResult>, GenerateDocumentHandler>();
+        services.AddScoped<IRequestHandler<GetDocumentQuery, Document>, GetDocumentHandler>();
+        services.AddScoped<IRequestHandler<GetDocumentUrlQuery, string>, GetDocumentUrlHandler>();
+        services.AddScoped<IRequestHandler<DeleteDocumentCommand, Unit>, DeleteDocumentHandler>();
+        services.AddScoped<
+            IRequestHandler<PresignDocumentsQuery, IReadOnlyList<PresignedItem>>, PresignDocumentsHandler>();
+        services.AddScoped<
+            IRequestHandler<UploadDocumentsCommand, UploadDocumentsResult>, UploadDocumentsHandler>();
+        services.AddScoped<IRequestHandler<RenderDocumentCommand, Unit>, RenderDocumentHandler>();
     }
 
     /// <summary>

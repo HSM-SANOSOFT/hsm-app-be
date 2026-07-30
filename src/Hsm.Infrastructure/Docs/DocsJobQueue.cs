@@ -1,4 +1,6 @@
+using Hsm.Application.Abstractions;
 using Hsm.Application.Docs;
+using Hsm.Application.Docs.Commands.RenderDocument;
 using Hsm.Infrastructure.Jobs;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -30,8 +32,11 @@ public sealed class DocsQueueOptions : JobRetryOptions
 /// </summary>
 public sealed class ChannelDocsDispatcher : ChannelJobDispatcher<GenerateDocumentJob>, IDocsJobDispatcher
 {
-    public Task<string> EnqueueGenerateDocumentAsync(
-        GenerateDocumentJob job, CancellationToken ct = default) => EnqueueAsync(job, ct);
+    public string ReserveGenerateDocumentJobId() => ReserveJobId();
+
+    public Task EnqueueGenerateDocumentAsync(
+        string jobId, GenerateDocumentJob job, CancellationToken ct = default) =>
+        EnqueueReservedAsync(jobId, job, ct);
 }
 
 /// <summary>
@@ -39,6 +44,20 @@ public sealed class ChannelDocsDispatcher : ChannelJobDispatcher<GenerateDocumen
 /// consume loop, the frozen 1s enqueue delay, retries, and logging come from
 /// the shared processor. Terminal failures are logged, never thrown into the
 /// host (the document row already reads FAILED).
+///
+/// <b>Deliberately bypasses <see cref="IDispatcher"/></b> for
+/// <see cref="RenderDocumentCommand"/>: it resolves the command's
+/// <see cref="IRequestHandler{TRequest,TResult}"/> directly from the
+/// per-attempt scope and calls <c>HandleAsync</c> on it, the same shape as
+/// the pre-slicing code that called the old concrete
+/// <c>GenerateDocumentJobHandler</c> class. This is the "keep the existing
+/// mechanism" option from the Task 12 brief (Coms precedent), not an
+/// oversight — see <see cref="RenderDocumentCommand"/>'s doc comment for the
+/// concrete contract tests a naive <c>IDispatcher</c> route would break (a
+/// pipeline-owned transaction rolling back the FAILED write a retry depends
+/// on). Because of that, <see cref="RenderDocumentCommand"/>'s policy
+/// attribute is honest, forward-looking metadata for Task 19 — not enforced
+/// today.
 /// </summary>
 public sealed class DocsJobProcessor(
     ChannelDocsDispatcher queue,
@@ -50,5 +69,7 @@ public sealed class DocsJobProcessor(
     protected override string QueueName => "Docs";
 
     protected override Task RunAsync(GenerateDocumentJob job, IServiceProvider services, CancellationToken ct) =>
-        services.GetRequiredService<GenerateDocumentJobHandler>().HandleAsync(job, ct);
+        services.GetRequiredService<IRequestHandler<RenderDocumentCommand, Unit>>().HandleAsync(
+            new RenderDocumentCommand(job.DocumentId, job.TemplateIdentifier, job.DataJson, job.EntityId, job.EntityType),
+            ct);
 }

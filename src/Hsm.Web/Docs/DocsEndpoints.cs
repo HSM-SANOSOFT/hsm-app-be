@@ -2,7 +2,15 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Hsm.Application;
+using Hsm.Application.Abstractions;
 using Hsm.Application.Docs;
+using Hsm.Application.Docs.Commands.DeleteDocument;
+using Hsm.Application.Docs.Commands.GenerateDocument;
+using Hsm.Application.Docs.Commands.UploadDocuments;
+using Hsm.Application.Docs.Queries.GetDocument;
+using Hsm.Application.Docs.Queries.GetDocumentUrl;
+using Hsm.Application.Docs.Queries.ListDocuments;
+using Hsm.Application.Docs.Queries.PresignDocuments;
 using Hsm.Application.Errors;
 using Hsm.Domain.Docs;
 using Hsm.Web.Api;
@@ -34,7 +42,7 @@ public static class DocsEndpoints
         docs.MapGet("/{id}/url", (Delegate)GetDocumentUrl);
     }
 
-    private static async Task<IResult> ListDocuments(HttpContext ctx, ListDocumentsHandler handler)
+    private static async Task<IResult> ListDocuments(HttpContext ctx, IDispatcher dispatcher)
     {
         var principal = await RequestAuth.GateAsync(ctx);
 
@@ -50,17 +58,18 @@ public static class DocsEndpoints
 
         var filter = new DocumentListFilter(
             Guid.Parse(principal.Id), entityId, entityType, type, status, page ?? 1, limit ?? 20);
-        var (items, total) = await handler.HandleAsync(filter);
+        var result = await dispatcher.Send(new ListDocumentsQuery(filter), ctx.RequestAborted);
 
-        var data = new JsonArray([.. items.Select(d => (JsonNode?)DocumentJson(d))]);
+        var data = new JsonArray([.. result.Items.Select(d => (JsonNode?)DocumentJson(d))]);
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status200OK, data,
-            extra: ApiEnvelope.Pagination(filter.Page, filter.Limit, total));
+            extra: ApiEnvelope.Pagination(filter.Page, filter.Limit, result.Total));
     }
 
-    private static async Task<IResult> GenerateDocument(HttpContext ctx, GenerateDocumentHandler handler)
+    private static async Task<IResult> GenerateDocument(
+        HttpContext ctx, IDispatcher dispatcher, IDocsJobDispatcher queue)
     {
-        var principal = await RequestAuth.GateAsync(ctx);
+        await RequestAuth.GateAsync(ctx);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var templateIdentifier = body.RequiredString("templateIdentifier");
@@ -72,15 +81,22 @@ public static class DocsEndpoints
         body.RejectUnknownFields();
         body.ThrowIfInvalid();
 
-        var result = await handler.HandleAsync(
-            new GenerateDocumentHandler.Command(
-                templateIdentifier,
-                data?.ToJsonString() ?? "{}",
-                title,
-                description,
-                entityId,
-                entityType),
-            Guid.Parse(principal.Id));
+        var dataJson = data?.ToJsonString() ?? "{}";
+        var result = await dispatcher.Send(
+            new GenerateDocumentCommand(templateIdentifier, dataJson, title, description, entityId, entityType),
+            ctx.RequestAborted);
+
+        // Enqueued after dispatch returns — TransactionBehavior has already
+        // committed the document row by now (GenerateDocumentHandler's doc
+        // comment explains why enqueuing inside the handler would race that
+        // commit). CancellationToken.None: this is post-commit work, the
+        // document row already exists, and it must not be abandoned merely
+        // because the client hung up (see Task 12's fix for the same pair).
+        await queue.EnqueueGenerateDocumentAsync(
+            result.JobId,
+            new GenerateDocumentJob(result.DocumentId, templateIdentifier, dataJson, entityId, entityType),
+            CancellationToken.None);
+
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, new JsonObject
         {
             ["documentId"] = result.DocumentId.ToString(),
@@ -88,34 +104,36 @@ public static class DocsEndpoints
         });
     }
 
-    private static async Task<IResult> GetDocument(HttpContext ctx, string id, GetDocumentHandler handler)
+    private static async Task<IResult> GetDocument(HttpContext ctx, string id, IDispatcher dispatcher)
     {
-        var principal = await RequestAuth.GateAsync(ctx);
-        var document = await handler.HandleAsync(RouteParams.UnpipedUuid(id), Guid.Parse(principal.Id));
+        await RequestAuth.GateAsync(ctx);
+        var document = await dispatcher.Send(
+            new GetDocumentQuery(RouteParams.UnpipedUuid(id)), ctx.RequestAborted);
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status200OK, DocumentJson(document, withVersions: true));
     }
 
     private static async Task<IResult> GetDocumentUrl(
-        HttpContext ctx, string id, GetDocumentUrlHandler handler)
+        HttpContext ctx, string id, IDispatcher dispatcher)
     {
-        var principal = await RequestAuth.GateAsync(ctx);
-        var url = await handler.HandleAsync(RouteParams.UnpipedUuid(id), Guid.Parse(principal.Id));
+        await RequestAuth.GateAsync(ctx);
+        var url = await dispatcher.Send(
+            new GetDocumentUrlQuery(RouteParams.UnpipedUuid(id)), ctx.RequestAborted);
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status200OK, new JsonObject { ["url"] = url });
     }
 
     private static async Task<IResult> DeleteDocument(
-        HttpContext ctx, string id, DeleteDocumentHandler handler)
+        HttpContext ctx, string id, IDispatcher dispatcher)
     {
-        var principal = await RequestAuth.GateAsync(ctx);
-        await handler.HandleAsync(RouteParams.UnpipedUuid(id), Guid.Parse(principal.Id));
+        await RequestAuth.GateAsync(ctx);
+        await dispatcher.Send(new DeleteDocumentCommand(RouteParams.UnpipedUuid(id)), ctx.RequestAborted);
         // Frozen deleteDocument answers { deleted: true }, 200.
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status200OK, new JsonObject { ["deleted"] = true });
     }
 
-    private static async Task<IResult> GetDocumentsUrl(HttpContext ctx, PresignDocumentsHandler handler)
+    private static async Task<IResult> GetDocumentsUrl(HttpContext ctx, IDispatcher dispatcher)
     {
         await RequestAuth.GateAsync(ctx);
 
@@ -132,7 +150,8 @@ public static class DocsEndpoints
             ? parsed
             : null;
 
-        var results = await handler.HandleAsync(items!, contentDisposition, expiresInSeconds);
+        var results = await dispatcher.Send(
+            new PresignDocumentsQuery(items!, contentDisposition, expiresInSeconds), ctx.RequestAborted);
         var data = new JsonArray([.. results.Select(item => (JsonNode?)new JsonObject
         {
             ["bucket"] = item.Bucket,
@@ -163,9 +182,9 @@ public static class DocsEndpoints
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, includeData: false);
     }
 
-    private static async Task<IResult> UploadDocuments(HttpContext ctx, UploadDocumentsHandler handler)
+    private static async Task<IResult> UploadDocuments(HttpContext ctx, IDispatcher dispatcher)
     {
-        var principal = await RequestAuth.GateAsync(ctx);
+        await RequestAuth.GateAsync(ctx);
 
         var form = await ctx.Request.ReadFormAsync();
 
@@ -182,16 +201,15 @@ public static class DocsEndpoints
 
         // Stream-through: the buffered multipart sections are handed to the
         // handler as streams — no per-file byte-array copy.
-        var files = new List<UploadDocumentsHandler.FileUpload>();
+        var files = new List<UploadFileUpload>();
         foreach (var file in form.Files.GetFiles("files"))
         {
-            files.Add(new UploadDocumentsHandler.FileUpload(
+            files.Add(new UploadFileUpload(
                 file.FileName, file.ContentType, file.Length, file.OpenReadStream()));
         }
 
-        var result = await handler.HandleAsync(
-            new UploadDocumentsHandler.Command(payload, entityId, entityType, files),
-            Guid.Parse(principal.Id));
+        var result = await dispatcher.Send(
+            new UploadDocumentsCommand(payload, entityId, entityType, files), ctx.RequestAborted);
 
         var s3Result = new JsonArray([.. result.S3Result.Select(item => (JsonNode?)new JsonObject
         {
@@ -265,7 +283,7 @@ public static class DocsEndpoints
     /// ArrayNotEmpty — an empty array is valid and answers []), items carry
     /// bucket + files[].folderName + files[].fileInfo.fileId.
     /// </summary>
-    private static List<PresignDocumentsHandler.Item>? ReadDocumentsPayload(BodyValidator body)
+    private static List<PresignItem>? ReadDocumentsPayload(BodyValidator body)
     {
         var node = body.RawNode("documents");
         if (node is not JsonArray array)
@@ -275,9 +293,9 @@ public static class DocsEndpoints
         }
 
         return [.. ReadBucketFilesArray(array, "documents", "fileId", body.Failures)
-            .Select(item => new PresignDocumentsHandler.Item(
+            .Select(item => new PresignItem(
                 item.Bucket,
-                [.. item.Files.Select(f => new PresignDocumentsHandler.FileRef(f.FolderName, f.LeafValue))]))];
+                [.. item.Files.Select(f => new PresignFileRef(f.FolderName, f.LeafValue))]))];
     }
 
     /// <summary>
@@ -286,7 +304,7 @@ public static class DocsEndpoints
     /// escaped the pipe as a bare 500, pinned), an array of
     /// bucket + files[].folderName + files[].fileInfo.fileName.
     /// </summary>
-    private static List<UploadDocumentsHandler.PayloadItem> ReadUploadPayload(IFormCollection form)
+    private static List<UploadPayloadItem> ReadUploadPayload(IFormCollection form)
     {
         var failures = new ValidationFailures();
         foreach (var field in form.Keys)
@@ -315,7 +333,7 @@ public static class DocsEndpoints
             }
         }
 
-        var items = new List<UploadDocumentsHandler.PayloadItem>();
+        var items = new List<UploadPayloadItem>();
         if (node is not null)
         {
             if (node is not JsonArray array)
@@ -325,9 +343,9 @@ public static class DocsEndpoints
             else
             {
                 items = [.. ReadBucketFilesArray(array, "payload", "fileName", failures)
-                    .Select(item => new UploadDocumentsHandler.PayloadItem(
+                    .Select(item => new UploadPayloadItem(
                         item.Bucket,
-                        [.. item.Files.Select(f => new UploadDocumentsHandler.PayloadFile(f.FolderName, f.LeafValue))]))];
+                        [.. item.Files.Select(f => new UploadPayloadFile(f.FolderName, f.LeafValue))]))];
             }
         }
 

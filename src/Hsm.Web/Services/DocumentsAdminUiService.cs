@@ -1,21 +1,25 @@
+using Hsm.Application.Abstractions;
 using Hsm.Application.Docs;
+using Hsm.Application.Docs.Commands.DeleteDocument;
+using Hsm.Application.Docs.Commands.UploadDocuments;
+using Hsm.Application.Docs.Queries.GetDocumentUrl;
+using Hsm.Application.Docs.Queries.ListDocuments;
 using Hsm.Contracts.Ui;
 
 namespace Hsm.Web.Services;
 
 /// <summary>
 /// Host-side document management (plan U18, screen 5): admin gate first, then
-/// the same handlers the frozen /v1/docs endpoints call, with the frozen
-/// createdBy scoping bound to the signed-in admin. Uploads land in the
+/// the same dispatcher the frozen /v1/docs endpoints use, with the frozen
+/// createdBy scoping bound to the signed-in admin (the gate installs the
+/// admin as the ambient actor before any dispatch — see
+/// <see cref="UiServiceGate.RequireAdminAsync"/>). Uploads land in the
 /// configured docs bucket under a fixed folder — the screen does not expose
 /// bucket/folder choice.
 /// </summary>
 public sealed class DocumentsAdminUiService(
     UiServiceGate gate,
-    ListDocumentsHandler list,
-    UploadDocumentsHandler upload,
-    GetDocumentUrlHandler getUrl,
-    DeleteDocumentHandler delete,
+    IDispatcher dispatcher,
     DocsOptions docsOptions) : IDocumentsAdminUiService
 {
     /// <summary>Where screen uploads land inside the docs bucket.</summary>
@@ -27,19 +31,19 @@ public sealed class DocumentsAdminUiService(
         var adminId = await gate.RequireAdminIdAsync();
         var filter = new DocumentListFilter(
             adminId, EntityId: null, EntityType: null, Type: null, Status: null, page, pageSize);
-        var (items, total) = await list.HandleAsync(filter, cancellationToken);
+        var result = await dispatcher.Send(new ListDocumentsQuery(filter), cancellationToken);
         return new DocumentListPageDto(
-            [.. items.Select(d => new DocumentRowDto(
+            [.. result.Items.Select(d => new DocumentRowDto(
                 d.Id.ToString(), d.Title, d.Type, d.Status, d.CreatedAt))],
             page,
             pageSize,
-            total);
+            result.Total);
     }
 
     public async Task<IReadOnlyList<string>> UploadAsync(
         IReadOnlyList<UploadFileDto> files, CancellationToken cancellationToken = default)
     {
-        var adminId = await gate.RequireAdminIdAsync();
+        await gate.RequireAdminAsync();
         if (files.Count == 0)
         {
             return [];
@@ -47,7 +51,7 @@ public sealed class DocumentsAdminUiService(
 
         // Buffer each browser stream: the S3 adapter needs a length, and the
         // handler's filename matching consumes streams in payload order.
-        var uploads = new List<UploadDocumentsHandler.FileUpload>(files.Count);
+        var uploads = new List<UploadFileUpload>(files.Count);
         try
         {
             foreach (var file in files)
@@ -55,22 +59,21 @@ public sealed class DocumentsAdminUiService(
                 var buffer = new MemoryStream();
                 await file.Content.CopyToAsync(buffer, cancellationToken);
                 buffer.Position = 0;
-                uploads.Add(new UploadDocumentsHandler.FileUpload(
+                uploads.Add(new UploadFileUpload(
                     file.FileName, file.ContentType, buffer.Length, buffer));
             }
 
-            var command = new UploadDocumentsHandler.Command(
+            var command = new UploadDocumentsCommand(
                 Payload:
                 [
-                    new UploadDocumentsHandler.PayloadItem(
+                    new UploadPayloadItem(
                         docsOptions.Bucket,
-                        [.. uploads.Select(u =>
-                            new UploadDocumentsHandler.PayloadFile(UploadFolder, u.FileName))]),
+                        [.. uploads.Select(u => new UploadPayloadFile(UploadFolder, u.FileName))]),
                 ],
                 EntityId: null,
                 EntityType: null,
                 Files: uploads);
-            var result = await upload.HandleAsync(command, adminId, cancellationToken);
+            var result = await dispatcher.Send(command, cancellationToken);
             return [.. result.DocumentIds.Select(id => id.ToString())];
         }
         finally
@@ -85,13 +88,13 @@ public sealed class DocumentsAdminUiService(
     public async Task<string> GetDownloadUrlAsync(
         string documentId, CancellationToken cancellationToken = default)
     {
-        var adminId = await gate.RequireAdminIdAsync();
-        return await getUrl.HandleAsync(Guid.Parse(documentId), adminId, cancellationToken);
+        await gate.RequireAdminAsync();
+        return await dispatcher.Send(new GetDocumentUrlQuery(Guid.Parse(documentId)), cancellationToken);
     }
 
     public async Task DeleteAsync(string documentId, CancellationToken cancellationToken = default)
     {
-        var adminId = await gate.RequireAdminIdAsync();
-        await delete.HandleAsync(Guid.Parse(documentId), adminId, cancellationToken);
+        await gate.RequireAdminAsync();
+        await dispatcher.Send(new DeleteDocumentCommand(Guid.Parse(documentId)), cancellationToken);
     }
 }
