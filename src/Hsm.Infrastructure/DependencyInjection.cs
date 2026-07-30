@@ -60,6 +60,12 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddHsmInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        // Several adapters here take ILogger<T>. The hosts get logging from
+        // their builders, but a bare ServiceCollection (the integration tests)
+        // does not, and the failure is a resolution error far from its cause.
+        // AddLogging uses TryAdd, so it never overrides a host's configuration.
+        services.AddLogging();
+
         // PostgreSQL via EF Core. Concretely PostgreSQL on purpose: jsonb,
         // arrays, partial indexes, and generated columns are wanted; there is
         // no second engine to stay portable for.
