@@ -59,8 +59,12 @@ public static class ComsEndpoints
             ctx.RequestAborted);
         // Enqueued HERE, after dispatch returns — TransactionBehavior has
         // committed the batch by now (SendEmailHandler's doc comment explains
-        // why the handler itself must not enqueue).
-        await queue.EnqueueSendEmailAsync(result.JobId, result.BatchId, recipientId: null, ctx.RequestAborted);
+        // why the handler itself must not enqueue). CancellationToken.None,
+        // deliberately: this is post-commit work — the batch row already
+        // exists — and must not be abandoned just because the client hung up
+        // between the commit and this call. The frozen handler enqueued with
+        // no cancellation token at all for the same reason.
+        await queue.EnqueueSendEmailAsync(result.JobId, result.BatchId, recipientId: null, CancellationToken.None);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, new JsonObject
         {
             ["batchId"] = result.BatchId.ToString(),
@@ -113,8 +117,9 @@ public static class ComsEndpoints
         var batchId = Guid.Parse(id);
         var jobId = await dispatcher.Send(new ResendEmailBatchCommand(batchId), ctx.RequestAborted);
         // Enqueued after dispatch returns — see SendEmail's comment; the same
-        // commit-then-enqueue ordering applies here.
-        await queue.EnqueueSendEmailAsync(jobId, batchId, recipientId: null, ctx.RequestAborted);
+        // commit-then-enqueue ordering applies here. CancellationToken.None:
+        // post-commit work must not be abandoned on client disconnect.
+        await queue.EnqueueSendEmailAsync(jobId, batchId, recipientId: null, CancellationToken.None);
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status201Created, new JsonObject { ["jobId"] = jobId });
     }
@@ -171,10 +176,19 @@ public static class ComsEndpoints
             new ReceiveWebhookCommand(provider, signature, buffer.ToArray()), ctx.RequestAborted);
         // Enqueued HERE, after dispatch returns — see ReceiveWebhookHandler's
         // doc comment: this is the fix for a real (not theoretical) race with
-        // TransactionBehavior's commit-after-return semantics.
+        // TransactionBehavior's commit-after-return semantics. CancellationToken.None,
+        // deliberately: the event rows are already committed with
+        // ProcessedAt == null: if the client disconnects between the commit
+        // and this loop and we honored ctx.RequestAborted, the job would
+        // never be queued, the provider's retry would dedup via
+        // ExistingEventKeysAsync and return an empty EventIdsToProcess, and
+        // the event would be permanently unprocessed — the exact
+        // silent-forever failure this whole move was meant to fix, through a
+        // narrower window. The frozen handler enqueued with no cancellation
+        // token for the same reason.
         foreach (var eventId in result.EventIdsToProcess)
         {
-            await queue.EnqueueProcessWebhookEventAsync(eventId, ctx.RequestAborted);
+            await queue.EnqueueProcessWebhookEventAsync(eventId, CancellationToken.None);
         }
 
         return ApiEnvelope.Success(
