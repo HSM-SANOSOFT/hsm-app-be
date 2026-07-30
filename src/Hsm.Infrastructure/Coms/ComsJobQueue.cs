@@ -1,4 +1,7 @@
+using Hsm.Application.Abstractions;
 using Hsm.Application.Coms;
+using Hsm.Application.Coms.Commands.DispatchEmailBatch;
+using Hsm.Application.Coms.Commands.ProcessWebhookEvent;
 using Hsm.Infrastructure.Jobs;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -52,6 +55,20 @@ public sealed class ChannelComsDispatcher : ChannelJobDispatcher<ComsJob>, IComs
 /// <summary>
 /// The background dispatcher (frozen worker ComsService/QueueWorkerHost):
 /// consume loop, retries, and logging come from the shared processor.
+///
+/// <b>Deliberately bypasses <see cref="IDispatcher"/></b> for both job
+/// commands: it resolves each <see cref="IRequestHandler{TRequest,TResult}"/>
+/// directly from the per-attempt scope and calls
+/// <c>HandleAsync</c> on it, the same shape as the pre-slicing code that
+/// called the old concrete handler classes. This is the "keep the existing
+/// mechanism" option from the Task 12 brief, not an oversight — see
+/// <see cref="DispatchEmailBatchCommand"/>'s doc comment for the concrete
+/// contract test that a naive <c>IDispatcher</c> route would have broken
+/// (a pipeline-owned transaction rolling back the FAILED write a retry
+/// depends on). Because of that, neither job command's
+/// <see cref="RequireRoleAttribute"/>/<see cref="AllowAnonymousRequestAttribute"/>
+/// is enforced today; both are honest metadata for Task 19, which owns the
+/// queue and must decide how a real actor reaches this processor.
 /// </summary>
 public sealed class ComsJobProcessor(
     ChannelComsDispatcher queue,
@@ -67,12 +84,12 @@ public sealed class ComsJobProcessor(
         switch (job)
         {
             case ComsJob.SendEmail send:
-                await services.GetRequiredService<SendEmailJobHandler>()
-                    .HandleAsync(send.BatchId, send.RecipientId, ct);
+                await services.GetRequiredService<IRequestHandler<DispatchEmailBatchCommand, Unit>>()
+                    .HandleAsync(new DispatchEmailBatchCommand(send.BatchId, send.RecipientId), ct);
                 break;
             case ComsJob.ProcessWebhookEvent webhook:
-                await services.GetRequiredService<ProcessWebhookJobHandler>()
-                    .HandleAsync(webhook.WebhookEventId, ct);
+                await services.GetRequiredService<IRequestHandler<ProcessWebhookEventCommand, Unit>>()
+                    .HandleAsync(new ProcessWebhookEventCommand(webhook.WebhookEventId), ct);
                 break;
             default:
                 throw new InvalidOperationException($"Unknown job type: {job.GetType().Name}");

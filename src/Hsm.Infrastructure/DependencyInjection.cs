@@ -17,6 +17,16 @@ using Hsm.Application.Auth.Commands.SignupIntegration;
 using Hsm.Application.Auth.Queries.ListIntegrationAccounts;
 using Hsm.Application.Clinical;
 using Hsm.Application.Coms;
+using Hsm.Application.Coms.Commands.DispatchEmailBatch;
+using Hsm.Application.Coms.Commands.ProcessWebhookEvent;
+using Hsm.Application.Coms.Commands.ReceiveWebhook;
+using Hsm.Application.Coms.Commands.ResendEmailBatch;
+using Hsm.Application.Coms.Commands.ResendEmailRecipient;
+using Hsm.Application.Coms.Commands.SendEmail;
+using Hsm.Application.Coms.Queries.GetEmailBatch;
+using Hsm.Application.Coms.Queries.GetEmailRecipient;
+using Hsm.Application.Coms.Queries.ListEmailBatches;
+using Hsm.Application.Coms.Queries.ListEmailRecipients;
 using Hsm.Application.Docs;
 using Hsm.Application.Ports;
 using Hsm.Application.Proving;
@@ -39,6 +49,7 @@ using Hsm.Application.Users.Commands.CreateStaffUser;
 using Hsm.Application.Users.Commands.UpdateOwnProfile;
 using Hsm.Application.Users.Queries.GetUser;
 using Hsm.Application.Users.Queries.ListUsers;
+using Hsm.Domain.Coms;
 using Hsm.Domain.Identity;
 using Hsm.Domain.Settings;
 using Hsm.Domain.Templates;
@@ -208,16 +219,25 @@ public static class DependencyInjection
         });
         services.AddChannelJobQueue<IComsJobDispatcher, ChannelComsDispatcher, ComsJobProcessor>();
 
-        services.AddScoped<SendEmailHandler>();
-        services.AddScoped<ListEmailBatchesHandler>();
-        services.AddScoped<GetEmailBatchHandler>();
-        services.AddScoped<ResendEmailBatchHandler>();
-        services.AddScoped<ListEmailRecipientsHandler>();
-        services.AddScoped<GetEmailRecipientHandler>();
-        services.AddScoped<ResendEmailRecipientHandler>();
-        services.AddScoped<ReceiveWebhookHandler>();
-        services.AddScoped<SendEmailJobHandler>();
-        services.AddScoped<ProcessWebhookJobHandler>();
+        // Coms: command/query slices behind the dispatcher. Policy rides on
+        // the request type, exactly as Templates/Users/Settings/Auth. The two
+        // job commands are ALSO registered as IRequestHandler (for
+        // ComsJobProcessor's direct resolution — see its doc comment for why
+        // it does not go through IDispatcher).
+        services.AddScoped<IRequestHandler<SendEmailCommand, SendEmailResult>, SendEmailHandler>();
+        services.AddScoped<
+            IRequestHandler<ListEmailBatchesQuery, IReadOnlyList<EmailBatch>>, ListEmailBatchesHandler>();
+        services.AddScoped<IRequestHandler<GetEmailBatchQuery, EmailBatch>, GetEmailBatchHandler>();
+        services.AddScoped<IRequestHandler<ResendEmailBatchCommand, string>, ResendEmailBatchHandler>();
+        services.AddScoped<
+            IRequestHandler<ListEmailRecipientsQuery, IReadOnlyList<EmailRecipient>>, ListEmailRecipientsHandler>();
+        services.AddScoped<IRequestHandler<GetEmailRecipientQuery, EmailRecipient>, GetEmailRecipientHandler>();
+        services.AddScoped<
+            IRequestHandler<ResendEmailRecipientCommand, string>, ResendEmailRecipientHandler>();
+        services.AddScoped<
+            IRequestHandler<ReceiveWebhookCommand, ReceiveWebhookResult>, ReceiveWebhookHandler>();
+        services.AddScoped<IRequestHandler<DispatchEmailBatchCommand, Unit>, DispatchEmailBatchHandler>();
+        services.AddScoped<IRequestHandler<ProcessWebhookEventCommand, Unit>, ProcessWebhookEventCommandHandler>();
     }
 
     /// <summary>

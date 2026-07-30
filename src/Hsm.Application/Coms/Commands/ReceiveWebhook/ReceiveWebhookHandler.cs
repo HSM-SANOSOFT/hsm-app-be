@@ -1,47 +1,51 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Hsm.Application.Abstractions;
+using Hsm.Application.Coms;
 using Hsm.Application.Errors;
 using Hsm.Application.Settings;
 using Hsm.Domain.Coms;
 
-namespace Hsm.Application.Coms;
+namespace Hsm.Application.Coms.Commands.ReceiveWebhook;
 
 /// <summary>
-/// The frozen ComsWebhookService.receiveWebhook: adapter lookup (unknown
-/// provider → received 0, no error), signing-key resolution from the settings
-/// store (COMS_WEBHOOK_SIGNING_KEYS, a JSON provider→key map), signature
-/// verification (401 on failure, recording NOTHING), JSON parse (400), then
-/// normalize + persist + enqueue per event. Duplicate provider deliveries of
-/// the same (provider, message, event type) are idempotent: they record no
-/// second row and re-process nothing — a plan-mandated strengthening of the
-/// frozen behavior, which deduped only same-row replays.
+/// <b>Does not enqueue the process-webhook-event job itself</b> — unlike the
+/// frozen handler and the pre-slicing port, which enqueued right after
+/// <c>SaveChangesAsync</c>. <c>TransactionBehavior</c> now wraps this whole
+/// handler in one transaction that commits only after <c>HandleAsync</c>
+/// returns, so enqueuing in here raced the commit in practice, not just in
+/// theory: <c>WebhookContractTests.Valid_webhook_updates_the_matching_recipient_delivery_state</c>
+/// and <c>.Hard_bounce_suppresses_the_address_and_later_sends_skip_it</c>
+/// failed on first run (the in-process channel consumer, in its own
+/// scope/connection, looked up the new <c>EmailWebhookEvent</c> row before
+/// this transaction committed it, found nothing, and — because "unknown
+/// event" is a legitimate idempotent no-op here, unlike the send-email job's
+/// "batch not found", which throws and gets a self-healing retry — silently
+/// did nothing forever). <see cref="Hsm.Web.Coms.ComsEndpoints.ReceiveWebhook"/>
+/// enqueues each returned id after <c>dispatcher.Send</c> returns, which is a
+/// real post-commit point.
 /// </summary>
 public sealed class ReceiveWebhookHandler(
     IEmailWebhookEventStore events,
-    IComsJobDispatcher queue,
     IAppSettingStore settings,
     ISettingSeedSource seeds,
-    Auth.IAuthUnitOfWork unitOfWork)
+    Auth.IAuthUnitOfWork unitOfWork) : IRequestHandler<ReceiveWebhookCommand, ReceiveWebhookResult>
 {
     public const string SigningKeysSettingKey = "COMS_WEBHOOK_SIGNING_KEYS";
 
-    public async Task<int> HandleAsync(
-        string provider,
-        string? signature,
-        byte[] rawBody,
-        CancellationToken ct = default)
+    public async Task<ReceiveWebhookResult> HandleAsync(ReceiveWebhookCommand request, CancellationToken ct)
     {
-        if (!string.Equals(provider, MandrillWebhookAdapter.Provider, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(request.Provider, MandrillWebhookAdapter.Provider, StringComparison.OrdinalIgnoreCase))
         {
             // Frozen: unknown providers are acknowledged with received: 0.
-            return 0;
+            return new ReceiveWebhookResult(0, []);
         }
 
-        var signingKey = await SigningKeyForAsync(provider, ct)
-            ?? throw ApiException.BadRequest($"No signing key configured for provider: {provider}");
+        var signingKey = await SigningKeyForAsync(request.Provider, ct)
+            ?? throw ApiException.BadRequest($"No signing key configured for provider: {request.Provider}");
 
-        if (!MandrillSignatureVerifier.Verify(signature, rawBody, signingKey))
+        if (!MandrillSignatureVerifier.Verify(request.Signature, request.RawBody, signingKey))
         {
             // Frozen UnauthorizedException('Webhook signature invalid'):
             // rejected before ANYTHING is parsed, persisted, or enqueued.
@@ -51,7 +55,7 @@ public sealed class ReceiveWebhookHandler(
         JsonNode? payload;
         try
         {
-            payload = JsonNode.Parse(rawBody);
+            payload = JsonNode.Parse(request.RawBody);
         }
         catch (JsonException)
         {
@@ -61,10 +65,10 @@ public sealed class ReceiveWebhookHandler(
         var normalized = MandrillWebhookAdapter.Normalize(payload);
         if (normalized.Count == 0)
         {
-            return 0;
+            return new ReceiveWebhookResult(0, []);
         }
 
-        var rawJson = Encoding.UTF8.GetString(rawBody);
+        var rawJson = Encoding.UTF8.GetString(request.RawBody);
 
         // One SELECT covers the whole delivery's idempotency check; the same
         // set then absorbs in-payload duplicates.
@@ -99,17 +103,13 @@ public sealed class ReceiveWebhookHandler(
 
         if (added.Count == 0)
         {
-            return 0;
+            return new ReceiveWebhookResult(0, []);
         }
 
-        // One SaveChanges for all new rows, then the enqueues.
+        // One SaveChanges for all new rows; the caller enqueues after commit.
         await unitOfWork.SaveChangesAsync(ct);
-        foreach (var entity in added)
-        {
-            await queue.EnqueueProcessWebhookEventAsync(entity.Id, ct);
-        }
 
-        return added.Count;
+        return new ReceiveWebhookResult(added.Count, [.. added.Select(e => e.Id)]);
     }
 
     /// <summary>

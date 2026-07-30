@@ -1,6 +1,15 @@
 using System.Text.Json.Nodes;
 using Hsm.Application;
+using Hsm.Application.Abstractions;
 using Hsm.Application.Coms;
+using Hsm.Application.Coms.Commands.ReceiveWebhook;
+using Hsm.Application.Coms.Commands.ResendEmailBatch;
+using Hsm.Application.Coms.Commands.ResendEmailRecipient;
+using Hsm.Application.Coms.Commands.SendEmail;
+using Hsm.Application.Coms.Queries.GetEmailBatch;
+using Hsm.Application.Coms.Queries.GetEmailRecipient;
+using Hsm.Application.Coms.Queries.ListEmailBatches;
+using Hsm.Application.Coms.Queries.ListEmailRecipients;
 using Hsm.Domain.Coms;
 using Hsm.Web.Api;
 using Hsm.Web.Auth;
@@ -31,9 +40,9 @@ public static class ComsEndpoints
         coms.MapPost("/webhooks/{provider}", (Delegate)ReceiveWebhook);
     }
 
-    private static async Task<IResult> SendEmail(HttpContext ctx, SendEmailHandler handler)
+    private static async Task<IResult> SendEmail(HttpContext ctx, IDispatcher dispatcher, IComsJobDispatcher queue)
     {
-        var principal = await RequestAuth.GateAsync(ctx);
+        await RequestAuth.GateAsync(ctx);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var fromEmail = body.OptionalEmail("fromEmail");
@@ -45,13 +54,17 @@ public static class ComsEndpoints
         body.RejectUnknownFields();
         body.ThrowIfInvalid();
 
-        var (batchId, jobId) = await handler.HandleAsync(
-            new SendEmailHandler.Command(fromEmail, fromName, toEmails!, emailTemplate, data!, documentIds),
-            Guid.Parse(principal.Id));
+        var result = await dispatcher.Send(
+            new SendEmailCommand(fromEmail, fromName, toEmails!, emailTemplate, data!, documentIds),
+            ctx.RequestAborted);
+        // Enqueued HERE, after dispatch returns — TransactionBehavior has
+        // committed the batch by now (SendEmailHandler's doc comment explains
+        // why the handler itself must not enqueue).
+        await queue.EnqueueSendEmailAsync(result.JobId, result.BatchId, recipientId: null, ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, new JsonObject
         {
-            ["batchId"] = batchId.ToString(),
-            ["jobId"] = jobId,
+            ["batchId"] = result.BatchId.ToString(),
+            ["jobId"] = result.JobId,
         });
     }
 
@@ -62,7 +75,7 @@ public static class ComsEndpoints
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, includeData: false);
     }
 
-    private static async Task<IResult> ListBatches(HttpContext ctx, ListEmailBatchesHandler handler)
+    private static async Task<IResult> ListBatches(HttpContext ctx, IDispatcher dispatcher)
     {
         await RequestAuth.GateAsync(ctx);
 
@@ -77,29 +90,36 @@ public static class ComsEndpoints
         query.RejectUnknownParams();
         query.ThrowIfInvalid();
 
-        var batches = await handler.HandleAsync(
-            new BatchListFilter(templateId, overallStatus, createdBy, fromDate, toDate, page, limit));
+        var batches = await dispatcher.Send(
+            new ListEmailBatchesQuery(
+                new BatchListFilter(templateId, overallStatus, createdBy, fromDate, toDate, page, limit)),
+            ctx.RequestAborted);
         var data = new JsonArray([.. batches.Select(b => (JsonNode?)BatchJson(b, includeRecipients: false))]);
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status200OK, data, extra: ApiEnvelope.SinglePagePagination(batches.Count));
     }
 
-    private static async Task<IResult> GetBatch(HttpContext ctx, string id, GetEmailBatchHandler handler)
+    private static async Task<IResult> GetBatch(HttpContext ctx, string id, IDispatcher dispatcher)
     {
         await RequestAuth.GateAsync(ctx);
-        var batch = await handler.HandleAsync(Guid.Parse(id));
+        var batch = await dispatcher.Send(new GetEmailBatchQuery(Guid.Parse(id)), ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, BatchJson(batch, includeRecipients: true));
     }
 
-    private static async Task<IResult> ResendBatch(HttpContext ctx, string id, ResendEmailBatchHandler handler)
+    private static async Task<IResult> ResendBatch(
+        HttpContext ctx, string id, IDispatcher dispatcher, IComsJobDispatcher queue)
     {
         await RequestAuth.GateAsync(ctx);
-        var jobId = await handler.HandleAsync(Guid.Parse(id));
+        var batchId = Guid.Parse(id);
+        var jobId = await dispatcher.Send(new ResendEmailBatchCommand(batchId), ctx.RequestAborted);
+        // Enqueued after dispatch returns — see SendEmail's comment; the same
+        // commit-then-enqueue ordering applies here.
+        await queue.EnqueueSendEmailAsync(jobId, batchId, recipientId: null, ctx.RequestAborted);
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status201Created, new JsonObject { ["jobId"] = jobId });
     }
 
-    private static async Task<IResult> ListRecipients(HttpContext ctx, ListEmailRecipientsHandler handler)
+    private static async Task<IResult> ListRecipients(HttpContext ctx, IDispatcher dispatcher)
     {
         await RequestAuth.GateAsync(ctx);
 
@@ -112,33 +132,34 @@ public static class ComsEndpoints
         query.RejectUnknownParams();
         query.ThrowIfInvalid();
 
-        var recipients = await handler.HandleAsync(
-            new RecipientListFilter(batchId, toEmail, status, page, limit));
+        var recipients = await dispatcher.Send(
+            new ListEmailRecipientsQuery(new RecipientListFilter(batchId, toEmail, status, page, limit)),
+            ctx.RequestAborted);
         var data = new JsonArray([.. recipients.Select(r => (JsonNode?)RecipientJson(r))]);
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status200OK, data, extra: ApiEnvelope.SinglePagePagination(recipients.Count));
     }
 
     private static async Task<IResult> GetRecipient(
-        HttpContext ctx, string id, GetEmailRecipientHandler handler)
+        HttpContext ctx, string id, IDispatcher dispatcher)
     {
         await RequestAuth.GateAsync(ctx);
-        var recipient = await handler.HandleAsync(Guid.Parse(id));
+        var recipient = await dispatcher.Send(new GetEmailRecipientQuery(Guid.Parse(id)), ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, RecipientJson(recipient));
     }
 
     private static async Task<IResult> ResendRecipient(
-        HttpContext ctx, string id, ResendEmailRecipientHandler handler)
+        HttpContext ctx, string id, IDispatcher dispatcher)
     {
         await RequestAuth.GateAsync(ctx);
-        var jobId = await handler.HandleAsync(Guid.Parse(id));
+        var jobId = await dispatcher.Send(new ResendEmailRecipientCommand(Guid.Parse(id)), ctx.RequestAborted);
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status201Created, new JsonObject { ["jobId"] = jobId });
     }
 
     /// <summary>The frozen @Public provider webhook: no auth, raw body bytes.</summary>
     private static async Task<IResult> ReceiveWebhook(
-        HttpContext ctx, string provider, ReceiveWebhookHandler handler)
+        HttpContext ctx, string provider, IDispatcher dispatcher, IComsJobDispatcher queue)
     {
         using var buffer = new MemoryStream();
         await ctx.Request.Body.CopyToAsync(buffer);
@@ -146,9 +167,18 @@ public static class ComsEndpoints
         // Only the signature header matters to the handler (header lookup is
         // case-insensitive already) — no materialized header dictionary.
         string? signature = ctx.Request.Headers[MandrillSignatureVerifier.SignatureHeader];
-        var received = await handler.HandleAsync(provider, signature, buffer.ToArray());
+        var result = await dispatcher.Send(
+            new ReceiveWebhookCommand(provider, signature, buffer.ToArray()), ctx.RequestAborted);
+        // Enqueued HERE, after dispatch returns — see ReceiveWebhookHandler's
+        // doc comment: this is the fix for a real (not theoretical) race with
+        // TransactionBehavior's commit-after-return semantics.
+        foreach (var eventId in result.EventIdsToProcess)
+        {
+            await queue.EnqueueProcessWebhookEventAsync(eventId, ctx.RequestAborted);
+        }
+
         return ApiEnvelope.Success(
-            ctx, StatusCodes.Status201Created, new JsonObject { ["received"] = received });
+            ctx, StatusCodes.Status201Created, new JsonObject { ["received"] = result.Received });
     }
 
     /// <summary>The frozen EmailBatchEntity serialization (raw entity through the envelope).</summary>
