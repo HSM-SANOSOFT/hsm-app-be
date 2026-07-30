@@ -29,7 +29,9 @@ public static class TestServices
         .AddEnvironmentVariables()
         .Build();
 
-    public static ServiceProvider Build(Action<IConfigurationBuilder>? customize = null)
+    public static ServiceProvider Build(
+        Action<IConfigurationBuilder>? customize = null,
+        Action<IServiceCollection>? customizeServices = null)
     {
         var configuration = Configuration;
         if (customize is not null)
@@ -42,6 +44,7 @@ public static class TestServices
         var services = new ServiceCollection();
         services.AddSingleton(configuration);
         services.AddHsmInfrastructure(configuration);
+        customizeServices?.Invoke(services);
         return services.BuildServiceProvider();
     }
 }

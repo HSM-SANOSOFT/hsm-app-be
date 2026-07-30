@@ -17,6 +17,7 @@ public static class PipelineRegistration
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(TelemetryBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(AuthorizationBehavior<,>));
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(TransactionBehavior<,>));
         return services;
     }
 }

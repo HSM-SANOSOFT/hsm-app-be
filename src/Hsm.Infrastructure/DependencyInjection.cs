@@ -1,5 +1,6 @@
 using Amazon.Runtime;
 using Amazon.S3;
+using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
 using Hsm.Application.Clinical;
 using Hsm.Application.Coms;
@@ -41,6 +42,7 @@ public static class DependencyInjection
         services.AddDbContext<HsmDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("HsmDb")));
         services.AddScoped<IProvingRepository, ProvingRepository>();
+        services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
         // Distributed cache through the framework's standard abstraction.
         services.AddStackExchangeRedisCache(options =>
