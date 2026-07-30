@@ -1,3 +1,4 @@
+using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
 using Hsm.Application.Errors;
 using Hsm.Domain.Identity;
@@ -80,7 +81,22 @@ public static class RequestAuth
         var principal = await AuthenticateAsync(ctx, TokenKind.Access);
         RequireRoles(ctx, principal, requiredRoles);
         await RequireOnboardingCompletedAsync(ctx, principal);
+        InstallActor(ctx, principal);
         return principal;
+    }
+
+    /// <summary>
+    /// Publishes the gated principal as the request-scoped actor the
+    /// application pipeline authorizes against. Onboarding is recorded as
+    /// satisfied because <see cref="RequireOnboardingCompletedAsync"/> has just
+    /// enforced the frozen OnboardingGuard — including its admin/integration
+    /// exemptions and its authoritative database fallback, neither of which the
+    /// token claims alone can express.
+    /// </summary>
+    private static void InstallActor(HttpContext ctx, AuthPrincipal principal)
+    {
+        ctx.RequestServices.GetRequiredService<AmbientPrincipal>().Set(
+            new RequestActor(principal.Id, principal.Roles, OnboardingCompleted: true));
     }
 
     /// <summary>

@@ -1,6 +1,12 @@
 using System.Text.Json.Nodes;
 using Hsm.Application;
-using Hsm.Application.Users;
+using Hsm.Application.Abstractions;
+using Hsm.Application.Users.Commands.ChangeOwnPassword;
+using Hsm.Application.Users.Commands.ChangeUserRole;
+using Hsm.Application.Users.Commands.CreateStaffUser;
+using Hsm.Application.Users.Commands.UpdateOwnProfile;
+using Hsm.Application.Users.Queries.GetUser;
+using Hsm.Application.Users.Queries.ListUsers;
 using Hsm.Domain.Identity;
 using Hsm.Web.Api;
 using Hsm.Web.Auth;
@@ -8,9 +14,12 @@ using Hsm.Web.Auth;
 namespace Hsm.Web.Users;
 
 /// <summary>
-/// The six frozen /v1/user operations (user.controller.ts). Guard order
-/// mirrors the frozen chain (auth → roles → onboarding → validation); none of
-/// the routes carried @AllowPending, so pending non-admin users are blocked.
+/// The six frozen /v1/user operations (user.controller.ts). Each endpoint now
+/// does transport work only — authenticate, bind and shape-validate the
+/// request, dispatch, render. Role and onboarding policy rides on the request
+/// types (AuthorizationBehavior); none of the frozen routes carried
+/// @AllowPending, so pending non-admin users are still blocked, by
+/// RequestAuth's onboarding gate at authentication time.
 /// POST returns 201 and GET/PATCH 200, matching the frozen runtime.
 /// </summary>
 public static class UserEndpoints
@@ -30,26 +39,28 @@ public static class UserEndpoints
         user.MapPatch("/{id}/role", (Delegate)ChangeUserRole);
     }
 
-    private static async Task<IResult> UpdateOwnProfile(HttpContext ctx, UpdateOwnProfileHandler handler)
+    private static async Task<IResult> UpdateOwnProfile(HttpContext ctx, IDispatcher dispatcher)
     {
-        var principal = await RequestAuth.GateAsync(ctx);
+        await RequestAuth.GateAsync(ctx);
 
         // Frozen UpdateOwnProfileDto: ONLY firstName and email. Any role/roles
         // property is rejected by the whitelist — self-escalation is
-        // structurally impossible on this route.
+        // structurally impossible on this route, and the command has no user id
+        // to point somewhere else with.
         var body = await BodyValidator.ReadAsync(ctx);
         var firstName = body.OptionalString("firstName", notEmpty: true);
         var email = body.OptionalString("email", notEmpty: true);
         body.RejectUnknownFields();
         body.ThrowIfInvalid();
 
-        var user = await handler.HandleAsync(Guid.Parse(principal.Id), firstName, email);
+        var user = await dispatcher.Send(
+            new UpdateOwnProfileCommand(firstName, email), ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, UserJson(user, includeRoles: true));
     }
 
-    private static async Task<IResult> ChangeOwnPassword(HttpContext ctx, ChangeOwnPasswordHandler handler)
+    private static async Task<IResult> ChangeOwnPassword(HttpContext ctx, IDispatcher dispatcher)
     {
-        var principal = await RequestAuth.GateAsync(ctx);
+        await RequestAuth.GateAsync(ctx);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var currentPassword = body.RequiredString("currentPassword");
@@ -57,13 +68,14 @@ public static class UserEndpoints
         body.RejectUnknownFields();
         body.ThrowIfInvalid();
 
-        await handler.HandleAsync(Guid.Parse(principal.Id), currentPassword, newPassword);
+        await dispatcher.Send(
+            new ChangeOwnPasswordCommand(currentPassword, newPassword), ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, includeData: false);
     }
 
-    private static async Task<IResult> ListUsers(HttpContext ctx, ListUsersHandler handler)
+    private static async Task<IResult> ListUsers(HttpContext ctx, IDispatcher dispatcher)
     {
-        await RequestAuth.GateAsync(ctx, Roles.Admin);
+        await RequestAuth.GateAsync(ctx);
 
         var query = QueryValidator.Read(ctx);
         var page = query.OptionalInt("page", min: 1) ?? 1;
@@ -71,16 +83,16 @@ public static class UserEndpoints
         query.RejectUnknownParams();
         query.ThrowIfInvalid();
 
-        var result = await handler.HandleAsync(page, limit);
+        var result = await dispatcher.Send(new ListUsersQuery(page, limit), ctx.RequestAborted);
         var data = new JsonArray([.. result.Users.Select(u => (JsonNode?)UserJson(u, includeRoles: true))]);
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status200OK, data,
             extra: ApiEnvelope.Pagination(result.Page, result.PageSize, result.TotalItems));
     }
 
-    private static async Task<IResult> CreateStaff(HttpContext ctx, CreateStaffHandler handler)
+    private static async Task<IResult> CreateStaff(HttpContext ctx, IDispatcher dispatcher)
     {
-        await RequestAuth.GateAsync(ctx, Roles.Admin);
+        await RequestAuth.GateAsync(ctx);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var username = body.RequiredString("username");
@@ -96,35 +108,38 @@ public static class UserEndpoints
         body.RejectUnknownFields();
         body.ThrowIfInvalid();
 
-        var created = await handler.HandleAsync(new CreateStaffHandler.Command(
-            username, email, firstName, secondName, firstLastName,
-            secondLastName, phoneNumber, role, tempPassword));
+        var created = await dispatcher.Send(
+            new CreateStaffUserCommand(
+                username, email, firstName, secondName, firstLastName,
+                secondLastName, phoneNumber, role, tempPassword),
+            ctx.RequestAborted);
         // Frozen response: the created row without roles (and of course without
         // any password field).
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, UserJson(created, includeRoles: false));
     }
 
-    private static async Task<IResult> GetUser(HttpContext ctx, string id, GetUserHandler handler)
+    private static async Task<IResult> GetUser(HttpContext ctx, string id, IDispatcher dispatcher)
     {
-        await RequestAuth.GateAsync(ctx, Roles.Admin);
+        await RequestAuth.GateAsync(ctx);
 
         // No UUID pipe in the frozen route: a malformed id reached the driver
         // and failed as a 500. Guid.Parse reproduces that observable surface
         // (FormatException → the 500 envelope).
-        var user = await handler.HandleAsync(Guid.Parse(id));
+        var user = await dispatcher.Send(new GetUserQuery(Guid.Parse(id)), ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, UserJson(user, includeRoles: true));
     }
 
-    private static async Task<IResult> ChangeUserRole(HttpContext ctx, string id, ChangeUserRoleHandler handler)
+    private static async Task<IResult> ChangeUserRole(HttpContext ctx, string id, IDispatcher dispatcher)
     {
-        await RequestAuth.GateAsync(ctx, Roles.Admin);
+        await RequestAuth.GateAsync(ctx);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var role = body.RequiredString("role", oneOf: RoleCatalog.All, oneOfConstraint: "isIn");
         body.RejectUnknownFields();
         body.ThrowIfInvalid();
 
-        var user = await handler.HandleAsync(Guid.Parse(id), role);
+        var user = await dispatcher.Send(
+            new ChangeUserRoleCommand(Guid.Parse(id), role), ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, UserJson(user, includeRoles: true));
     }
 

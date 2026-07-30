@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using Hsm.Application.Abstractions;
 using Hsm.Application.System;
 using Hsm.Contracts.Ui;
 using Hsm.Infrastructure;
@@ -82,6 +83,15 @@ builder.Services.AddScoped<IHostEnvironmentAuthenticationStateProvider>(sp =>
 // Store-port adapters (EF Core/Npgsql, S3, Meilisearch, Redis cache) bound
 // from configuration (plan U9).
 builder.Services.AddHsmInfrastructure(builder.Configuration);
+
+// The request pipeline (dispatcher + telemetry/authorization/validation/
+// transaction behaviors) and the actor it authorizes against. Both the REST
+// surface (RequestAuth.GateAsync) and the Blazor surface (UiServiceGate)
+// publish the authenticated principal into the same request-scoped
+// AmbientPrincipal, so a command is gated identically from either edge.
+builder.Services.AddHsmPipeline();
+builder.Services.AddScoped<AmbientPrincipal>();
+builder.Services.AddScoped<ICurrentPrincipal>(sp => sp.GetRequiredService<AmbientPrincipal>());
 
 // Application handlers.
 builder.Services.AddScoped<GetSystemStatusHandler>();

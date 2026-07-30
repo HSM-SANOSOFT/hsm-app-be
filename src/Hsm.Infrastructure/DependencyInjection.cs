@@ -10,6 +10,13 @@ using Hsm.Application.Proving;
 using Hsm.Application.Settings;
 using Hsm.Application.Templates;
 using Hsm.Application.Users;
+using Hsm.Application.Users.Commands.ChangeOwnPassword;
+using Hsm.Application.Users.Commands.ChangeUserRole;
+using Hsm.Application.Users.Commands.CreateStaffUser;
+using Hsm.Application.Users.Commands.UpdateOwnProfile;
+using Hsm.Application.Users.Queries.GetUser;
+using Hsm.Application.Users.Queries.ListUsers;
+using Hsm.Domain.Identity;
 using Hsm.Infrastructure.Clinical;
 using Hsm.Infrastructure.Coms;
 using Hsm.Infrastructure.Docs;
@@ -202,12 +209,16 @@ public static class DependencyInjection
         services.AddScoped<IAppSettingStore, AppSettingStore>();
         services.AddSingleton<ISettingSeedSource, ConfigurationSettingSeedSource>();
 
-        services.AddScoped<UpdateOwnProfileHandler>();
-        services.AddScoped<ChangeOwnPasswordHandler>();
-        services.AddScoped<CreateStaffHandler>();
-        services.AddScoped<ListUsersHandler>();
-        services.AddScoped<GetUserHandler>();
-        services.AddScoped<ChangeUserRoleHandler>();
+        // Users: command/query slices behind the dispatcher (reference slice).
+        // Policy rides on the request type, so there is nothing to register for
+        // authorization — only the handler and its validators.
+        services.AddScoped<IRequestHandler<UpdateOwnProfileCommand, User>, UpdateOwnProfileHandler>();
+        services.AddScoped<IRequestHandler<ChangeOwnPasswordCommand, Unit>, ChangeOwnPasswordHandler>();
+        services.AddScoped<IRequestHandler<CreateStaffUserCommand, User>, CreateStaffUserHandler>();
+        services.AddScoped<IRequestHandler<ChangeUserRoleCommand, User>, ChangeUserRoleHandler>();
+        services.AddScoped<IRequestHandler<ListUsersQuery, ListUsersResult>, ListUsersHandler>();
+        services.AddScoped<IRequestHandler<GetUserQuery, User>, GetUserHandler>();
+
         services.AddScoped<GetSettingsHandler>();
         services.AddScoped<UpdateSettingsHandler>();
         services.AddScoped<ListSettingsAuditHandler>();
