@@ -15,6 +15,15 @@ jobs:
   deploy:
     runs-on: self-hosted
     steps:
+      # Migrations are applied by an explicit step, never on host boot — no
+      # service's Program.cs calls Database.MigrateAsync() at startup. This
+      # step is a stub (same as the rollout below) until the deploy pipeline is
+      # real, but it exists now so "migrate before rollout" cannot be forgotten
+      # when that day comes: adding it only to the real pipeline, after the
+      # fact, is exactly how a rollout against a stale schema happens.
+      - name: Apply database migrations (required before rollout)
+        run: |
+          echo docker run <api-image> --migrate
       - name: kubectl rollout restart
         run: |
           echo kubectl rollout restart deployment hsm-app-${{ inputs.APP_TYPE }} -n ${{inputs.NAMESPACE}}

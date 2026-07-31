@@ -110,14 +110,21 @@ commits — see "NoAmbientTransaction is not a general escape hatch" below.
   ambient transaction instead of nesting one (logged at Debug when this happens). A caller that
   needs an independent transaction — an audit row, an outbox write, a compensating action that
   must survive an outer rollback — must not go through either of these; it will be silently
-  absorbed into the outer unit of work.
+  absorbed into the outer unit of work. Known debt: `IAuthUnitOfWork` is a historically-named
+  duplicate of `IUnitOfWork` used for `SaveChangesAsync`-only flushes across the Users, Templates,
+  Coms, Settings and Auth handlers — retire it in favor of a flush method on `IUnitOfWork` when
+  convenient; it is not a second transaction boundary, just a second name for the same one.
 
 - **`[NoAmbientTransaction]` is not a general escape hatch.** It exists for exactly two commands,
   both queued jobs whose handlers persist a failure status and then re-throw so the queue's retry
   accounting sees the attempt: `DispatchEmailBatchCommand` and `RenderDocumentCommand`. Reach for
   it only when a handler has a failure path that must survive its own re-throw; both uses are
-  pinned by contract tests (`ComsRequestPolicyTests`, `DocsRequestPolicyTests`) so the choice stays
-  visible.
+  pinned per-module by unit tests (`ComsRequestPolicyTests`, `DocsRequestPolicyTests`) in
+  `tests/Hsm.Tests/` — they are not contract tests, nothing here touches the wire — and the
+  carrier set as a whole (exactly these two, nothing else) is pinned across the entire
+  `Hsm.Application` assembly by `RequestPolicyClosureTests`
+  (`tests/Hsm.Tests/Architecture/RequestPolicyClosureTests.cs`), so a third command could not
+  quietly pick up the attribute without a test failing somewhere.
 
 - **Queued job commands run through the same pipeline as everything else.** A job is dispatched
   through `IDispatcher`, not invoked directly — it is authorized against the actor that was
@@ -128,6 +135,13 @@ commits — see "NoAmbientTransaction is not a general escape hatch" below.
 - **Developer role authorizes like production.** The developer-in-dev authorization bypass was
   removed (2026-07-31 user decision): a developer account in a dev environment is authorized by
   the same pipeline, the same role checks, as production. Do not reintroduce a dev-only bypass.
+
+- **`RefreshTokensCommand` may only be constructed at the refresh edge.** It carries a
+  caller-supplied `AuthPrincipal` and is `[AllowAnonymousRequest]` — the refresh token is the
+  credential, not a session, so the pipeline cannot authorize the principal the usual way. Only
+  `Hsm.Api.Auth.AuthEndpoints` (which validates the refresh token's signature and expiry before
+  constructing it) may build one; never dispatch it from a new call site without that same
+  validation in front of it.
 
 - **`onboardingCompletedAt` is rebuilt per request, not cached.** `RequestActorFactory` derives
   onboarding completion from the claim when present and non-empty, and otherwise falls back to the
@@ -157,12 +171,30 @@ commits — see "NoAmbientTransaction is not a general escape hatch" below.
     diagnostics before a 403, not instead of one). No PHI or write exposure results — the request
     is still refused — but the ordering of *which* refusal a caller sees changed.
 
+- **Two more documented deltas from the frozen system, both side effects of splitting
+  `Hsm.Api` out of `Hsm.Web` (Task 17):**
+  - An unrouted path under `/v1` or `/fhir` hit on `Hsm.Web` re-executes to the Blazor not-found
+    page (`app.UseStatusCodePagesWithReExecute("/not-found")` in `Hsm.Web/Program.cs`); the same
+    unrouted path on `Hsm.Api` gets a bare 404 instead — each host handles an unknown route its own
+    way, and neither is wrong, but they no longer match.
+  - The Blazor static-SSR login form (`Pages/Login.razor`) is antiforgery-protected via `EditForm`'s
+    `FormName` plus `app.UseAntiforgery()`, not by the frozen `/v1` double-submit CSRF middleware —
+    that middleware no longer applies to `Hsm.Web` at all (see the "No CsrfSecret here" comment in
+    `Hsm.Web/Program.cs`); CSRF protection for the REST surface and the Blazor shell are now two
+    different mechanisms, not one shared one.
+
 - **Telemetry destination is `Telemetry:*` configuration, not collector config.**
   `Telemetry:Exporters` sets the default exporter list for every signal;
   `Telemetry:Traces|Metrics|Logs:Exporters` overrides per signal; `Telemetry:Otlp:Endpoint` is
   required if any signal selects `otlp`; `Telemetry:File:Directory` (default `telemetry`) sets
   where the file exporter writes when `file` is selected. See
   `Hsm.Infrastructure.Telemetry.AddHsmTelemetry`'s doc comment for the full scheme.
+
+- **Deploy order: migrate before rollout, always.** No service calls `Database.MigrateAsync()` on
+  host boot — migrations are applied by an explicit step (`dotnet run --project src/Hsm.Api --
+  --migrate`, see `Hsm.Api.MigrateCommand`), never implicitly. `.github/workflows/deploy.yml` is
+  still a stub, but its step order already encodes the rule: migrate first, then roll out
+  `api`/`web`/`worker`. Keep that order when the stub becomes real.
 
 - **Dead-letter streams carry PHI with no TTL.** `RenderDocumentCommand.DataJson` and similar
   payloads ride the Redis dead-letter stream indefinitely on exhausted retries — there is no
