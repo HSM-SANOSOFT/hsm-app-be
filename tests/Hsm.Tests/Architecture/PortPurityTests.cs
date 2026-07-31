@@ -1,4 +1,4 @@
-namespace Hsm.Architecture.Tests;
+namespace Hsm.Tests.Architecture;
 
 /// <summary>
 /// The application layer references roles, never products (plan U9): no ORM,

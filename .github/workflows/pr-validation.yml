@@ -66,7 +66,12 @@ jobs:
         run: |
           dotnet build Hsm.sln --configuration Release
 
-  # --- unit tests: no live infrastructure (Domain/Application/Architecture) ------
+  # --- unit tests: no live infrastructure ----------------------------------------
+  # Hsm.Tests is the only infrastructure-free project (DI resolution and
+  # architecture assertions only, no live host); Hsm.Web.Tests renders Blazor
+  # components against bunit's in-memory container. Contract suites that need a
+  # live host (Postgres and, for Docs, RustFS) run in the integration-tests job
+  # below.
   unit-tests:
     runs-on: ubuntu-latest
     steps:
@@ -76,14 +81,9 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Run unit tests
-        run: |
-          # Contract suites needing a live host (Postgres and, for Docs,
-          # RustFS) carry the Infra trait via their shared base classes and
-          # run in the integration-tests job below; everything untraited
-          # (Domain/Application/Architecture + host-free contract tests like
-          # CircuitMetricsTests) runs here.
-          dotnet test Hsm.sln --configuration Release \
-            --filter "FullyQualifiedName!~Integration&Infra!=true"
+        run: dotnet test tests/Hsm.Tests --configuration Release
+      - name: Run component tests
+        run: dotnet test tests/Hsm.Web.Tests --configuration Release
 
   # --- integration tests: real Postgres/Redis/RustFS, same shape as local dev ----
   # Mocks cannot prove EF Core change tracking, migration correctness, or S3

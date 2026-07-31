@@ -17,7 +17,7 @@ namespace Hsm.Web.Tests;
 /// <see cref="GetSystemStatusQuery"/> is a query and never opens a
 /// transaction — bunit's container has no database, so a real
 /// <c>EfUnitOfWork</c> is not an option here. Complements
-/// tests/Hsm.Architecture.Tests/UiServiceRoundTripTests.cs, which proves the
+/// tests/Hsm.Tests/Architecture/UiServiceRoundTripTests.cs, which proves the
 /// same resolution through the booted host's container (real
 /// infrastructure included).
 /// </summary>

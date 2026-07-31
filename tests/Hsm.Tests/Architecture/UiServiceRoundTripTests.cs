@@ -2,13 +2,13 @@ using Hsm.Contracts.Ui;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Hsm.Architecture.Tests;
+namespace Hsm.Tests.Architecture;
 
-public sealed class UiServiceRoundTripTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class UiServiceRoundTripTests : IClassFixture<WebApplicationFactory<Hsm.Web.Program>>
 {
-    private readonly WebApplicationFactory<Program> _factory;
+    private readonly WebApplicationFactory<Hsm.Web.Program> _factory;
 
-    public UiServiceRoundTripTests(WebApplicationFactory<Program> factory) => _factory = factory;
+    public UiServiceRoundTripTests(WebApplicationFactory<Hsm.Web.Program> factory) => _factory = factory;
 
     [Fact]
     public async Task Contracts_interface_resolves_to_host_implementation_and_reaches_a_handler()
