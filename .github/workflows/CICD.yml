@@ -20,8 +20,8 @@ jobs:
     needs: [lint]
     strategy:
       matrix:
-        app_type: [web, worker]
-      max-parallel: 2
+        app_type: [api, web, worker]
+      max-parallel: 3
     uses: ./.github/workflows/build.yml
     with:
       APP_TYPE: ${{ matrix.app_type }}
@@ -29,8 +29,8 @@ jobs:
     needs: build
     strategy:
       matrix:
-        app_type: [web, worker]
-      max-parallel: 2
+        app_type: [api, web, worker]
+      max-parallel: 3
     uses: ./.github/workflows/deploy.yml
     with:
       APP_TYPE: ${{ matrix.app_type }}

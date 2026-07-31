@@ -15,9 +15,13 @@ volumes:
   db_meili_data:
     name: hsm-app-db_meili-data
 
-# Application hosts (Hsm.Web, Hsm.Worker) run directly in the dev container via
-# `dotnet run`/`dotnet watch`, not as compose services. Only infrastructure
-# lives here.
+# Local dev keeps using `dotnet run`/`dotnet watch` inside the dev container
+# for Hsm.Api/Hsm.Web/Hsm.Worker (fast rebuilds) — they are deliberately left
+# out of the devcontainer's runServices (.devcontainer/devcontainer.json).
+# The hsm-app-api/hsm-app-web/hsm-app-worker services below build the three
+# published images (docker/{api,web,worker}.Dockerfile) for production-shaped
+# runs: verifying the container images themselves, and any environment where
+# `dotnet run` isn't the deployment shape.
 services:
   postgres:
     image: postgres:18-bookworm
@@ -33,6 +37,13 @@ services:
       POSTGRES_DB: hsm
     restart: unless-stopped
 
+  # PHI note (rewrite plan follow-up, CF26): the durable job queue (Redis
+  # Streams, plan U14/U19) dead-letters failed jobs into a stream that
+  # includes the original render payload — which for docs/coms jobs can carry
+  # patient data — and nothing here sets a TTL or eviction policy on it. That
+  # retention gap is a deliberate ops follow-up, not solved by this compose
+  # file: do not build cleanup tooling here, track it as a data-retention
+  # decision instead.
   redis:
     image: redis:8-bookworm
     networks:
@@ -96,4 +107,73 @@ services:
       - 10010:4318
     volumes:
       - ./otel/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    restart: unless-stopped
+
+  # --- Application hosts (plan U17: three independently deployable hosts,
+  # one core) -------------------------------------------------------------
+  #
+  # All three read config from ../secrets.env via env_file — nothing is
+  # duplicated into `environment:` blocks here, which is also what keeps
+  # hsm-app-api and hsm-app-web's Auth cookie posture (Auth__CookieSecure,
+  # Auth__CookieDomain) IDENTICAL by construction (rewrite plan follow-up,
+  # CF20): one shared cookie policy (Hsm.Contracts.Auth.AuthCookiePolicy)
+  # signs both doors in, so a divergent Secure/Domain setting between them
+  # would make a cookie one host issues silently fail validation on the
+  # other. See secrets.env.template for the full key set (double-underscore
+  # ASP.NET Core configuration binding, e.g. ConnectionStrings__HsmDb),
+  # values pointed at THIS network's service names (postgres, redis, rustfs,
+  # meilisearch, otel-collector) — never the dev-container-published
+  # localhost ports.
+
+  hsm-app-api:
+    build:
+      context: ..
+      dockerfile: docker/api.Dockerfile
+    networks:
+      - hsm-app-network
+    ports:
+      - 5001:8080
+    env_file:
+      - ../secrets.env
+    depends_on:
+      - postgres
+      - redis
+      - rustfs
+      - meilisearch
+      - otel-collector
+    restart: unless-stopped
+
+  hsm-app-web:
+    build:
+      context: ..
+      dockerfile: docker/web.Dockerfile
+    networks:
+      - hsm-app-network
+    ports:
+      - 5000:8080
+    env_file:
+      - ../secrets.env
+    depends_on:
+      - postgres
+      - redis
+      - rustfs
+      - meilisearch
+      - otel-collector
+    restart: unless-stopped
+
+  # No ports: this host answers no requests (see docker/worker.Dockerfile).
+  hsm-app-worker:
+    build:
+      context: ..
+      dockerfile: docker/worker.Dockerfile
+    networks:
+      - hsm-app-network
+    env_file:
+      - ../secrets.env
+    depends_on:
+      - postgres
+      - redis
+      - rustfs
+      - meilisearch
+      - otel-collector
     restart: unless-stopped
