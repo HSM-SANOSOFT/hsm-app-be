@@ -110,6 +110,26 @@ public sealed class ConsumerLeaseTests : IAsyncLifetime
         }
     }
 
+    [Fact]
+    public async Task A_serial_queue_whose_lease_cannot_outlive_its_jobs_refuses_to_start()
+    {
+        // The configuration that would quietly break everything above: a lease
+        // shorter than the queue's own statement of how long a job may take.
+        // An ordinary slow job would lose it mid-flight and a sibling would
+        // start consuming alongside — so the host does not start at all.
+        await using var provider = BuildWorker(
+            "alpha",
+            _prefix,
+            leaseTtl: TimeSpan.FromMilliseconds(200),
+            claimMinIdle: TimeSpan.FromSeconds(30));
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => Consumer(provider).StartAsync(CancellationToken.None));
+
+        Assert.Contains("consume lease", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("Jobs:LeaseTtlMs", failure.Message, StringComparison.Ordinal);
+    }
+
     /// <summary>Enqueues a job and waits for whichever worker holds the lease to run it.</summary>
     private static async Task<Guid> RunJobAsync(ServiceProvider enqueuer)
     {
@@ -154,7 +174,11 @@ public sealed class ConsumerLeaseTests : IAsyncLifetime
     /// One worker's composition on a dedicated serial queue, with a lease TTL
     /// short enough to expire inside a test.
     /// </summary>
-    private static ServiceProvider BuildWorker(string workerName, string keyPrefix) =>
+    private static ServiceProvider BuildWorker(
+        string workerName,
+        string keyPrefix,
+        TimeSpan? leaseTtl = null,
+        TimeSpan? claimMinIdle = null) =>
         TestServices.Build(customizeServices: services =>
         {
             services.AddHsmPipeline();
@@ -168,7 +192,7 @@ public sealed class ConsumerLeaseTests : IAsyncLifetime
             {
                 KeyPrefix = keyPrefix,
                 ConsumerName = $"{workerName}-{Guid.NewGuid():N}",
-                LeaseTtl = TimeSpan.FromMilliseconds(1500),
+                LeaseTtl = leaseTtl ?? TimeSpan.FromMilliseconds(1500),
                 Queues =
                 [
                     new JobQueueDefinition(
@@ -178,7 +202,9 @@ public sealed class ConsumerLeaseTests : IAsyncLifetime
                         RetryBaseDelay: TimeSpan.FromMilliseconds(10),
                         // Serial: this is the queue shape the lease exists for.
                         Consumers: 1,
-                        ClaimMinIdle: TimeSpan.FromSeconds(30)),
+                        // Under the lease TTL, as the worker's startup check
+                        // requires: the lease has to outlive one job.
+                        ClaimMinIdle: claimMinIdle ?? TimeSpan.FromMilliseconds(500)),
                 ],
             });
         });

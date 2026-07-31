@@ -187,7 +187,6 @@ public sealed class WorkerEndToEndTests : IAsyncLifetime
                 ["ConnectionStrings:HsmDb"] = DedicatedDatabase("hsm_worker_e2e_test"),
                 ["Jobs:KeyPrefix"] = $"hsmtest:{Guid.NewGuid():N}",
                 ["Coms:RetryBaseDelayMs"] = "50",
-                ["Jobs:LeaseTtlMs"] = "2000",
             }),
             services =>
             {

@@ -54,8 +54,17 @@ public static class JobQueueRegistration
         {
             KeyPrefix = configuration["Jobs:KeyPrefix"] ?? "hsm",
             // The failover window for a serial queue: how long after a worker
-            // dies holding the consume lease before another may take it.
-            LeaseTtl = Milliseconds(configuration, "Jobs:LeaseTtlMs", 15_000),
+            // dies holding the consume lease before another may take it. It has
+            // to outlive one coms job (Coms:ClaimMinIdleMs, 30s), or an
+            // ordinary slow send would lose the lease — the worker refuses to
+            // start if it does not.
+            LeaseTtl = Milliseconds(configuration, "Jobs:LeaseTtlMs", 45_000),
+            // A job name this build does not know is a rolling deploy, not a
+            // failure: it waits on its own budget rather than burning the
+            // queue's five-or-three attempts in seconds.
+            UnknownJobRetryDelay = Milliseconds(configuration, "Jobs:UnknownJobRetryDelayMs", 60_000),
+            UnknownJobMaxAttempts = configuration.GetValue(
+                "Jobs:UnknownJobMaxAttempts", defaultValue: 30),
             PollInterval = Milliseconds(configuration, "Jobs:PollIntervalMs", 100),
             DelayedPumpInterval = Milliseconds(configuration, "Jobs:DelayedPumpIntervalMs", 100),
             StreamMaxLength = configuration.GetValue("Jobs:StreamMaxLength", defaultValue: 100_000),

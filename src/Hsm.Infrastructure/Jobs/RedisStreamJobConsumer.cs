@@ -213,23 +213,7 @@ public sealed partial class RedisStreamJobConsumer(
 
         if (!registry.TryTypeOf(envelope.JobName, out var commandType))
         {
-            // A name this process has never heard of is the ordinary shape of a
-            // ROLLING DEPLOY: a producer that has already been updated enqueues
-            // a job whose handler only exists in the new worker image, and an
-            // old worker picks it up. Dead-lettering there would destroy real
-            // work for the length of a deploy, so it is rescheduled with the
-            // queue's normal backoff instead — by which time the worker that
-            // takes it is likely the new one. If the name is genuinely bogus
-            // the attempts still run out and it still dead-letters; the only
-            // thing traded is a few minutes.
-            LogUnknownJobName(logger, definition.Name, envelope.JobName, envelope.Attempt);
-            await FailAsync(
-                db,
-                definition,
-                envelope,
-                new InvalidOperationException(
-                    $"No handler for job name '{envelope.JobName}' is deployed in this worker."))
-                .ConfigureAwait(false);
+            await UnknownJobNameAsync(db, definition, envelope).ConfigureAwait(false);
             await db.StreamAcknowledgeAsync(
                 streamKey, JobQueueTopology.ConsumerGroup, entry.Id).ConfigureAwait(false);
             return;
@@ -278,6 +262,57 @@ public sealed partial class RedisStreamJobConsumer(
             streamKey, JobQueueTopology.ConsumerGroup, entry.Id).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Hands back a job whose name this build does not know.
+    ///
+    /// <para>That is the ordinary shape of a ROLLING DEPLOY: a producer that has
+    /// already been updated enqueues a job whose handler only exists in the new
+    /// worker image, and an old worker picks it up. Dead-lettering there
+    /// destroys real work for the length of every deploy — and putting it
+    /// through the queue's ordinary retry budget barely helps, because that
+    /// budget is sized for a flaky dependency: docs would spend all three
+    /// attempts in about six seconds and dead-letter the job while the rollout
+    /// is still on its first pod.</para>
+    ///
+    /// <para>So it gets a budget of its own — a flat
+    /// <see cref="JobQueueTopology.UnknownJobRetryDelay"/> and
+    /// <see cref="JobQueueTopology.UnknownJobMaxAttempts"/> of them, half an
+    /// hour at the defaults — counted on <see cref="JobEnvelope.UnknownAttempt"/>
+    /// so the job's REAL attempts are untouched and still all there when a
+    /// worker that knows the name finally runs it. A genuinely bogus name still
+    /// terminates in the dead-letter stream; it just takes long enough to have
+    /// outlived a deploy first.</para>
+    /// </summary>
+    private async Task UnknownJobNameAsync(
+        IDatabase db, JobQueueDefinition definition, JobEnvelope envelope)
+    {
+        var attempt = envelope.UnknownAttempt + 1;
+        if (attempt >= topology.UnknownJobMaxAttempts)
+        {
+            LogUnknownJobNameExhausted(logger, definition.Name, envelope.JobName, attempt);
+            await DeadLetterAsync(db, definition.Name, envelope.ToJson()).ConfigureAwait(false);
+            return;
+        }
+
+        // Loud once, quiet afterwards: a deploy in progress would otherwise
+        // warn once a minute per job, and the signal is the first one.
+        if (envelope.UnknownAttempt == 0)
+        {
+            LogUnknownJobName(logger, definition.Name, envelope.JobName);
+        }
+        else
+        {
+            LogUnknownJobNameAgain(logger, definition.Name, envelope.JobName, attempt);
+        }
+
+        await RedisStreamJobQueue.ScheduleAsync(
+            db,
+            topology,
+            definition.Name,
+            envelope with { UnknownAttempt = attempt },
+            topology.UnknownJobRetryDelay).ConfigureAwait(false);
+    }
+
     /// <summary>Reschedules with exponential backoff, or dead-letters when attempts are spent.</summary>
     private async Task FailAsync(
         IDatabase db, JobQueueDefinition definition, JobEnvelope envelope, Exception failure)
@@ -320,9 +355,20 @@ public sealed partial class RedisStreamJobConsumer(
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "{Queue} job name '{JobName}' is not deployed in this worker (attempt {Attempt}); rescheduling")]
-    private static partial void LogUnknownJobName(
+        Message = "{Queue} job name '{JobName}' is not deployed in this worker; handing it back for another")]
+    private static partial void LogUnknownJobName(ILogger logger, string queue, string jobName);
+
+    [LoggerMessage(
+        Level = LogLevel.Debug,
+        Message = "{Queue} job name '{JobName}' still not deployed here (wait {Attempt}); handing it back")]
+    private static partial void LogUnknownJobNameAgain(
         ILogger logger, string queue, string jobName, int attempt);
+
+    [LoggerMessage(
+        Level = LogLevel.Error,
+        Message = "{Queue} job name '{JobName}' was still unknown after {Attempts} waits; dead-lettered")]
+    private static partial void LogUnknownJobNameExhausted(
+        ILogger logger, string queue, string jobName, int attempts);
 
     [LoggerMessage(
         Level = LogLevel.Error,

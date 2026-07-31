@@ -20,13 +20,30 @@ namespace Hsm.Worker;
 /// <c>PEXPIRE</c>/<c>DEL</c> — a process that stalled long enough to lose its
 /// lease must not extend or delete the lease its successor now holds.</para>
 ///
-/// <para><b>What it does not give you.</b> This is a lease, not a fence. A
-/// holder paused past the TTL (a long GC, a stalled round trip) still believes
-/// it holds one while another process legitimately takes it, so for that window
-/// two processes can act. The queue survives that — delivery is at-least-once
-/// and handlers are idempotent — but the ordering guarantee is degraded, which
-/// is why the TTL is generous relative to a pause and renewal happens at a
-/// third of it.</para>
+/// <para><b>What it does not give you, and the invariant that makes up for
+/// it.</b> This is a lease, not a fence: nothing stops a holder that has
+/// already lost the lease from carrying on, because it only finds out at its
+/// next check. The dangerous version of that is not an exotic pause — it is
+/// ORDINARY WORK. Renewal happens between units of work, so any stretch of work
+/// done without a check must fit inside the TTL, and a batch of ten slow sends
+/// at a couple of seconds each does not fit inside fifteen. Hence the
+/// invariant, in two halves, both enforced rather than hoped for:</para>
+///
+/// <list type="number">
+/// <item>a serial queue drains ONE job per lease check
+/// (<c>JobConsumerService.BatchSizeFor</c>), so the unchecked stretch is one
+/// job; and</item>
+/// <item><c>LeaseTtl &gt; ClaimMinIdle</c> for every serial queue — the lease
+/// outlives the longest job the deployment says that queue may have —
+/// refused at startup by <c>JobConsumerService.StartAsync</c> if it does
+/// not hold.</item>
+/// </list>
+///
+/// <para>What is left over is genuinely exceptional: a process frozen for
+/// longer than a whole job's worst case. The queue survives even that —
+/// delivery is at-least-once and handlers are idempotent — but the ORDERING
+/// guarantee is degraded while it lasts, and that is the residue this design
+/// accepts.</para>
 /// </summary>
 public sealed class QueueLease(IJobConnection connection, string key, string holder, TimeSpan ttl)
 {

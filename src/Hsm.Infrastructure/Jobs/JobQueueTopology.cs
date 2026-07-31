@@ -121,12 +121,35 @@ public sealed class JobQueueTopology
     /// The worker renews at a third of it while it is running and releases it on
     /// clean shutdown, so this value is only ever spent by a worker that DIED
     /// holding it: it is the queue's failover window, during which no replica
-    /// consumes and jobs simply wait in Redis. Longer means slower failover;
-    /// shorter risks a paused process (a long GC, a stalled Redis round trip)
-    /// losing a lease it still believes it holds, which would put two consumers
-    /// on a queue whose whole point is that there is one.
+    /// consumes and jobs simply wait in Redis.
+    ///
+    /// <para><b>It must exceed every serial queue's
+    /// <see cref="JobQueueDefinition.ClaimMinIdle"/></b>, which is the same
+    /// deployment's statement of how long one of that queue's jobs may take;
+    /// the worker refuses to start otherwise. That is what sets the default at
+    /// 45s rather than something snappier — coms allows a job 30s, so a 15s
+    /// lease would be lost by an ordinary slow send rather than by a crash. The
+    /// price is paid on failover, and only on failover: coms consumption pauses
+    /// for up to this long after a worker dies holding the lease. A clean
+    /// shutdown releases it and costs nothing.</para>
     /// </summary>
-    public TimeSpan LeaseTtl { get; init; } = TimeSpan.FromSeconds(15);
+    public TimeSpan LeaseTtl { get; init; } = TimeSpan.FromSeconds(45);
+
+    /// <summary>
+    /// How long a job whose NAME this process does not know waits before
+    /// another worker is offered it. Flat, not exponential, and unrelated to the
+    /// queue's retry backoff: this is not a failure, it is a deploy in progress.
+    /// </summary>
+    public TimeSpan UnknownJobRetryDelay { get; init; } = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    /// How many of those waits a job gets before it is treated as a genuinely
+    /// bogus name and dead-lettered. Its own budget, deliberately far larger
+    /// than any queue's <see cref="JobQueueDefinition.MaxAttempts"/>: the thing
+    /// it has to outlast is a rolling deploy, not a flaky dependency. At the
+    /// defaults that is 30 minutes.
+    /// </summary>
+    public int UnknownJobMaxAttempts { get; init; } = 30;
 
     public IReadOnlyList<JobQueueDefinition> Queues { get; init; } = [];
 

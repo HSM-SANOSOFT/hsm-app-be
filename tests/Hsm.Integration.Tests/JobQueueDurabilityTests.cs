@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.Json;
 
 using Hsm.Application.Abstractions;
 using Hsm.Application.Ports;
@@ -43,6 +44,15 @@ public sealed class JobQueueDurabilityTests : IAsyncLifetime
     [JobName("test.admin-only")]
     [RequireRole("admin")]
     public sealed record AdminOnlyJobCommand(Guid RunId) : ICommand<Unit>;
+
+    /// <summary>
+    /// A job the "old" worker in the rolling-deploy test has never heard of,
+    /// and the "new" one has: which of the two a provider is depends on whether
+    /// this assembly is in its registry's scan set.
+    /// </summary>
+    [JobName("test.deployed-later")]
+    [AllowAnonymousRequest]
+    public sealed record DeployedLaterCommand(Guid RunId) : ICommand<Unit>;
 
     public async Task InitializeAsync()
     {
@@ -138,6 +148,49 @@ public sealed class JobQueueDurabilityTests : IAsyncLifetime
         Assert.Equal(0, Ran(refused));
         var dead = await ReadDeadLetterAsync(provider, refused);
         Assert.Equal("test.admin-only", dead.JobName);
+    }
+
+    [Fact]
+    public async Task Job_naming_a_type_this_worker_does_not_have_outlives_a_deploy_and_then_runs()
+    {
+        var runId = Guid.NewGuid();
+
+        // The worker on the OLD image: its registry has never heard of the job
+        // name, exactly like a pod that has not been rolled yet.
+        await using var oldWorker = BuildProvider(_prefix, knowsDeployedLater: false);
+        var topology = oldWorker.GetRequiredService<JobQueueTopology>();
+        var db = await oldWorker.GetRequiredService<IJobConnection>().GetDatabaseAsync();
+        await db.StreamAddAsync(
+            topology.StreamKey("test"),
+            JobEnvelope.Field,
+            new JobEnvelope(
+                "test.deployed-later",
+                JsonSerializer.Serialize(new { runId }),
+                null,
+                Attempt: 1).ToJson());
+
+        // Hand it back FAR more times than this queue's ordinary budget would
+        // have allowed (MaxAttempts is 3): the unknown-name wait is a budget of
+        // its own, because what it has to outlast is a deploy, not a flaky
+        // dependency. Nothing is dead-lettered and nothing is lost.
+        var consumer = oldWorker.GetRequiredService<IJobConsumer>();
+        for (var i = 0; i < (TestAttempts * 3) + 1; i++)
+        {
+            Assert.Equal(1, await consumer.DrainOnceAsync("test", 10, CancellationToken.None));
+            await Task.Delay(15);
+        }
+
+        Assert.Equal(0, await DeadLetterCountAsync(oldWorker));
+        Assert.Equal(0, Ran(runId));
+
+        // The deploy lands. A worker that knows the name picks the same job up
+        // and runs it — with its real attempt budget never having been touched.
+        await using var newWorker = BuildProvider(_prefix, knowsDeployedLater: true);
+        await DrainUntilAsync(newWorker, () => Ran(runId) == 1);
+
+        Assert.Equal(1, Ran(runId));
+        Assert.Equal(0, await DeadLetterCountAsync(newWorker));
+        Assert.Equal(0, await UnsettledAsync(newWorker));
     }
 
     [Fact]
@@ -317,7 +370,8 @@ public sealed class JobQueueDurabilityTests : IAsyncLifetime
         return live.PendingMessageCount + due.PendingMessageCount;
     }
 
-    private static ServiceProvider BuildProvider(string keyPrefix, TimeSpan? claimMinIdle = null) =>
+    private static ServiceProvider BuildProvider(
+        string keyPrefix, TimeSpan? claimMinIdle = null, bool knowsDeployedLater = true) =>
         TestServices.Build(customizeServices: services =>
         {
             services.AddHsmPipeline();
@@ -326,11 +380,15 @@ public sealed class JobQueueDurabilityTests : IAsyncLifetime
             services.AddScoped<IRequestHandler<EchoJobCommand, Unit>, EchoJobHandler>();
             services.AddScoped<IRequestHandler<AlwaysFailsJobCommand, Unit>, AlwaysFailsJobHandler>();
             services.AddScoped<IRequestHandler<AdminOnlyJobCommand, Unit>, AdminOnlyJobHandler>();
+            services.AddScoped<IRequestHandler<DeployedLaterCommand, Unit>, DeployedLaterHandler>();
 
             // The registry scans for [JobName]; this assembly's test commands
             // have to be in the scan set alongside Hsm.Application's real ones.
-            services.AddSingleton(JobNameRegistry.Scan(
-                typeof(IJobQueue).Assembly, typeof(JobQueueDurabilityTests).Assembly));
+            // Leaving this assembly OUT is how a worker on the old image is
+            // simulated: a build that has never heard of 'test.deployed-later'.
+            services.AddSingleton(knowsDeployedLater
+                ? JobNameRegistry.Scan(typeof(IJobQueue).Assembly, typeof(JobQueueDurabilityTests).Assembly)
+                : JobNameRegistry.Scan(typeof(IJobQueue).Assembly));
 
             // A dedicated 'test' queue on a key prefix nothing else uses, with
             // a backoff short enough to exhaust inside a test.
@@ -338,6 +396,7 @@ public sealed class JobQueueDurabilityTests : IAsyncLifetime
             {
                 KeyPrefix = keyPrefix,
                 ConsumerName = $"consumer-{Guid.NewGuid():N}",
+                UnknownJobRetryDelay = TimeSpan.FromMilliseconds(10),
                 Queues =
                 [
                     new JobQueueDefinition(
@@ -372,6 +431,15 @@ public sealed class JobQueueDurabilityTests : IAsyncLifetime
     private sealed class AdminOnlyJobHandler : IRequestHandler<AdminOnlyJobCommand, Unit>
     {
         public Task<Unit> HandleAsync(AdminOnlyJobCommand request, CancellationToken ct)
+        {
+            Attempts.AddOrUpdate(request.RunId, 1, (_, count) => count + 1);
+            return Task.FromResult(Unit.Value);
+        }
+    }
+
+    private sealed class DeployedLaterHandler : IRequestHandler<DeployedLaterCommand, Unit>
+    {
+        public Task<Unit> HandleAsync(DeployedLaterCommand request, CancellationToken ct)
         {
             Attempts.AddOrUpdate(request.RunId, 1, (_, count) => count + 1);
             return Task.FromResult(Unit.Value);

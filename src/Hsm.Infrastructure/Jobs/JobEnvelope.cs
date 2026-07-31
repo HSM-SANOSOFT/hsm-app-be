@@ -21,9 +21,17 @@ namespace Hsm.Infrastructure.Jobs;
 /// <item><b>Attempt</b> — 1 on the first delivery, incremented each time the
 /// job is rescheduled for retry, so backoff and the attempt limit survive the
 /// process that observed the failure.</item>
+/// <item><b>UnknownAttempt</b> — how many times a worker has handed this job
+/// back because it did not know <b>JobName</b> yet. A SEPARATE counter, because
+/// what it measures is a rolling deploy rather than a failing job: spending the
+/// queue's real attempts on it would dead-letter a perfectly good job within
+/// seconds of a deploy starting (docs allows three attempts at a 2s base). It
+/// defaults to zero, so envelopes written before this field existed read
+/// correctly.</item>
 /// </list>
 /// </summary>
-public sealed record JobEnvelope(string JobName, string Payload, RequestActor? Actor, int Attempt)
+public sealed record JobEnvelope(
+    string JobName, string Payload, RequestActor? Actor, int Attempt, int UnknownAttempt = 0)
 {
     /// <summary>The single stream field the envelope JSON is stored under.</summary>
     public const string Field = "envelope";
