@@ -6,11 +6,10 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
-    <PackageReference Include="Npgsql.OpenTelemetry" />
-    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
-    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+    <!-- The OpenTelemetry stack (AddHsmTelemetry) is a transitive dependency
+         of Hsm.Infrastructure — nothing ASP.NET-Core-specific is referenced
+         here, on purpose: this host's runtime image
+         (docker/worker.Dockerfile) has no ASP.NET Core shared framework. -->
     <PackageReference Include="StackExchange.Redis" />
   </ItemGroup>
 

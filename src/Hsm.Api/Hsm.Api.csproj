@@ -19,12 +19,14 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Npgsql.OpenTelemetry" />
-    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
-    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <!-- The rest of the OpenTelemetry stack (OTLP/console exporters, hosting
+         extensions, HTTP/runtime/Npgsql instrumentation) is a transitive
+         dependency of Hsm.Infrastructure, which owns AddHsmTelemetry — this
+         package alone is ASP.NET-Core-specific, so it stays a direct
+         reference here (see TelemetryRegistration's doc comment for why it
+         cannot live in the shared assembly: Hsm.Worker's runtime image has no
+         ASP.NET Core shared framework). -->
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
   </ItemGroup>
 
 </Project>

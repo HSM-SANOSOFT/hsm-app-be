@@ -22,6 +22,19 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="QuestPDF" />
     <PackageReference Include="StackExchange.Redis" />
+    <!-- Telemetry (Task 23): the shared AddHsmTelemetry registration lives
+         here, so its packages do too. OpenTelemetry.Instrumentation.AspNetCore
+         is deliberately NOT here — see TelemetryRegistration's doc comment;
+         it stays a direct reference of Hsm.Api/Hsm.Web only. No
+         OpenTelemetry.Exporter.Console either: the `console` destination is a
+         small hand-rolled BaseExporter (TextLineExporter, in
+         TelemetryRegistration.cs) symmetric with the `file` one, rather than a
+         second dependency for what one line-per-item writer already covers. -->
+    <PackageReference Include="Npgsql.OpenTelemetry" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
   </ItemGroup>
 
   <PropertyGroup>

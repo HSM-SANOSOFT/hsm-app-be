@@ -1,6 +1,9 @@
-# Dev/CI collector config: accept OTLP over gRPC (4317) and HTTP (4318),
-# print to the collector's own log. Real exporters (Prometheus, Tempo, Loki,
-# etc.) are a deployment concern, not a repo concern.
+# Passthrough only (Task 23): accept OTLP over gRPC (4317) and HTTP (4318),
+# print to the collector's own log. Destination selection — console, file, or
+# OTLP, per signal — is application configuration now (Telemetry:Exporters,
+# see Hsm.Infrastructure.Telemetry.TelemetryRegistration); this file is not a
+# switchboard and never picks where telemetry goes. Real exporters
+# (Prometheus, Tempo, Loki, etc.) remain a deployment concern, not a repo one.
 receivers:
   otlp:
     protocols:

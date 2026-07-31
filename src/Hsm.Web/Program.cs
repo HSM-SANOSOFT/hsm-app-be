@@ -3,6 +3,7 @@ using Hsm.Application.Auth;
 using Hsm.Application.System.Queries.GetSystemStatus;
 using Hsm.Contracts.Ui;
 using Hsm.Infrastructure;
+using Hsm.Infrastructure.Telemetry;
 using Hsm.Web.Auth;
 using Hsm.Web.Host;
 using Hsm.Web.Services;
@@ -12,35 +13,24 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 using MudBlazor.Services;
-using Npgsql;
 using OpenTelemetry;
-using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
-using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// OpenTelemetry (plan U10): standard primitives, off-the-shelf
-// instrumentation, OTLP export to the collector. Export failure degrades
-// observability, never availability — a stopped collector must not affect
-// boot or request handling (the exporter buffers and drops).
-builder.Services.AddOpenTelemetry()
-    .ConfigureResource(resource => resource.AddService("hsm-web"))
-    .WithTracing(tracing => tracing
-        .AddAspNetCoreInstrumentation()
-        .AddHttpClientInstrumentation()
-        .AddNpgsql())
-    .WithMetrics(metrics => metrics
-        .AddAspNetCoreInstrumentation()
-        .AddHttpClientInstrumentation()
-        .AddRuntimeInstrumentation()
-        .AddNpgsqlInstrumentation()
-        .AddMeter(CircuitMetrics.MeterName))
-    .WithLogging()
-    .UseOtlpExporter(
-        OtlpExportProtocol.HttpProtobuf,
-        new Uri(builder.Configuration["Otlp:Endpoint"] ?? "http://localhost:4318"));
+// OpenTelemetry (plan U10 + Task 23): destination is application
+// configuration — AddHsmTelemetry is the one registration all three hosts
+// share (see Hsm.Api/Program.cs and AddHsmTelemetry's doc comment for why
+// ASP.NET Core instrumentation and this host's circuit meter are layered on
+// afterward rather than living in the shared method).
+builder.AddHsmTelemetry("hsm-web");
+builder.Services.ConfigureOpenTelemetryTracerProvider(tracing => tracing.AddAspNetCoreInstrumentation());
+builder.Services.ConfigureOpenTelemetryMeterProvider(metrics =>
+{
+    metrics.AddAspNetCoreInstrumentation();
+    metrics.AddMeter(CircuitMetrics.MeterName);
+});
 
 // Blazor circuit signals — without them a circuit leak looks like a memory leak.
 builder.Services.AddSingleton<CircuitMetrics>();

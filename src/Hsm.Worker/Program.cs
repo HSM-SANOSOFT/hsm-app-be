@@ -1,34 +1,19 @@
 using Hsm.Application.Abstractions;
 using Hsm.Infrastructure;
+using Hsm.Infrastructure.Telemetry;
 using Hsm.Worker;
 using Hsm.Worker.Scheduling;
-using Npgsql;
-using OpenTelemetry;
-using OpenTelemetry.Exporter;
-using OpenTelemetry.Metrics;
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-// OpenTelemetry (plan U10): same posture as the two web hosts — standard
-// primitives, OTLP export, a collector outage never affects the host. The
-// service name is what separates background work from request handling in
-// every trace and metric, and it matters most here: a job's span is the only
-// place its work is visible at all.
-builder.Services.AddOpenTelemetry()
-    .ConfigureResource(resource => resource.AddService("hsm-worker"))
-    .WithTracing(tracing => tracing
-        .AddHttpClientInstrumentation()
-        .AddNpgsql())
-    .WithMetrics(metrics => metrics
-        .AddHttpClientInstrumentation()
-        .AddRuntimeInstrumentation()
-        .AddNpgsqlInstrumentation())
-    .WithLogging()
-    .UseOtlpExporter(
-        OtlpExportProtocol.HttpProtobuf,
-        new Uri(builder.Configuration["Otlp:Endpoint"] ?? "http://localhost:4318"));
+// OpenTelemetry (plan U10 + Task 23): same AddHsmTelemetry every host shares
+// — destination is application configuration, a collector outage never
+// affects the host. No ASP.NET Core instrumentation is added here (this host
+// has no HTTP surface, and cannot carry that package — see AddHsmTelemetry's
+// doc comment). The service name is what separates background work from
+// request handling in every trace and metric, and it matters most here: a
+// job's span is the only place its work is visible at all.
+builder.AddHsmTelemetry("hsm-worker");
 
 // Store-port adapters plus the job queue (plan U9/U14). The same call the two
 // doors make: one core, three hosts — this one owns no persistence of its own

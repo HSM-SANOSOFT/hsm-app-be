@@ -12,12 +12,10 @@ using Hsm.Api.Users;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
 using Hsm.Infrastructure;
+using Hsm.Infrastructure.Telemetry;
 using Microsoft.AspNetCore.RateLimiting;
-using Npgsql;
 using OpenTelemetry;
-using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
-using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 // The migrate step short-circuits before ANY host is built: `--migrate` runs
@@ -30,26 +28,18 @@ if (MigrateCommand.IsRequested(args))
 
 var builder = WebApplication.CreateBuilder(args);
 
-// OpenTelemetry (plan U10): standard primitives, off-the-shelf
-// instrumentation, OTLP export to the collector. Export failure degrades
-// observability, never availability — a stopped collector must not affect
-// boot or request handling (the exporter buffers and drops). The service name
-// is what separates this door from hsm-web in every trace and metric.
-builder.Services.AddOpenTelemetry()
-    .ConfigureResource(resource => resource.AddService("hsm-api"))
-    .WithTracing(tracing => tracing
-        .AddAspNetCoreInstrumentation()
-        .AddHttpClientInstrumentation()
-        .AddNpgsql())
-    .WithMetrics(metrics => metrics
-        .AddAspNetCoreInstrumentation()
-        .AddHttpClientInstrumentation()
-        .AddRuntimeInstrumentation()
-        .AddNpgsqlInstrumentation())
-    .WithLogging()
-    .UseOtlpExporter(
-        OtlpExportProtocol.HttpProtobuf,
-        new Uri(builder.Configuration["Otlp:Endpoint"] ?? "http://localhost:4318"));
+// OpenTelemetry (plan U10 + Task 23): destination is application
+// configuration (Telemetry:Exporters / Telemetry:Traces|Metrics|Logs), not a
+// property of the collector — AddHsmTelemetry is the one registration all
+// three hosts share. Export failure still degrades observability, never
+// availability (unchanged property, see AddHsmTelemetry's doc comment). ASP.NET
+// Core instrumentation is layered on afterward because Hsm.Worker has no HTTP
+// surface — see AddHsmTelemetry for why it cannot live in the shared method.
+// The service name is what separates this door from hsm-web in every trace
+// and metric.
+builder.AddHsmTelemetry("hsm-api");
+builder.Services.ConfigureOpenTelemetryTracerProvider(tracing => tracing.AddAspNetCoreInstrumentation());
+builder.Services.ConfigureOpenTelemetryMeterProvider(metrics => metrics.AddAspNetCoreInstrumentation());
 
 // Store-port adapters (EF Core/Npgsql, S3, Meilisearch, Redis cache) bound
 // from configuration (plan U9). The same call Hsm.Web makes: one core, two
