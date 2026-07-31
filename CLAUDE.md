@@ -48,10 +48,12 @@ tests against `.razor` pages).
 # Infra (the dev container's runServices already starts these)
 docker compose -f docker/docker-compose.yaml up -d postgres redis rustfs meilisearch otel-collector
 
-# Build / test (once Hsm.sln exists)
+# Build / test (once Hsm.sln exists) — mirrors .github/workflows/pr-validation.yml
 dotnet build Hsm.sln
-dotnet test Hsm.sln --filter "FullyQualifiedName!~Integration"   # unit + contract + component
-dotnet test tests/Hsm.Integration.Tests                          # real infra
+dotnet test tests/Hsm.Tests && dotnet test tests/Hsm.Web.Tests   # fast, no infra (CI's unit-tests job)
+dotnet test tests/Hsm.Integration.Tests                          # real Postgres/Redis/RustFS/Meilisearch
+dotnet test tests/Hsm.Contract.Tests                             # same infra; needs a live Postgres too
+dotnet test Hsm.sln                                              # full gate, all four test projects
 dotnet format Hsm.sln --verify-no-changes                        # lint gate
 
 # Apply the schema — an explicit step, never done on host boot
