@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 using Hsm.Application;
 using Hsm.Application.Errors;
 
-namespace Hsm.Web.Api;
+namespace Hsm.Api.Http;
 
 /// <summary>
 /// The frozen response envelope (response.interceptor.ts / response.filter.ts):
@@ -86,7 +86,7 @@ public static partial class ApiEnvelope
     }
 
     /// <summary>
-    /// The frozen ValidationPipe issue shape shared by Hsm.Web's edge-level
+    /// The frozen ValidationPipe issue shape shared by this host's edge-level
     /// ApiValidationException and Hsm.Application's ApiException.Validation:
     /// issue.message as an ordered string array, issue.errors as per-field
     /// distinct constraint keys.

@@ -1,4 +1,6 @@
 using System.Text.Json.Nodes;
+using Hsm.Api.Auth;
+using Hsm.Api.Http;
 using Hsm.Application;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Users.Commands.ChangeOwnPassword;
@@ -8,10 +10,8 @@ using Hsm.Application.Users.Commands.UpdateOwnProfile;
 using Hsm.Application.Users.Queries.GetUser;
 using Hsm.Application.Users.Queries.ListUsers;
 using Hsm.Domain.Identity;
-using Hsm.Web.Api;
-using Hsm.Web.Auth;
 
-namespace Hsm.Web.Users;
+namespace Hsm.Api.Users;
 
 /// <summary>
 /// The six frozen /v1/user operations (user.controller.ts). Each endpoint now

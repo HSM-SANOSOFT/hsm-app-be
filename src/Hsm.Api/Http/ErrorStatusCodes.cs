@@ -1,6 +1,6 @@
 using Hsm.Application.Errors;
 
-namespace Hsm.Web.Api;
+namespace Hsm.Api.Http;
 
 /// <summary>
 /// The single status-code classification behind BOTH frozen error surfaces:

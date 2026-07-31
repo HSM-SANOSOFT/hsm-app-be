@@ -18,6 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Hsm.Api\Hsm.Api.csproj" />
     <ProjectReference Include="..\..\src\Hsm.Web\Hsm.Web.csproj" />
   </ItemGroup>
 

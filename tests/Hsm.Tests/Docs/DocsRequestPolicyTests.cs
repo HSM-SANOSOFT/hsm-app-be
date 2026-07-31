@@ -16,7 +16,7 @@ namespace Hsm.Tests.Docs;
 ///
 /// The frozen <c>docs.controller.ts</c> decorates all nine <c>/v1/docs</c>
 /// operations with a bare <c>@Roles()</c> — authenticated, onboarded, any
-/// role. Confirmed against <see cref="Hsm.Web.Docs.DocsEndpoints"/>'s own doc
+/// role. Confirmed against <c>Hsm.Api.Docs.DocsEndpoints</c>'s own doc
 /// comment ("Every route is @Roles() with no arguments") and every
 /// <c>RequestAuth.GateAsync(ctx)</c> call in that file (zero role arguments
 /// anywhere), plus the absence of any 403/role-message assertion across

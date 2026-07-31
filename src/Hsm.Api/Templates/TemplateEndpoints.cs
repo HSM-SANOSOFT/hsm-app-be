@@ -1,5 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Hsm.Api.Auth;
+using Hsm.Api.Http;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Templates;
 using Hsm.Application.Templates.Commands.CreateTemplate;
@@ -10,10 +12,8 @@ using Hsm.Application.Templates.Queries.GetTemplate;
 using Hsm.Application.Templates.Queries.ListTemplates;
 using Hsm.Application.Templates.Queries.ValidateTemplate;
 using Hsm.Domain.Templates;
-using Hsm.Web.Api;
-using Hsm.Web.Auth;
 
-namespace Hsm.Web.Templates;
+namespace Hsm.Api.Templates;
 
 /// <summary>
 /// The seven frozen /v1/templates operations (templates.controller.ts). Every

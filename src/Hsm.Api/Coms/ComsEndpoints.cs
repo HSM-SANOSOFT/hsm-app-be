@@ -1,4 +1,6 @@
 using System.Text.Json.Nodes;
+using Hsm.Api.Auth;
+using Hsm.Api.Http;
 using Hsm.Application;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Coms;
@@ -11,10 +13,8 @@ using Hsm.Application.Coms.Queries.GetEmailRecipient;
 using Hsm.Application.Coms.Queries.ListEmailBatches;
 using Hsm.Application.Coms.Queries.ListEmailRecipients;
 using Hsm.Domain.Coms;
-using Hsm.Web.Api;
-using Hsm.Web.Auth;
 
-namespace Hsm.Web.Coms;
+namespace Hsm.Api.Coms;
 
 /// <summary>
 /// The nine frozen /v1/coms operations (coms.controller.ts +

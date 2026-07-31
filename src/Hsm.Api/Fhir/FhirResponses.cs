@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
-using Hsm.Web.Api;
+using Hsm.Api.Http;
 
-namespace Hsm.Web.Fhir;
+namespace Hsm.Api.Fhir;
 
 /// <summary>
 /// FHIR routes bypass the frozen envelope entirely (fhir.decorator.ts +

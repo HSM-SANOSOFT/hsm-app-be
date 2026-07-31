@@ -1,8 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Hsm.Contracts.Auth;
 
-namespace Hsm.Web.Auth;
+namespace Hsm.Api.Auth;
 
 /// <summary>
 /// Signed double-submit CSRF (frozen csrf.util.ts): the token is HMAC-bound to
@@ -54,7 +55,7 @@ public sealed class CsrfProtection(AuthWebOptions options)
             return true;
         }
 
-        return !ctx.Request.Cookies.ContainsKey(AuthCookies.AccessCookie);
+        return !ctx.Request.Cookies.ContainsKey(AuthCookiePolicy.AccessTokenName);
     }
 
     /// <summary>Double-submit check: header echoes the cookie and the HMAC binds the session.</summary>
@@ -118,7 +119,7 @@ public sealed class CsrfProtection(AuthWebOptions options)
 
     private static string DecodeSessionIdentifier(HttpContext ctx)
     {
-        var accessToken = ctx.Request.Cookies[AuthCookies.AccessCookie];
+        var accessToken = ctx.Request.Cookies[AuthCookiePolicy.AccessTokenName];
         if (string.IsNullOrEmpty(accessToken))
         {
             return string.Empty;

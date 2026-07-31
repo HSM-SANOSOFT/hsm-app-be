@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 using Hsm.Application.Errors;
 
-namespace Hsm.Web.Api;
+namespace Hsm.Api.Http;
 
 /// <summary>
 /// Renders application failures on API routes (/v1/*) as the frozen error

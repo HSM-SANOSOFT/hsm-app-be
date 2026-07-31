@@ -20,7 +20,7 @@ namespace Hsm.Contract.Tests.Shell;
 /// screen's UI-service data path working end to end against real
 /// PostgreSQL/RustFS.
 /// </summary>
-public sealed class AdminScreensFactory : ContractApiFactory
+public sealed class AdminScreensFactory : ContractShellFactory
 {
     public const string Bucket = "hsm-admin-screens-tests";
 

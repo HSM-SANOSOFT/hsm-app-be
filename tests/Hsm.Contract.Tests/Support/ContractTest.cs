@@ -11,7 +11,7 @@ namespace Hsm.Contract.Tests;
 /// </summary>
 [Trait("Infra", "true")]
 public abstract class ContractTest<TFactory>(TFactory factory) : IAsyncLifetime
-    where TFactory : ContractApiFactory
+    where TFactory : IContractHost
 {
     protected TFactory Factory { get; } = factory;
 

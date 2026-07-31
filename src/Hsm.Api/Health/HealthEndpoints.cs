@@ -1,8 +1,8 @@
 using System.Reflection;
 using System.Text.Json.Nodes;
-using Hsm.Web.Api;
+using Hsm.Api.Http;
 
-namespace Hsm.Web.Health;
+namespace Hsm.Api.Health;
 
 /// <summary>
 /// The two frozen public health operations (main.controller.ts).

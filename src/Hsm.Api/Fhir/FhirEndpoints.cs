@@ -1,11 +1,11 @@
+using Hsm.Api.Auth;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Clinical.Commands.CreatePatient;
 using Hsm.Application.Clinical.Queries.GetPatient;
 using Hsm.Application.Clinical.Queries.SearchPatients;
 using Hsm.Application.Errors;
-using Hsm.Web.Auth;
 
-namespace Hsm.Web.Fhir;
+namespace Hsm.Api.Fhir;
 
 /// <summary>
 /// The FHIR R4 Patient facade at /fhir/R4/Patient (frozen

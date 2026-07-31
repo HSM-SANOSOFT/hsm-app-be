@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Hsm.Application.Abstractions;
+using Hsm.Application.Auth;
 using Microsoft.AspNetCore.Components.Authorization;
 
 namespace Hsm.Web.Auth;

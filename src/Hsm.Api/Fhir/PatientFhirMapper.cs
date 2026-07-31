@@ -7,7 +7,7 @@ using Hl7.Fhir.Validation;
 using Hsm.Application.Clinical;
 using Hsm.Application.Errors;
 
-namespace Hsm.Web.Fhir;
+namespace Hsm.Api.Fhir;
 
 /// <summary>
 /// Inbound FHIR Patient validation + the frozen field mapping

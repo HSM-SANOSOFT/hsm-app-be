@@ -1,8 +1,7 @@
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
 using Hsm.Domain.Identity;
 
-namespace Hsm.Web.Auth;
+namespace Hsm.Application.Auth;
 
 /// <summary>
 /// Builds the <see cref="RequestActor"/> the application pipeline authorizes
@@ -23,9 +22,17 @@ namespace Hsm.Web.Auth;
 /// Point 3 is why this is async and why the derivation cannot live inside
 /// <see cref="ICurrentPrincipal"/>'s synchronous property: the claim is a
 /// cache, the row is the truth, and the frozen system read the row whenever
-/// the cache said "pending". Both hosts' edges (the REST token path in
-/// <see cref="RequestAuth"/>, the shell claims path in <see cref="ShellActor"/>)
-/// call this rather than deriving onboarding themselves.
+/// the cache said "pending".
+///
+/// <para><b>Why it lives in Hsm.Application rather than in a host.</b> Every
+/// edge that publishes an actor calls it — the REST door's token path
+/// (<c>Hsm.Api.Auth.RequestAuth</c>), the shell's claims path
+/// (<c>Hsm.Web.Auth.ShellActor</c>), and the worker's job envelope next. It
+/// touches no transport type: its inputs are an id, a role list and a claim
+/// string, and its only dependency is <see cref="IUserStore"/>. A copy per
+/// host would mean maintaining the frozen onboarding rule in three places,
+/// and a copy that drifts is a silent authorization divergence between doors
+/// — the exact failure Task 15 spent itself removing.</para>
 /// </summary>
 public sealed class RequestActorFactory(IUserStore users)
 {

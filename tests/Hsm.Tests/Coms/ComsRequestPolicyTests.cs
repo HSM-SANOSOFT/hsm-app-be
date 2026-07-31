@@ -17,7 +17,7 @@ namespace Hsm.Tests.Coms;
 /// Pins the Coms module's request policies directly on the request types.
 ///
 /// The frozen <c>coms.controller.ts</c>/<c>coms-webhook.controller.ts</c>
-/// (confirmed against <see cref="Hsm.Web.Coms.ComsEndpoints"/>'s own doc
+/// (confirmed against <c>Hsm.Api.Coms.ComsEndpoints</c>'s own doc
 /// comment and every <c>RequestAuth.GateAsync(ctx)</c> call in that file,
 /// none of which carries a role argument) decorate all eight HTTP-facing
 /// operations with a bare <c>@Roles()</c> — authenticated, onboarded, any

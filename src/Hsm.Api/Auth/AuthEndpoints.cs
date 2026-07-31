@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Hsm.Api.Http;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
 using Hsm.Application.Auth.Commands.CompleteOnboarding;
@@ -13,10 +14,10 @@ using Hsm.Application.Auth.Commands.ResetPassword;
 using Hsm.Application.Auth.Commands.Signup;
 using Hsm.Application.Auth.Commands.SignupIntegration;
 using Hsm.Application.Auth.Commands.ValidatePin;
+using Hsm.Contracts.Auth;
 using Hsm.Domain.Identity;
-using Hsm.Web.Api;
 
-namespace Hsm.Web.Auth;
+namespace Hsm.Api.Auth;
 
 /// <summary>
 /// The fourteen frozen /v1/auth operations. Success bodies ride the frozen
@@ -111,8 +112,8 @@ public static class AuthEndpoints
         // Bearer header (integrations) first, then access cookie, then the
         // refresh cookie. Cookies are cleared regardless of the outcome.
         var token = RequestAuth.Bearer(ctx)
-            ?? ctx.Request.Cookies[AuthCookies.AccessCookie]
-            ?? ctx.Request.Cookies[AuthCookies.RefreshCookie];
+            ?? ctx.Request.Cookies[AuthCookiePolicy.AccessTokenName]
+            ?? ctx.Request.Cookies[AuthCookiePolicy.RefreshTokenName];
         AuthCookies.Clear(ctx, Options(ctx));
         // No actor is installed: the token IS the credential here and it may be
         // expired or unverifiable, which the handler answers with the frozen

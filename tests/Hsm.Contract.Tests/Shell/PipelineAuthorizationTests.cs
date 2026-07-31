@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Hsm.Contract.Tests.Shell;
 
-public sealed class PipelineAuthorizationFactory : ContractApiFactory
+public sealed class PipelineAuthorizationFactory : ContractShellFactory
 {
     protected override string DatabaseName => "hsm_pipeline_authorization_test";
 }

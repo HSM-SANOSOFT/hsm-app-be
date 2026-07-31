@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Hsm.Api.Auth;
+using Hsm.Api.Http;
 using Hsm.Application;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Docs;
@@ -13,10 +15,8 @@ using Hsm.Application.Docs.Queries.ListDocuments;
 using Hsm.Application.Docs.Queries.PresignDocuments;
 using Hsm.Application.Errors;
 using Hsm.Domain.Docs;
-using Hsm.Web.Api;
-using Hsm.Web.Auth;
 
-namespace Hsm.Web.Docs;
+namespace Hsm.Api.Docs;
 
 /// <summary>
 /// The nine frozen /v1/docs operations (docs.controller.ts). Every route is

@@ -33,15 +33,17 @@ dotnet test Hsm.sln --filter "FullyQualifiedName!~Integration"   # unit only
 dotnet test tests/Hsm.Integration.Tests                          # real infra
 dotnet format Hsm.sln --verify-no-changes                        # lint gate
 
-# Run the app host
-dotnet run --project src/Hsm.Web        # app on :5000 (published to host)
+# Run the hosts (two doors onto one core — either runs without the other)
+dotnet run --project src/Hsm.Web        # staff shell on :5000 (published to host)
+dotnet run --project src/Hsm.Api        # REST/FHIR on :5001 (published to host)
 ```
 
 ### Infra port map (host)
 
 | Service | Host port |
 | --------- | ----------- |
-| App (Hsm.Web, run locally) | 5000 |
+| Staff shell (Hsm.Web, run locally) | 5000 |
+| REST/FHIR API (Hsm.Api, run locally) | 5001 |
 | Postgres | 10004 |
 | Redis | 10005 |
 | RustFS (S3) | 10006 |

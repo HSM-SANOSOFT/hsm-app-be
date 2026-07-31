@@ -28,11 +28,15 @@
     "source=claude-code-config-${devcontainerId},target=/home/vscode/.claude,type=volume"
   ],
   "forwardPorts": [
-    5000
+    5000,
+    5001
   ],
   "portsAttributes": {
     "5000": {
-      "label": "App"
+      "label": "Hsm.Web (staff shell)"
+    },
+    "5001": {
+      "label": "Hsm.Api (REST/FHIR)"
     }
   },
   "containerEnv": {

@@ -1,25 +1,16 @@
-using System.Threading.RateLimiting;
 using Hsm.Application.Abstractions;
+using Hsm.Application.Auth;
 using Hsm.Application.System.Queries.GetSystemStatus;
 using Hsm.Contracts.Ui;
 using Hsm.Infrastructure;
-using Hsm.Web.Api;
 using Hsm.Web.Auth;
-using Hsm.Web.Coms;
-using Hsm.Web.Docs;
-using Hsm.Web.Fhir;
-using Hsm.Web.Health;
 using Hsm.Web.Host;
 using Hsm.Web.Services;
-using Hsm.Web.Settings;
 using Hsm.Web.Telemetry;
-using Hsm.Web.Templates;
-using Hsm.Web.Users;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Components.Server.Circuits;
-using Microsoft.AspNetCore.RateLimiting;
 using MudBlazor.Services;
 using Npgsql;
 using OpenTelemetry;
@@ -60,11 +51,11 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddMudServices();
 
-// Shell authentication (plan U17): the same access-token cookie the REST
-// surface issues signs the Blazor shell in. Pages marked [Authorize] carry
-// endpoint metadata, so anonymous visitors are challenged — redirected to
-// /login — before anything renders; the /v1 surface keeps its own frozen
-// guard chain and is untouched by this scheme.
+// Shell authentication (plan U17): the access-token cookie — issued by this
+// host's sign-in screen or by Hsm.Api's POST /v1/auth/login, identically,
+// because both write Hsm.Contracts' AuthCookiePolicy — signs the Blazor shell
+// in. Pages marked [Authorize] carry endpoint metadata, so anonymous visitors
+// are challenged — redirected to /login — before anything renders.
 builder.Services
     .AddAuthentication(HsmCookieAuthenticationHandler.SchemeName)
     .AddScheme<AuthenticationSchemeOptions, HsmCookieAuthenticationHandler>(
@@ -81,20 +72,23 @@ builder.Services.AddScoped<IHostEnvironmentAuthenticationStateProvider>(sp =>
     sp.GetRequiredService<HsmAuthenticationStateProvider>());
 
 // Store-port adapters (EF Core/Npgsql, S3, Meilisearch, Redis cache) bound
-// from configuration (plan U9).
+// from configuration (plan U9). The same call Hsm.Api makes: two doors, one
+// core — this host reaches the application in-process rather than over HTTP.
 builder.Services.AddHsmInfrastructure(builder.Configuration);
 
 // The request pipeline (dispatcher + telemetry/authorization/validation/
 // transaction behaviors) and the actor it authorizes against. Authorization
-// happens HERE and nowhere else: no endpoint and no UI service checks a role.
-// Both surfaces only publish WHO is calling — the REST edge through
-// RequestAuth.GateAsync, the Blazor circuit through ShellActor — and
-// HttpCurrentPrincipal reads whichever one spoke. Publishing nothing leaves
-// the actor null, which the pipeline answers with 401, so a forgotten install
-// fails closed.
+// happens HERE and nowhere else: no UI service checks a role. This host has
+// exactly one publisher of WHO is calling — ShellActor, which derives the
+// actor from the circuit's authentication state and sets it on the scoped
+// AmbientPrincipal, which IS this host's ICurrentPrincipal. Publishing
+// nothing leaves the actor null, which the pipeline answers with 401, so a
+// forgotten install fails closed. (The REST door reads its actor off
+// HttpContext instead; the derivation both share is RequestActorFactory's,
+// in Hsm.Application, so neither door can drift from the other.)
 builder.Services.AddHsmPipeline();
 builder.Services.AddScoped<AmbientPrincipal>();
-builder.Services.AddScoped<ICurrentPrincipal, HttpCurrentPrincipal>();
+builder.Services.AddScoped<ICurrentPrincipal>(sp => sp.GetRequiredService<AmbientPrincipal>());
 builder.Services.AddScoped<RequestActorFactory>();
 builder.Services.AddScoped<ShellActor>();
 
@@ -109,7 +103,7 @@ builder.Services.AddScoped<ICurrentUserUiService, CurrentUserUiService>();
 // Administrative screens (plan U18): each screen's data path goes through a
 // contracts-declared UI service, which dispatches through the same pipeline
 // the REST surface does — so the admin requirement is the request type's
-// [RequireRole(Roles.Admin)], enforced once, whichever edge called. Sign-in
+// [RequireRole(Roles.Admin)], enforced once, whichever door called. Sign-in
 // runs in static SSR and needs the live HttpContext to set the session
 // cookies.
 builder.Services.AddHttpContextAccessor();
@@ -119,43 +113,18 @@ builder.Services.AddScoped<IIntegrationAccountsUiService, IntegrationAccountsUiS
 builder.Services.AddScoped<ISettingsAdminUiService, SettingsAdminUiService>();
 builder.Services.AddScoped<IDocumentsAdminUiService, DocumentsAdminUiService>();
 
-// Auth web surface (plan U12): cookie posture + CSRF from configuration.
+// Cookie posture from configuration (frozen COOKIE_* envs). The names, paths,
+// SameSite modes and lifetimes are AuthCookiePolicy's; only the posture is
+// per-deployment. No CsrfSecret here: the frozen double-submit CSRF guards
+// the REST surface, which this host no longer serves — Blazor form posts are
+// guarded by UseAntiforgery below.
 builder.Services.AddSingleton(new AuthWebOptions
 {
     CookieSecure = builder.Configuration.GetValue("Auth:CookieSecure", defaultValue: false),
     CookieDomain = builder.Configuration["Auth:CookieDomain"],
-    CsrfSecret = builder.Configuration["Auth:CsrfSecret"] ?? string.Empty,
-});
-builder.Services.AddSingleton<CsrfProtection>();
-
-// Frozen per-IP throttle on the account-recovery routes: 10 per 60s per
-// route (auth.controller.ts @Throttle long).
-builder.Services.AddRateLimiter(limiter =>
-{
-    limiter.AddPolicy(AuthEndpoints.RecoveryRateLimitPolicy, ctx =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            $"{ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown"}:{ctx.Request.Path}",
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 10,
-                Window = TimeSpan.FromSeconds(60),
-                QueueLimit = 0,
-            }));
-    limiter.OnRejected = async (context, cancellationToken) =>
-    {
-        // The frozen ThrottlerException envelope carried only the
-        // status-mapped code (its payload was a bare string).
-        await ApiEnvelope.WriteErrorAsync(
-            context.HttpContext,
-            StatusCodes.Status429TooManyRequests,
-            []);
-    };
 });
 
 var app = builder.Build();
-
-// API failures render the frozen error envelope (scoped to /v1/*).
-app.UseApiErrorEnvelope();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -167,32 +136,6 @@ if (!app.Environment.IsDevelopment())
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
-app.UseRateLimiter();
-
-// CSRF double-submit (frozen csrf.util.ts): validates x-csrf-token on
-// cookie-authenticated browser mutations; safe methods, bearer clients, and
-// pre-session requests are skipped. Runs before endpoints, as the frozen
-// middleware ran before guards.
-app.Use(async (ctx, next) =>
-{
-    // The Blazor transport (/_blazor negotiate POSTs) is outside the frozen
-    // CSRF surface: the client never carries the x-csrf-token header, and
-    // page-level form posts are protected by antiforgery below.
-    if (!ctx.Request.Path.StartsWithSegments("/_blazor")
-        && !CsrfProtection.ShouldSkip(ctx)
-        && !ctx.RequestServices.GetRequiredService<CsrfProtection>().Validate(ctx))
-    {
-        // The frozen failure surfaced from the express layer, outside the
-        // response envelope.
-        ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
-        ctx.Response.ContentType = "text/plain";
-        await ctx.Response.WriteAsync("ForbiddenError: invalid csrf token");
-        return;
-    }
-
-    await next();
-});
-
 // Shell session: authenticate from the access-token cookie, then enforce the
 // [Authorize] endpoint metadata Blazor pages carry. Must precede antiforgery.
 app.UseAuthentication();
@@ -201,21 +144,27 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
-app.MapHealthEndpoints();
-app.MapFhirEndpoints();
-app.MapAuthEndpoints();
-app.MapUserEndpoints();
-app.MapSettingsEndpoints();
-app.MapTemplateEndpoints();
-app.MapComsEndpoints();
-app.MapDocsEndpoints();
 // Routable pages live in this same host assembly (Option B, plan U8
 // amendment): the client-isolation boundary is now held by a test, not by a
-// separate assembly, so there is nothing additional to map here.
+// separate assembly, so there is nothing additional to map here. Nothing else
+// is mapped either — the /v1 and /fhir surfaces are Hsm.Api's, and this host
+// answers a plain 404 for them.
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
 
-// Exposes the entry point to WebApplicationFactory-based tests.
-public partial class Program { }
+namespace Hsm.Web
+{
+    /// <summary>
+    /// The entry-point marker <c>WebApplicationFactory&lt;Hsm.Web.Program&gt;</c>
+    /// resolves this assembly through. Both doors publish a <c>Program</c> in
+    /// the global namespace (the compiler's, for top-level statements), so a
+    /// test assembly that references both — the contract suites do, one door
+    /// each — cannot say which it means. Naming them per host settles it.
+    /// <c>WebApplicationFactory</c> only ever reads
+    /// <c>typeof(TEntryPoint).Assembly</c>, so the real entry point above is
+    /// what boots.
+    /// </summary>
+    public sealed class Program;
+}

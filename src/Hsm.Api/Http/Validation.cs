@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Hsm.Application.Errors;
 
-namespace Hsm.Web.Api;
+namespace Hsm.Api.Http;
 
 /// <summary>
 /// A 400 whose envelope carries the frozen ValidationPipe shape:

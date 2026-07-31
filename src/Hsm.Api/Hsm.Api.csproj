@@ -2,23 +2,20 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Hsm.Application\Hsm.Application.csproj" />
+    <ProjectReference Include="..\Hsm.Contracts\Hsm.Contracts.csproj" />
     <ProjectReference Include="..\Hsm.Infrastructure\Hsm.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <!-- FHIR R4 validation/parsing at the API edge only (frozen @medplum/core
+         validateResource replacement). Application/Domain never see it. -->
+    <PackageReference Include="Hl7.Fhir.R4" />
     <PackageReference Include="Npgsql.OpenTelemetry" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
     <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
-    <!-- Screens (plan U18) render with MudBlazor; they now live in this host
-         assembly (Option B, plan U8 amendment) instead of a separate RCL. -->
-    <PackageReference Include="MudBlazor" />
   </ItemGroup>
-
-  <PropertyGroup>
-    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
-  </PropertyGroup>
 
 </Project>

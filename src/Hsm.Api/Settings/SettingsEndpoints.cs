@@ -1,14 +1,14 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Hsm.Api.Auth;
+using Hsm.Api.Http;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Settings;
 using Hsm.Application.Settings.Commands.UpdateSettings;
 using Hsm.Application.Settings.Queries.GetSettings;
 using Hsm.Domain.Settings;
-using Hsm.Web.Api;
-using Hsm.Web.Auth;
 
-namespace Hsm.Web.Settings;
+namespace Hsm.Api.Settings;
 
 /// <summary>
 /// The two frozen /v1/settings operations (settings.controller.ts), both
