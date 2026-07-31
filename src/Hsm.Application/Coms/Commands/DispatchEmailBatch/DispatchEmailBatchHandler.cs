@@ -15,11 +15,15 @@ namespace Hsm.Application.Coms.Commands.DispatchEmailBatch;
 /// for retry), one transport send, then SENT/FAILED bulk updates and the
 /// aggregate overall-status recomputation.
 ///
-/// Not dispatched through <c>IDispatcher</c> — see
-/// <see cref="DispatchEmailBatchCommand"/>'s doc comment for why. Each
-/// <c>SaveChangesAsync</c> call below commits independently, exactly as the
-/// frozen worker's two separate writes did (PROCESSING, then the final
-/// SENT/FAILED write) — there was never a wrapping transaction to strip.
+/// <para>Dispatched through <c>IDispatcher</c> — telemetry, authorization
+/// against the enqueuing actor, validation — but NOT under a pipeline-owned
+/// transaction: the command carries
+/// <see cref="NoAmbientTransactionAttribute"/>. Each <c>SaveChangesAsync</c>
+/// below commits independently, exactly as the frozen worker's two separate
+/// writes did (PROCESSING, then the final SENT/FAILED write), and the failure
+/// write below survives the re-throw that carries the attempt back to the
+/// queue. Under one pipeline transaction it would not: the same re-throw would
+/// roll it back. See the attribute for the full reasoning.</para>
 /// </summary>
 public sealed class DispatchEmailBatchHandler(
     IEmailBatchStore batches,
@@ -77,6 +81,13 @@ public sealed class DispatchEmailBatchHandler(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
+            // The frozen failure write: these recipients settle FAILED with the
+            // transport's message, and the batch's overall status follows —
+            // then the error propagates so the queue counts the attempt. Both
+            // halves matter, which is why this command opts out of the
+            // pipeline's transaction. Note this catch covers the TRANSPORT send
+            // only: a template render failure is thrown above, outside the try,
+            // and leaves recipient rows untouched (frozen behavior).
             foreach (var target in targets)
             {
                 target.Status = EmailRecipientStatus.Failed;

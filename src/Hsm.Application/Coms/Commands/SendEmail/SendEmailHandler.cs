@@ -10,21 +10,20 @@ namespace Hsm.Application.Coms.Commands.SendEmail;
 /// <summary>
 /// <b>Does not enqueue the send-email job itself</b> — unlike the frozen
 /// handler and the pre-slicing port, which enqueued right after
-/// <c>SaveChangesAsync</c>. <c>TransactionBehavior</c> now wraps this whole
-/// handler in one transaction that commits only after <c>HandleAsync</c>
-/// returns, so enqueuing here would race the commit: the in-process channel
-/// consumer runs in its own scope/connection and could look up the new batch
-/// before this transaction commits it. <see cref="Hsm.Web.Coms.ComsEndpoints.SendEmail"/>
-/// enqueues after <c>dispatcher.Send</c> returns, which is a real
-/// post-commit point. See <see cref="Commands.ReceiveWebhook.ReceiveWebhookCommand"/>'s
-/// handler for the same fix and the contract-test failure that proved it was
-/// needed, not merely theoretical.
+/// <c>SaveChangesAsync</c>. <c>TransactionBehavior</c> wraps this whole handler
+/// in one transaction that commits only after <c>HandleAsync</c> returns, so
+/// enqueuing here would race the commit: the consumer runs in another process
+/// entirely and could look up the new batch before this transaction commits it.
+/// <c>ComsEndpoints.SendEmail</c> enqueues after <c>dispatcher.Send</c>
+/// returns, which is a real post-commit point. See
+/// <see cref="Commands.ReceiveWebhook.ReceiveWebhookCommand"/>'s handler for
+/// the same fix and the contract-test failure that proved it was needed, not
+/// merely theoretical.
 /// </summary>
 public sealed class SendEmailHandler(
     ITemplateStore templates,
     IEmailBatchStore batches,
     IEmailSuppressionStore suppressions,
-    IComsJobDispatcher queue,
     IAuthUnitOfWork unitOfWork,
     ICurrentPrincipal principal) : IRequestHandler<SendEmailCommand, SendEmailResult>
 {
@@ -47,10 +46,10 @@ public sealed class SendEmailHandler(
         }
 
         var suppressed = await suppressions.SuppressedAmongAsync([.. request.ToEmails], ct);
-        // The job id is reserved (an in-memory increment, no I/O) so it
-        // persists WITH the batch in one commit; the enqueue itself is the
-        // caller's job, strictly after that commit (see class doc comment).
-        var jobId = queue.ReserveSendEmailJobId();
+        // Minted here, no I/O, so it persists WITH the batch in one commit;
+        // the enqueue itself is the caller's job, strictly after that commit
+        // (see the class doc comment and JobId's).
+        var jobId = JobId.New();
         var batch = new EmailBatch
         {
             Id = Guid.NewGuid(),

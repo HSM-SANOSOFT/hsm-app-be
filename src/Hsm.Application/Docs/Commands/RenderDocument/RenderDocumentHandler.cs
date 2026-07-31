@@ -13,9 +13,17 @@ namespace Hsm.Application.Docs.Commands.RenderDocument;
 /// PROCESSING → blob upload → one transaction (version max+1, storage object,
 /// provenance, optional link + entity fields) → COMPLETED; on any failure the
 /// uploaded blob is best-effort removed and the document row is marked FAILED
-/// before the error re-throws into the queue's retry policy. Dispatched by
-/// direct <c>IRequestHandler</c> resolution, not <see cref="IDispatcher"/> —
-/// see <see cref="RenderDocumentCommand"/>'s doc comment for why.
+/// before the error re-throws into the queue's retry policy.
+///
+/// <para>Dispatched through <see cref="IDispatcher"/> — telemetry,
+/// authorization against the enqueuing actor, validation — but NOT under a
+/// pipeline-owned transaction: the command carries
+/// <see cref="NoAmbientTransactionAttribute"/>, because the FAILED write below
+/// (and the template parse-log row <c>TemplateParser</c> writes on a schema
+/// failure) must survive the very re-throw that reports the attempt, and
+/// because a transaction has no business staying open across a PDF render and
+/// an S3 upload. Each store call commits on its own, as it did before this
+/// command was routed through a dispatcher.</para>
 /// </summary>
 public sealed class RenderDocumentHandler(
     IDocumentStore store,
@@ -89,9 +97,9 @@ public sealed class RenderDocumentHandler(
         }
         catch
         {
-            // Frozen cleanup: remove the orphaned blob if the transaction
-            // failed after upload, then FAILED — each guarded so a cleanup
-            // failure never masks the original error.
+            // Frozen cleanup: remove the orphaned blob if the work failed
+            // after upload, then FAILED — each guarded so a cleanup failure
+            // never masks the original error.
             if (uploadedKey is not null)
             {
                 try
@@ -100,7 +108,7 @@ public sealed class RenderDocumentHandler(
                 }
                 catch (ObjectStorageException)
                 {
-                    // Logged by the processor via the re-thrown original.
+                    // Logged by the consumer via the re-thrown original.
                 }
             }
 

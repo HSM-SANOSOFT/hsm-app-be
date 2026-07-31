@@ -25,15 +25,15 @@ namespace Hsm.Tests.Coms;
 /// signature is the credential, so <see cref="ReceiveWebhookCommand"/> is
 /// <see cref="AllowAnonymousRequestAttribute"/> with no role attribute.
 ///
-/// The two job commands carry <see cref="JobNameAttribute"/> for Task 19's
-/// job-name → type registry. Their policy attributes are intent, not
-/// enforcement TODAY: <c>ComsJobProcessor.RunAsync</c> resolves and invokes
-/// their handlers directly, bypassing <c>IDispatcher</c>/the pipeline
-/// entirely (see that class's doc comment for why — briefly, the send-email
-/// job persists a FAILED write and then re-throws so its retry loop sees the
-/// exception, and <c>TransactionBehavior</c> would roll that persisted write
-/// back on the re-throw). Task 19 must resolve that tension before either
-/// policy attribute takes effect.
+/// The two job commands carry <see cref="JobNameAttribute"/>, which the job
+/// registry maps to and from, and their policy attributes ARE enforced since
+/// Task 19: the queue consumer dispatches them through <c>IDispatcher</c> with
+/// the actor the job was enqueued with. <see cref="DispatchEmailBatchCommand"/>
+/// additionally carries <see cref="NoAmbientTransactionAttribute"/> — pinned
+/// below because it is a deliberate, narrow exception to "commands run in a
+/// transaction": this handler persists a FAILED status and then re-throws so
+/// the queue counts the attempt, and a pipeline-owned transaction would roll
+/// that write back on the very re-throw meant to carry it forward.
 /// </summary>
 public class ComsRequestPolicyTests
 {
@@ -68,6 +68,18 @@ public class ComsRequestPolicyTests
         var attribute = typeof(DispatchEmailBatchCommand).GetCustomAttribute<JobNameAttribute>();
         Assert.NotNull(attribute);
         Assert.Equal("coms.send-email", attribute!.Name);
+    }
+
+    [Fact]
+    public void Dispatching_an_email_batch_job_owns_its_own_commits()
+    {
+        // Its failure path persists FAILED recipients and then re-throws so the
+        // queue counts the attempt; a pipeline transaction would roll that
+        // write back. The webhook job has no such path and stays transactional.
+        Assert.NotNull(
+            typeof(DispatchEmailBatchCommand).GetCustomAttribute<NoAmbientTransactionAttribute>());
+        Assert.Null(
+            typeof(ProcessWebhookEventCommand).GetCustomAttribute<NoAmbientTransactionAttribute>());
     }
 
     [Fact]

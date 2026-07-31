@@ -4,18 +4,16 @@ namespace Hsm.Application.Coms.Commands.ProcessWebhookEvent;
 
 /// <summary>
 /// The frozen worker 'process-webhook-event' job envelope (frozen BullMQ
-/// 'coms' queue, job name <c>process-webhook-event</c>). Carries
-/// <see cref="JobNameAttribute"/> for Task 19's job-name → type registry.
+/// 'coms' queue, job name <c>process-webhook-event</c>).
+/// <see cref="JobNameAttribute"/> is what the job registry maps to and from.
 ///
-/// <see cref="AllowAnonymousRequestAttribute"/>: this command never carries a
-/// caller identity (it names only the already-persisted, already-idempotent
-/// webhook event to process) and, like <see cref="Commands.DispatchEmailBatch.DispatchEmailBatchCommand"/>,
-/// is not dispatched through <c>IDispatcher</c> today — <c>ComsJobProcessor</c>
-/// resolves and calls its handler directly. Unlike the send-email job this
-/// command's atomicity does not depend on bypassing the pipeline (its single
-/// trailing <c>SaveChangesAsync</c> call is atomic on its own), so the two
-/// job commands are treated uniformly for simplicity, not because both
-/// require it.
+/// <para><see cref="AllowAnonymousRequestAttribute"/>, and now genuinely
+/// enforced: this job is enqueued by the @Public provider webhook, so the
+/// envelope's actor is legitimately null. It names only the already-persisted,
+/// already-idempotent webhook event to process — identifiers only, nothing
+/// secret on the queue. Being anonymous is exactly why it can run without an
+/// actor while <see cref="Commands.DispatchEmailBatch.DispatchEmailBatchCommand"/>
+/// cannot.</para>
 /// </summary>
 [JobName("coms.process-webhook")]
 [AllowAnonymousRequest]

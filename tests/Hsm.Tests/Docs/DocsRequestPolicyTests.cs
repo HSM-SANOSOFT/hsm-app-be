@@ -25,16 +25,16 @@ namespace Hsm.Tests.Docs;
 /// policy). The brief's table matches the frozen behavior exactly — no
 /// divergence to fix here, unlike Task 11's Templates finding.
 ///
-/// <see cref="RenderDocumentCommand"/> carries <see cref="JobNameAttribute"/>
-/// for Task 19's job-name → type registry. Its policy attribute is intent,
-/// not enforcement today: <c>DocsJobProcessor.RunAsync</c> resolves and
-/// invokes its handler directly, bypassing <c>IDispatcher</c>/the pipeline —
-/// the same FAILED-status/retry reasoning as Coms's send-email job (see that
-/// command's doc comment and <c>ComsJobProcessor</c>'s doc comment): on a
-/// render failure this handler persists the document's FAILED status and
-/// then re-throws so the channel processor's retry loop can count the
-/// attempt, and <c>TransactionBehavior</c> would roll that FAILED write back
-/// on the very re-throw that is supposed to carry it forward.
+/// <see cref="RenderDocumentCommand"/> carries <see cref="JobNameAttribute"/>,
+/// which the job registry maps to and from, and its policy IS enforced since
+/// Task 19: the queue consumer dispatches it through <c>IDispatcher</c> with
+/// the actor the job was enqueued with. It also carries
+/// <see cref="NoAmbientTransactionAttribute"/> — pinned below because it is a
+/// deliberate, narrow exception to "commands run in a transaction": on a render
+/// failure the handler persists the document's FAILED status (and
+/// <c>TemplateParser</c> its parse-log row) and then re-throws so the queue
+/// counts the attempt, and a pipeline-owned transaction would roll both back on
+/// the very re-throw meant to carry them forward.
 /// </summary>
 public class DocsRequestPolicyTests
 {
@@ -62,5 +62,15 @@ public class DocsRequestPolicyTests
         var attribute = typeof(RenderDocumentCommand).GetCustomAttribute<JobNameAttribute>();
         Assert.NotNull(attribute);
         Assert.Equal("docs.render", attribute!.Name);
+    }
+
+    [Fact]
+    public void Rendering_a_document_job_owns_its_own_commits()
+    {
+        // The FAILED status and the parse-log row are written on the way out of
+        // a failing attempt and must survive its re-throw — and a transaction
+        // has no business staying open across a PDF render and an S3 upload.
+        Assert.NotNull(
+            typeof(RenderDocumentCommand).GetCustomAttribute<NoAmbientTransactionAttribute>());
     }
 }

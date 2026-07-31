@@ -4,6 +4,8 @@ using Hsm.Api.Http;
 using Hsm.Application;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Coms;
+using Hsm.Application.Coms.Commands.DispatchEmailBatch;
+using Hsm.Application.Coms.Commands.ProcessWebhookEvent;
 using Hsm.Application.Coms.Commands.ReceiveWebhook;
 using Hsm.Application.Coms.Commands.ResendEmailBatch;
 using Hsm.Application.Coms.Commands.ResendEmailRecipient;
@@ -12,6 +14,7 @@ using Hsm.Application.Coms.Queries.GetEmailBatch;
 using Hsm.Application.Coms.Queries.GetEmailRecipient;
 using Hsm.Application.Coms.Queries.ListEmailBatches;
 using Hsm.Application.Coms.Queries.ListEmailRecipients;
+using Hsm.Application.Ports;
 using Hsm.Domain.Coms;
 
 namespace Hsm.Api.Coms;
@@ -40,7 +43,7 @@ public static class ComsEndpoints
         coms.MapPost("/webhooks/{provider}", (Delegate)ReceiveWebhook);
     }
 
-    private static async Task<IResult> SendEmail(HttpContext ctx, IDispatcher dispatcher, IComsJobDispatcher queue)
+    private static async Task<IResult> SendEmail(HttpContext ctx, IDispatcher dispatcher, IJobQueue queue)
     {
         await RequestAuth.GateAsync(ctx);
 
@@ -64,7 +67,8 @@ public static class ComsEndpoints
         // exists — and must not be abandoned just because the client hung up
         // between the commit and this call. The frozen handler enqueued with
         // no cancellation token at all for the same reason.
-        await queue.EnqueueSendEmailAsync(result.JobId, result.BatchId, recipientId: null, CancellationToken.None);
+        await queue.EnqueueAsync(
+            new DispatchEmailBatchCommand(result.BatchId, RecipientId: null), CancellationToken.None);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, new JsonObject
         {
             ["batchId"] = result.BatchId.ToString(),
@@ -111,7 +115,7 @@ public static class ComsEndpoints
     }
 
     private static async Task<IResult> ResendBatch(
-        HttpContext ctx, string id, IDispatcher dispatcher, IComsJobDispatcher queue)
+        HttpContext ctx, string id, IDispatcher dispatcher, IJobQueue queue)
     {
         await RequestAuth.GateAsync(ctx);
         var batchId = Guid.Parse(id);
@@ -119,7 +123,8 @@ public static class ComsEndpoints
         // Enqueued after dispatch returns — see SendEmail's comment; the same
         // commit-then-enqueue ordering applies here. CancellationToken.None:
         // post-commit work must not be abandoned on client disconnect.
-        await queue.EnqueueSendEmailAsync(jobId, batchId, recipientId: null, CancellationToken.None);
+        await queue.EnqueueAsync(
+            new DispatchEmailBatchCommand(batchId, RecipientId: null), CancellationToken.None);
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status201Created, new JsonObject { ["jobId"] = jobId });
     }
@@ -164,7 +169,7 @@ public static class ComsEndpoints
 
     /// <summary>The frozen @Public provider webhook: no auth, raw body bytes.</summary>
     private static async Task<IResult> ReceiveWebhook(
-        HttpContext ctx, string provider, IDispatcher dispatcher, IComsJobDispatcher queue)
+        HttpContext ctx, string provider, IDispatcher dispatcher, IJobQueue queue)
     {
         using var buffer = new MemoryStream();
         await ctx.Request.Body.CopyToAsync(buffer);
@@ -188,7 +193,7 @@ public static class ComsEndpoints
         // token for the same reason.
         foreach (var eventId in result.EventIdsToProcess)
         {
-            await queue.EnqueueProcessWebhookEventAsync(eventId, CancellationToken.None);
+            await queue.EnqueueAsync(new ProcessWebhookEventCommand(eventId), CancellationToken.None);
         }
 
         return ApiEnvelope.Success(

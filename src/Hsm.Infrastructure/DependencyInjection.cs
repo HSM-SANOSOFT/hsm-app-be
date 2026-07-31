@@ -153,6 +153,11 @@ public static class DependencyInjection
             configuration["Search:Meilisearch:ApiKey"]));
         services.AddSingleton<ISearchIndexResolver, SearchIndexResolver>();
 
+        // The durable job queue (Redis Streams). Producing side only: a host
+        // that consumes registers the loop itself, and nothing here opens a
+        // Redis connection — RedisJobConnection connects on first use.
+        services.AddHsmJobQueue(configuration);
+
         AddIdentity(services, configuration);
         AddClinical(services);
         AddUsersAndSettings(services);
@@ -163,10 +168,10 @@ public static class DependencyInjection
     }
 
     /// <summary>
-    /// Documents adapters and handlers (plan U15). Generation dispatch mirrors
-    /// the coms worker-topology decision: in-process channel behind the
-    /// dispatcher port, frozen retry posture (3 attempts, 1s delay, 2s
-    /// exponential backoff), QuestPDF instead of headless Chrome.
+    /// Documents adapters and handlers (plan U15). Generation runs as a queued
+    /// RenderDocumentCommand on the 'docs' queue — frozen retry posture (3
+    /// attempts, 1s first-attempt delay, 2s exponential backoff) configured in
+    /// JobQueueRegistration — with QuestPDF instead of headless Chrome.
     /// </summary>
     private static void AddDocs(IServiceCollection services, IConfiguration configuration)
     {
@@ -177,21 +182,10 @@ public static class DependencyInjection
             Bucket = configuration["Docs:Bucket"] ?? "hsm-docs",
         });
 
-        services.AddSingleton(new DocsQueueOptions
-        {
-            MaxAttempts = configuration.GetValue("Docs:MaxAttempts", defaultValue: 3),
-            InitialDelay = TimeSpan.FromMilliseconds(
-                configuration.GetValue("Docs:InitialDelayMs", defaultValue: 1000)),
-            RetryBaseDelay = TimeSpan.FromMilliseconds(
-                configuration.GetValue("Docs:RetryBaseDelayMs", defaultValue: 2000)),
-        });
-        services.AddChannelJobQueue<IDocsJobDispatcher, ChannelDocsDispatcher, DocsJobProcessor>();
-
         // Docs: command/query slices behind the dispatcher. Policy rides on
-        // the request type, exactly as Templates/Users/Settings/Auth/Coms.
-        // RenderDocumentCommand is ALSO registered as IRequestHandler (for
-        // DocsJobProcessor's direct resolution — see its doc comment for why
-        // it does not go through IDispatcher).
+        // the request type, exactly as Templates/Users/Settings/Auth/Coms —
+        // including RenderDocumentCommand, which the queue consumer dispatches
+        // through the same pipeline as everything else.
         services.AddScoped<
             IRequestHandler<ListDocumentsQuery, ListDocumentsResult>, ListDocumentsHandler>();
         services.AddScoped<
@@ -207,10 +201,10 @@ public static class DependencyInjection
     }
 
     /// <summary>
-    /// Template + communications adapters and handlers (plan U14). Dispatch
-    /// runs in-process (see <see cref="ChannelComsDispatcher"/> for the
-    /// worker-topology decision); SMTP delivery stays a port with a logging
-    /// adapter — real relays are deployment configuration.
+    /// Template + communications adapters and handlers (plan U14). Sending runs
+    /// as a queued DispatchEmailBatchCommand on the strictly serial 'coms'
+    /// queue (frozen resend ordering); SMTP delivery stays a port with a
+    /// logging adapter — real relays are deployment configuration.
     /// </summary>
     private static void AddTemplatesAndComs(IServiceCollection services, IConfiguration configuration)
     {
@@ -235,19 +229,10 @@ public static class DependencyInjection
         services.AddScoped<IEmailWebhookEventStore, EmailWebhookEventStore>();
         services.AddSingleton<IEmailTransport, LoggingEmailTransport>();
 
-        services.AddSingleton(new ComsQueueOptions
-        {
-            MaxAttempts = configuration.GetValue("Coms:MaxAttempts", defaultValue: 5),
-            RetryBaseDelay = TimeSpan.FromMilliseconds(
-                configuration.GetValue("Coms:RetryBaseDelayMs", defaultValue: 5000)),
-        });
-        services.AddChannelJobQueue<IComsJobDispatcher, ChannelComsDispatcher, ComsJobProcessor>();
-
         // Coms: command/query slices behind the dispatcher. Policy rides on
-        // the request type, exactly as Templates/Users/Settings/Auth. The two
-        // job commands are ALSO registered as IRequestHandler (for
-        // ComsJobProcessor's direct resolution — see its doc comment for why
-        // it does not go through IDispatcher).
+        // the request type, exactly as Templates/Users/Settings/Auth —
+        // including the two job commands, which the queue consumer dispatches
+        // through the same pipeline as everything else.
         services.AddScoped<IRequestHandler<SendEmailCommand, SendEmailResult>, SendEmailHandler>();
         services.AddScoped<
             IRequestHandler<ListEmailBatchesQuery, IReadOnlyList<EmailBatch>>, ListEmailBatchesHandler>();

@@ -9,16 +9,15 @@ namespace Hsm.Application.Docs.Commands.GenerateDocument;
 /// and the pre-slicing port, which enqueued right after persisting the
 /// document row. <c>TransactionBehavior</c> now wraps this whole handler in
 /// one transaction that commits only after <c>HandleAsync</c> returns, so
-/// enqueuing here would race the commit: the in-process channel consumer
-/// runs in its own scope/connection and could try to render a document it
-/// cannot see yet. The job id IS reserved here (an in-memory increment, no
-/// I/O — safe before commit) so it persists WITH the document in one commit;
-/// <see cref="Hsm.Web.Docs.DocsEndpoints.GenerateDocument"/> enqueues after
+/// enqueuing here would race the commit: the consumer runs in another process
+/// and could try to render a document it cannot see yet. The job id IS minted
+/// here (no I/O — safe before commit) so it travels back with the document id;
+/// <c>DocsEndpoints.GenerateDocument</c> enqueues after
 /// <c>dispatcher.Send</c> returns, which is a real post-commit point. See
 /// <c>SendEmailHandler</c>'s doc comment (Task 12) for the contract-test
 /// failure that proved this fix necessary, not merely theoretical.
 /// </summary>
-public sealed class GenerateDocumentHandler(IDocumentStore store, IDocsJobDispatcher queue, ICurrentPrincipal principal)
+public sealed class GenerateDocumentHandler(IDocumentStore store, ICurrentPrincipal principal)
     : IRequestHandler<GenerateDocumentCommand, GenerateDocumentResult>
 {
     public async Task<GenerateDocumentResult> HandleAsync(GenerateDocumentCommand request, CancellationToken ct)
@@ -27,8 +26,8 @@ public sealed class GenerateDocumentHandler(IDocumentStore store, IDocsJobDispat
         var actor = principal.Actor ?? throw ApiException.Unauthorized();
         var userId = Guid.Parse(actor.Id);
 
-        // Reserved (no I/O), not enqueued — see class doc comment.
-        var jobId = queue.ReserveGenerateDocumentJobId();
+        // Minted (no I/O), not enqueued — see class doc comment.
+        var jobId = JobId.New();
 
         var document = new Document
         {

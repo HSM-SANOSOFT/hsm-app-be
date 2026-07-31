@@ -8,12 +8,14 @@ using Hsm.Application.Abstractions;
 using Hsm.Application.Docs;
 using Hsm.Application.Docs.Commands.DeleteDocument;
 using Hsm.Application.Docs.Commands.GenerateDocument;
+using Hsm.Application.Docs.Commands.RenderDocument;
 using Hsm.Application.Docs.Commands.UploadDocuments;
 using Hsm.Application.Docs.Queries.GetDocument;
 using Hsm.Application.Docs.Queries.GetDocumentUrl;
 using Hsm.Application.Docs.Queries.ListDocuments;
 using Hsm.Application.Docs.Queries.PresignDocuments;
 using Hsm.Application.Errors;
+using Hsm.Application.Ports;
 using Hsm.Domain.Docs;
 
 namespace Hsm.Api.Docs;
@@ -67,7 +69,7 @@ public static class DocsEndpoints
     }
 
     private static async Task<IResult> GenerateDocument(
-        HttpContext ctx, IDispatcher dispatcher, IDocsJobDispatcher queue)
+        HttpContext ctx, IDispatcher dispatcher, IJobQueue queue)
     {
         await RequestAuth.GateAsync(ctx);
 
@@ -92,9 +94,8 @@ public static class DocsEndpoints
         // commit). CancellationToken.None: this is post-commit work, the
         // document row already exists, and it must not be abandoned merely
         // because the client hung up (see Task 12's fix for the same pair).
-        await queue.EnqueueGenerateDocumentAsync(
-            result.JobId,
-            new GenerateDocumentJob(result.DocumentId, templateIdentifier, dataJson, entityId, entityType),
+        await queue.EnqueueAsync(
+            new RenderDocumentCommand(result.DocumentId, templateIdentifier, dataJson, entityId, entityType),
             CancellationToken.None);
 
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, new JsonObject

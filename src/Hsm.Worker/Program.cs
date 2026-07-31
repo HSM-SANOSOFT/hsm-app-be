@@ -25,13 +25,12 @@ builder.Services.AddOpenTelemetry()
         OtlpExportProtocol.HttpProtobuf,
         new Uri(builder.Configuration["Otlp:Endpoint"] ?? "http://localhost:4318"));
 
-// Store-port adapters plus the communications dispatch surface (plan U14).
-// AddHsmInfrastructure registers the ComsJobProcessor hosted service, so this
-// host runs the same background send processing as Hsm.Web. With the default
-// in-process channel adapter each process consumes only its own enqueues —
-// the web host serves HTTP-observable dispatch; this host is the seat for a
-// distributed-queue adapter should cross-process dispatch return (see
-// ChannelComsDispatcher for the topology decision).
+// Store-port adapters plus the durable job queue (plan U14/Task 19).
+// AddHsmInfrastructure registers the PRODUCING side of the queue only: this
+// host does not consume yet. Task 20 turns it into the consumer — the
+// consume loop, the delayed pump, and AmbientPrincipal as this host's
+// ICurrentPrincipal — at which point the interim consumer inside Hsm.Api
+// goes away and jobs are processed here, out of the request path.
 builder.Services.AddHsmInfrastructure(builder.Configuration);
 
 builder.Services.AddHostedService<Worker>();
