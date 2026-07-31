@@ -20,6 +20,27 @@ transliterate it.
 - The .NET solution (`Hsm.sln`, `src/`, `tests/`) is standing up incrementally.
   If `Hsm.sln` does not exist yet, the solution-foundation units of the plan have
   not landed — check the plan before assuming structure.
+- **Conventions:** `docs/reference/dotnet-conventions.md` — one-page reference for exactly which
+  project and folder a given kind of code (entity, command, query, validator, port, adapter,
+  endpoint, Blazor page, UI service, each test kind) belongs in, the dependency arrows between
+  projects, and the pipeline behavior order. Read it before adding a new module slice.
+
+### Projects
+
+Libraries, named by layer — `Hsm.Domain` (entities), `Hsm.Application` (CQRS
+commands/queries/handlers, ports, the pipeline), `Hsm.Contracts` (UI service interfaces; the
+client-isolation leaf — no `Hsm.*` references), `Hsm.Infrastructure` (adapters: EF Core/Npgsql,
+S3, Meilisearch, Redis, job queue).
+
+Deployables, named by the door they open onto that same core — `Hsm.Api` (REST + FHIR,
+stateless), `Hsm.Web` (the staff Blazor Server shell, dispatching in-process), `Hsm.Worker` (the
+durable Redis Streams job consumer + scheduled work). None of the three talks to another over
+HTTP; each can be built, deployed, and restarted independently.
+
+Four test projects — `Hsm.Tests` (unit + architecture/boundary tests), `Hsm.Contract.Tests`
+(pinned to the frozen HTTP contract, exercises HTTP and never names a handler class),
+`Hsm.Integration.Tests` (real Postgres/Redis/RustFS containers), `Hsm.Web.Tests` (bUnit component
+tests against `.razor` pages).
 
 ## Commands (inside the dev container)
 
@@ -29,16 +50,17 @@ docker compose -f docker/docker-compose.yaml up -d postgres redis rustfs meilise
 
 # Build / test (once Hsm.sln exists)
 dotnet build Hsm.sln
-dotnet test Hsm.sln --filter "FullyQualifiedName!~Integration"   # unit only
+dotnet test Hsm.sln --filter "FullyQualifiedName!~Integration"   # unit + contract + component
 dotnet test tests/Hsm.Integration.Tests                          # real infra
 dotnet format Hsm.sln --verify-no-changes                        # lint gate
 
 # Apply the schema — an explicit step, never done on host boot
 dotnet run --project src/Hsm.Api -- --migrate
 
-# Run the hosts (two doors onto one core — either runs without the other)
+# Run the hosts (three doors onto one core — any subset runs without the others)
 dotnet run --project src/Hsm.Web        # staff shell on :5000 (published to host)
 dotnet run --project src/Hsm.Api        # REST/FHIR on :5001 (published to host)
+dotnet run --project src/Hsm.Worker     # durable job consumer + scheduler, no HTTP surface
 ```
 
 ### Infra port map (host)

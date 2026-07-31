@@ -112,7 +112,7 @@ The same ASP.NET Core application hosts both the UI and the API.
 
 **Why WASM is deferred rather than rejected:** when mobile arrives, Blazor Server is the wrong mode for it. Hospital WiFi roaming resets TCP on every access-point handoff, dropping the circuit and losing component state past the retention window — unacceptable for bedside forms. The answer is per-request render mode selection: desktop routes render interactively on the server, mobile routes render in WebAssembly. Same components, same codebase. This is only possible because of the client isolation boundary in §5.2.
 
-**Costs accepted:** every deploy disconnects every user (single instance, no rolling deploy); RAM per circuit must be monitored; no offline capability — accepted, not wanted.
+**Costs accepted:** every deploy of the Blazor shell disconnects every user (single instance, no rolling deploy — see §7.5 for why this no longer extends to the API or worker deployables after the three-host split); RAM per circuit must be monitored; no offline capability — accepted, not wanted.
 
 **Rejected:**
 
@@ -128,19 +128,48 @@ The same ASP.NET Core application hosts both the UI and the API.
 
 ## 5. Application Architecture
 
-### 5.1 Modular monolith
+### 5.1 Modular monolith, three deployables
 
-One API process plus one worker process. Microservices would destroy shipping velocity at this team size and stage.
+**Three deployables, not "one API process plus one worker":** `Hsm.Api` (REST + FHIR,
+stateless), `Hsm.Web` (the staff Blazor Server shell, dispatching to the same application
+layer in-process), and `Hsm.Worker` (the durable job-queue consumer + scheduled work). All
+three reference the same `Hsm.Application`/`Hsm.Infrastructure` core and can be deployed,
+restarted, and scaled independently — none of them talks to another over HTTP. This still is
+a modular monolith in the sense that matters: one codebase, one data model, no
+service-to-service network calls between these three; microservices would destroy shipping
+velocity at this team size and stage. See `docs/reference/dotnet-conventions.md` for the
+per-project dependency arrows.
 
-### 5.2 ⭐ Client isolation — the load-bearing constraint
+### 5.2 ⭐ Client isolation — test-enforced, not compiler-enforced (Option B)
 
-All interactive UI components live in a Razor Class Library that **references only the shared contracts project.** It cannot see the application layer, the infrastructure layer, EF Core, or the DbContext.
+Interactive UI components live inside `Hsm.Web` itself, not in a separate Razor Class Library —
+folding the screens back into the host project (rewrite Task 16) meant `Hsm.Web` legitimately
+needs `Hsm.Application`/`Hsm.Infrastructure` references for its own DI wiring. That made the
+original "the client project cannot even compile a shortcut" guarantee impossible to keep,
+because the project as a whole is no longer a leaf.
 
-Components therefore code against a service interface they declare themselves; the host project supplies the implementation. On the server that implementation calls handlers in-process. In a future WebAssembly host it calls the REST API instead.
+**Option B accepts that cost and replaces the compiler guarantee with two tests**
+(`tests/Hsm.Tests/Architecture/ScreenIsolationTests.cs`): one scans every `.razor` file's
+`@using`/`@inject` directives for a forbidden namespace (`Hsm.Application`,
+`Hsm.Infrastructure`, `Microsoft.EntityFrameworkCore`); the other reflects over every compiled
+`IComponent` for an `[Inject]` property of a forbidden type. Components still code only against
+a UI service interface declared in `Hsm.Contracts` — the shared contracts project remains a true
+leaf (`ContractsPurityTests` pins that no `Hsm.*` assembly is referenced by it) — the host
+project supplies the implementation, which calls handlers in-process today and would call the
+REST API instead from a future WebAssembly host.
 
-**Why this matters more than it looks:** because the client project cannot reference the application layer, shortcuts are *impossible to compile*. No CI rule to maintain, no discipline required, no way for a junior developer to get it wrong. It is also the single thing that makes mobile a week of work rather than a rewrite of 40 modules.
+**The mobile-extraction cost, stated plainly:** with the boundary compiler-enforced, extracting
+a WASM-hostable client was "a week of work," because a violation could not have been committed
+in the first place. With the boundary test-enforced, extracting that client requires an audit
+pass — confirming `ScreenIsolationTests` was in fact green for every screen at extraction time,
+and that no screen ever needed its own carve-out — before the extraction is safe to start. The
+tests catch a *new* violation the moment it lands; they do not retroactively guarantee three-plus
+years of screens never accumulated one some other way (a code-generated component, a source-only
+package, reflection-based DI resolved outside the two patterns the tests check). Budget that
+audit into the mobile timeline rather than assuming Option B is a drop-in replacement for Option
+A's guarantee.
 
-**This must be established before the first module is ported.**
+**This must be re-verified — not merely assumed — each time a new screen is added.**
 
 ### 5.3 Hexagonal, applied selectively
 
@@ -251,9 +280,19 @@ ELv2 prohibits offering the product as a managed service; SSPL requires publishi
 
 **Meilisearch is a cache, not a system of record.** Source data lives in PostgreSQL; the index is rebuildable. Back up the tables, not the index.
 
-### 6.4 In-memory — Redis
+### 6.4 In-memory — Redis, and it is no longer disposable
 
 Accessed through the built-in `IDistributedCache` abstraction, so it is one line to swap for in-process memory. Redis also becomes the SignalR backplane the day a second app instance is needed.
+
+**This role outgrew "cache" during the rewrite.** Redis Streams now hold the durable job queue
+that `Hsm.Api`/`Hsm.Web` enqueue into and `Hsm.Worker` consumes — including jobs in flight,
+jobs pending retry with backoff, and dead-lettered jobs that exhausted their attempts (some of
+which carry PHI, e.g. `RenderDocumentCommand.DataJson`; see
+`docs/reference/dotnet-conventions.md`'s dead-letter note). §7.4's "None — cache only,
+disposable" backup line for `ct-redis` is **no longer accurate** and must be revisited before
+production: losing Redis today loses queued and dead-lettered work, not just warm cache state.
+No retention/backup strategy has been decided yet — this is an open item, not a deferred design
+choice.
 
 ### 6.5 Observability — OpenTelemetry
 
@@ -317,7 +356,7 @@ Separate LXCs on one Proxmox node isolate failures between services. They do **n
 | ct-postgres | Nightly logical dump **plus WAL archiving**, off-box |
 | ct-rustfs | Dataset replication off-box |
 | ct-meili | None — rebuildable from PostgreSQL |
-| ct-redis | None — cache only, disposable |
+| ct-redis | **Stale — see §6.4.** Was "None — cache only, disposable"; Redis Streams now hold the durable job queue (in-flight, retry-pending, and dead-lettered jobs, some carrying PHI). A real backup/retention strategy is an open item. |
 | ct-app | Stateless — container-level snapshot is fine |
 
 **If backups land on the same Proxmox host, there are no backups.**
@@ -326,7 +365,12 @@ Separate LXCs on one Proxmox node isolate failures between services. They do **n
 
 A single app instance removes Blazor Server's usual burdens — no sticky sessions, no SignalR backplane, no circuit affinity problem. What remains:
 
-- **Every deploy disconnects every user.** No rolling deploy with one instance; releases are off-hours and announced.
+- **Every deploy of `Hsm.Web` disconnects every user of the staff shell.** No rolling deploy with
+  one instance; releases are off-hours and announced. **This is now scoped to `Hsm.Web` alone —
+  it no longer describes an API deploy.** With the three-deployable split (§5.1), `Hsm.Api` is
+  stateless and independently restartable: redeploying it does not touch a live Blazor circuit in
+  `Hsm.Web`, and redeploying `Hsm.Worker` touches none of the UI or the API. Only a `Hsm.Web`
+  deploy still disconnects every staff user.
 - **Any reverse proxy must not kill idle WebSockets** — default read timeouts will drop circuits.
 - **Draft autosave is mandatory** for any long clinical form. Circuit loss is not the only way to lose a form; so are dead batteries, closed tabs, and browser crashes.
 - **Error boundaries are required** — an unhandled exception kills the whole circuit, not just the component.
@@ -425,3 +469,8 @@ monolith that was frozen and used as the specification
 | 22 | LTS-only version policy | .NET 10 → .NET 12; skip odd-numbered STS | ✅ Decided |
 | 23 | Component library: MudBlazor | MIT licensing vs. Syncfusion commercial terms; product may ship to other hospitals | ✅ Decided |
 | 24 | Freeze-and-rebuild delivery | TypeScript monolith tagged as reference spec; contract-test-first rebuild, not transliteration | ✅ Executed |
+| 25 | Hand-rolled `IDispatcher`, not MediatR | MediatR v13+ is commercially licensed, which §1's licensing constraint forbids for a product that may ship to other hospitals; a caching per-request-type dispatcher is a small amount of code to own outright | ✅ Executed |
+| 26 | CQRS command/query segregation, one pipeline, per-module vertical slices | One database, no event sourcing; `Hsm.Application/Users/` is the reference slice shape (command or query + handler, own folder, module port at top level) copied by every other module | ✅ Executed |
+| 27 | Three-deployable split: `Hsm.Api` / `Hsm.Web` / `Hsm.Worker` | Independent restart and deploy per door (§5.1, §7.5); none talks to another over HTTP — all three share one `Hsm.Application`/`Hsm.Infrastructure` core | ✅ Executed |
+| 28 | Redis Streams as a durable job queue, correcting the original in-process queue (U14) | The rewrite plan's first cut queued jobs in-process, which could not survive a restart or run against more than one worker; Streams + consumer groups + a delayed sorted set + a dead-letter stream, drained solely by `Hsm.Worker`, replaced it. Redis is consequently no longer disposable — see §6.4 | ✅ Executed — corrects U14 |
+| 29 | Client isolation: Option B, test-enforced | Folding screens into `Hsm.Web` (Task 16) removed the compiler guarantee Option A relied on; two architecture tests (`ScreenIsolationTests`) replace it, at the cost of an audit pass before any future mobile/WASM extraction — see §5.2 | ✅ Executed |
