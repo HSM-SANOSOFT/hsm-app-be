@@ -6,6 +6,7 @@ using Hsm.Infrastructure.Jobs;
 using Hsm.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using StackExchange.Redis;
 
 namespace Hsm.Integration.Tests;
 
@@ -139,8 +140,81 @@ public sealed class JobQueueDurabilityTests : IAsyncLifetime
         Assert.Equal("test.admin-only", dead.JobName);
     }
 
+    [Fact]
+    public async Task Job_left_pending_by_a_dead_consumer_is_reclaimed_after_the_idle_threshold()
+    {
+        var runId = Guid.NewGuid();
+        await using var provider = BuildProvider(_prefix, claimMinIdle: TimeSpan.FromMilliseconds(50));
+
+        await EnqueueAsync(provider, new EchoJobCommand(runId));
+        await AbandonAsync(provider, "a-consumer-that-died");
+
+        // Nobody will ever XACK that entry. Once it has been idle longer than
+        // the queue's threshold, XAUTOCLAIM hands it to a live consumer — which
+        // is the whole recovery story for a worker that is killed mid-job.
+        await Task.Delay(120);
+        var drained = await DrainUntilAsync(provider, () => Ran(runId) == 1);
+
+        Assert.Equal(1, drained);
+        Assert.Equal(1, Ran(runId));
+        Assert.Equal(0, await UnsettledAsync(provider));
+    }
+
+    [Fact]
+    public async Task Job_still_being_worked_on_is_not_reclaimed_before_the_idle_threshold()
+    {
+        var runId = Guid.NewGuid();
+        await using var provider = BuildProvider(_prefix, claimMinIdle: TimeSpan.FromMinutes(10));
+
+        await EnqueueAsync(provider, new EchoJobCommand(runId));
+        await AbandonAsync(provider, "a-consumer-still-working");
+
+        // The negative twin, and the reason the threshold is per-queue:
+        // XAUTOCLAIM cannot tell a dead consumer from a slow one, so a job that
+        // is merely taking a while must NOT be handed to a second consumer —
+        // that is a duplicate run of a job that is still in flight.
+        var consumer = provider.GetRequiredService<IJobConsumer>();
+        for (var i = 0; i < 5; i++)
+        {
+            Assert.Equal(0, await consumer.DrainOnceAsync("test", 10, CancellationToken.None));
+        }
+
+        Assert.Equal(0, Ran(runId));
+        Assert.Equal(1, await UnsettledAsync(provider));
+    }
+
     /// <summary>Attempts the test topology allows each queued job.</summary>
     private const int TestAttempts = 3;
+
+    /// <summary>
+    /// Delivers the queue's entries to <paramref name="consumerName"/> and never
+    /// acknowledges them — a consumer that took work and died holding it.
+    /// </summary>
+    private static async Task AbandonAsync(ServiceProvider provider, string consumerName)
+    {
+        var topology = provider.GetRequiredService<JobQueueTopology>();
+        var db = await provider.GetRequiredService<IJobConnection>().GetDatabaseAsync();
+        try
+        {
+            await db.StreamCreateConsumerGroupAsync(
+                topology.StreamKey("test"),
+                JobQueueTopology.ConsumerGroup,
+                StreamPosition.Beginning,
+                createStream: true);
+        }
+        catch (RedisServerException)
+        {
+            // BUSYGROUP: a drain in this test already created it.
+        }
+
+        var taken = await db.StreamReadGroupAsync(
+            topology.StreamKey("test"),
+            JobQueueTopology.ConsumerGroup,
+            consumerName,
+            StreamPosition.NewMessages,
+            count: 10);
+        Assert.NotEmpty(taken);
+    }
 
     private static RequestActor Actor(string role) =>
         new(Guid.NewGuid().ToString(), [role], OnboardingCompleted: true);
@@ -216,7 +290,7 @@ public sealed class JobQueueDurabilityTests : IAsyncLifetime
         return live.PendingMessageCount + due.PendingMessageCount;
     }
 
-    private static ServiceProvider BuildProvider(string keyPrefix) =>
+    private static ServiceProvider BuildProvider(string keyPrefix, TimeSpan? claimMinIdle = null) =>
         TestServices.Build(customizeServices: services =>
         {
             services.AddHsmPipeline();
@@ -244,7 +318,8 @@ public sealed class JobQueueDurabilityTests : IAsyncLifetime
                         MaxAttempts: TestAttempts,
                         InitialDelay: TimeSpan.Zero,
                         RetryBaseDelay: TimeSpan.FromMilliseconds(10),
-                        Consumers: 1),
+                        Consumers: 1,
+                        ClaimMinIdle: claimMinIdle ?? TimeSpan.FromSeconds(30)),
                 ],
             });
         });

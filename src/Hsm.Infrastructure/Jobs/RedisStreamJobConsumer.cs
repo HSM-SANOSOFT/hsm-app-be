@@ -32,8 +32,11 @@ namespace Hsm.Infrastructure.Jobs;
 ///
 /// <para>Delivery is at-least-once, matching the frozen BullMQ posture: a
 /// consumer that dies mid-job leaves its entry pending, XAUTOCLAIM hands it to
-/// another consumer after <see cref="JobQueueTopology.ClaimMinIdle"/>, and the
-/// job runs again. Handlers stay idempotent.</para>
+/// another consumer after <see cref="JobQueueDefinition.ClaimMinIdle"/>, and
+/// the job runs again. Handlers stay idempotent. That threshold is per queue
+/// and deliberately generous for docs: without mid-flight lock renewal (Task
+/// 20) the only thing separating a slow job from a duplicate concurrent run is
+/// the threshold exceeding the job's worst-case runtime.</para>
 /// </summary>
 public sealed partial class RedisStreamJobConsumer(
     IJobConnection connection,
@@ -102,7 +105,7 @@ public sealed partial class RedisStreamJobConsumer(
         }
 
         var processed = 0;
-        foreach (var entry in await ReadAsync(db, streamKey, max).ConfigureAwait(false))
+        foreach (var entry in await ReadAsync(db, definition, streamKey, max).ConfigureAwait(false))
         {
             await ProcessAsync(db, definition, streamKey, entry, ct).ConfigureAwait(false);
             processed++;
@@ -147,13 +150,17 @@ public sealed partial class RedisStreamJobConsumer(
     /// Reclaimed work first (XAUTOCLAIM: entries a consumer took and never
     /// acknowledged, because it crashed), then new work (XREADGROUP '&gt;').
     /// </summary>
-    private async Task<StreamEntry[]> ReadAsync(IDatabase db, string key, int max)
+    private async Task<StreamEntry[]> ReadAsync(
+        IDatabase db, JobQueueDefinition definition, string key, int max)
     {
+        // The idle threshold is the queue's, not a global one: it has to exceed
+        // the queue's worst-case job runtime or a slow job gets a second,
+        // concurrent run. See JobQueueDefinition.ClaimMinIdle.
         var claimed = await db.StreamAutoClaimAsync(
             key,
             JobQueueTopology.ConsumerGroup,
             topology.ConsumerName,
-            (long)topology.ClaimMinIdle.TotalMilliseconds,
+            (long)definition.ClaimMinIdle.TotalMilliseconds,
             StreamPosition.Beginning,
             max).ConfigureAwait(false);
 

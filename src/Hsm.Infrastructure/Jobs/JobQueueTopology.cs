@@ -12,20 +12,46 @@ namespace Hsm.Infrastructure.Jobs;
 /// can target the same batch, and a resend that overtakes the earlier job's
 /// retry lets that retry's stale FAILED write land after the resend's SENT
 /// write. Serial therefore means serial ACROSS RETRIES too — see
-/// <see cref="JobQueueDefinition.IsSerial"/>.</param>
+/// <see cref="JobQueueDefinition.IsSerial"/>, and read its scope limit before
+/// relying on it.</param>
+/// <param name="ClaimMinIdle">How long a delivered-but-unacknowledged job must
+/// sit before another consumer may XAUTOCLAIM it — i.e. how long "that consumer
+/// might still be working" is assumed before "that consumer died" is concluded.
+/// It is per-queue because it must exceed the queue's WORST-CASE job runtime:
+/// reclaiming a job that is merely slow runs it a second time concurrently,
+/// which for a document render means a duplicate version row and a duplicate S3
+/// object. See <see cref="JobQueueTopology"/> for the tradeoff this buys.</param>
 public sealed record JobQueueDefinition(
     string Name,
     int MaxAttempts,
     TimeSpan InitialDelay,
     TimeSpan RetryBaseDelay,
-    int Consumers)
+    int Consumers,
+    TimeSpan ClaimMinIdle)
 {
     /// <summary>
-    /// One consumer, and no newer job may start while an earlier one is still
-    /// working through its attempts. Without the second half the first half is
-    /// nearly meaningless: a job that fails goes off to wait out its backoff,
-    /// and a job enqueued a moment later — a resend of the very batch that just
-    /// failed — would run in the gap and be overwritten when the retry lands.
+    /// One consume loop, and no newer job may start while an earlier one is
+    /// still working through its attempts. Without the second half the first
+    /// half is nearly meaningless: a job that fails goes off to wait out its
+    /// backoff, and a job enqueued a moment later — a resend of the very batch
+    /// that just failed — would run in the gap and be overwritten when the retry
+    /// lands.
+    ///
+    /// <para><b>Scope: one consuming PROCESS.</b> This is enforced by a consumer
+    /// deciding not to read new work while it can see scheduled or due entries.
+    /// Two consuming processes both make that decision independently, both see
+    /// an empty delayed set at the same instant, and both take a job — nothing
+    /// here is a distributed lock, and <c>Consumers = 1</c> configures this
+    /// host's loop count, not the cluster's. Cluster-wide seriality therefore
+    /// requires exactly ONE consuming process for the queue.</para>
+    ///
+    /// <para><b>Requirement for Task 20:</b> when consumption moves to
+    /// <c>Hsm.Worker</c>, coms consumption must be pinned to a single worker
+    /// instance (a singleton deployment, or a leader election / distributed lock
+    /// around the coms loop). Scaling the worker horizontally without that
+    /// silently reintroduces the overtaking this property exists to prevent.
+    /// Until then the interim consumer's per-host key namespace makes each host
+    /// its own queue, so the guarantee holds by construction.</para>
     /// </summary>
     public bool IsSerial => Consumers <= 1;
 }
@@ -45,6 +71,18 @@ public sealed record JobQueueDefinition(
 /// <see cref="ConsumerGroup"/> under its own <see cref="ConsumerName"/>: the
 /// group is what makes one job run once across N processes, the name is what
 /// lets XAUTOCLAIM tell a crashed consumer's work from a live one's.</para>
+///
+/// <para><b>On reclaiming.</b> XAUTOCLAIM cannot tell a dead consumer from a
+/// slow one; it can only measure idle time. There is no mid-flight lock renewal
+/// here — the frozen BullMQ worker renewed its lock while a job ran, so a long
+/// job was never mistaken for a lost one — so the only thing standing between a
+/// slow job and a duplicate run is
+/// <see cref="JobQueueDefinition.ClaimMinIdle"/> being larger than the job can
+/// take. It is set per queue for that reason, and generously for docs, at the
+/// cost of recovery latency: a consumer that really does die leaves its job
+/// unclaimed for that long. A heartbeat (periodic XCLAIM by the running
+/// consumer, which would let the threshold drop to seconds again) is Task 20's
+/// to add.</para>
 /// </summary>
 public sealed class JobQueueTopology
 {
@@ -63,11 +101,6 @@ public sealed class JobQueueTopology
 
     /// <summary>How often <see cref="DelayedJobPump"/> promotes due delayed jobs.</summary>
     public TimeSpan DelayedPumpInterval { get; init; } = TimeSpan.FromMilliseconds(100);
-
-    /// <summary>How long a delivered-but-unacknowledged job must sit before another
-    /// consumer may XAUTOCLAIM it — i.e. how long "that consumer might still be
-    /// working" is assumed before "that consumer died" is concluded.</summary>
-    public TimeSpan ClaimMinIdle { get; init; } = TimeSpan.FromSeconds(30);
 
     /// <summary>Approximate cap on the live/dead streams so history cannot grow
     /// without bound. Approximate trimming never drops recent entries.</summary>

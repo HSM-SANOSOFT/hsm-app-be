@@ -90,7 +90,6 @@ public static class JobQueueRegistration
             KeyPrefix = keyPrefixOverride ?? KeyPrefix(configuration),
             PollInterval = Milliseconds(configuration, "Jobs:PollIntervalMs", 100),
             DelayedPumpInterval = Milliseconds(configuration, "Jobs:DelayedPumpIntervalMs", 100),
-            ClaimMinIdle = Milliseconds(configuration, "Jobs:ClaimMinIdleMs", 30_000),
             StreamMaxLength = configuration.GetValue("Jobs:StreamMaxLength", defaultValue: 100_000),
             Queues =
             [
@@ -99,13 +98,26 @@ public static class JobQueueRegistration
                     MaxAttempts: configuration.GetValue("Coms:MaxAttempts", defaultValue: 5),
                     InitialDelay: TimeSpan.Zero,
                     RetryBaseDelay: Milliseconds(configuration, "Coms:RetryBaseDelayMs", 5000),
-                    Consumers: 1),
+                    Consumers: 1,
+                    // A send job is one template render and one transport call:
+                    // seconds, not minutes. 30s is comfortably past that, so a
+                    // dead consumer's send is picked up quickly.
+                    ClaimMinIdle: Milliseconds(configuration, "Coms:ClaimMinIdleMs", 30_000)),
                 new JobQueueDefinition(
                     "docs",
                     MaxAttempts: configuration.GetValue("Docs:MaxAttempts", defaultValue: 3),
                     InitialDelay: Milliseconds(configuration, "Docs:InitialDelayMs", 1000),
                     RetryBaseDelay: Milliseconds(configuration, "Docs:RetryBaseDelayMs", 2000),
-                    Consumers: configuration.GetValue("Docs:Consumers", defaultValue: 4)),
+                    Consumers: configuration.GetValue("Docs:Consumers", defaultValue: 4),
+                    // A render is a PDF layout plus an S3 upload, and there are
+                    // four sibling loops that could reclaim it. Ten minutes is
+                    // far past any legitimate render, because the cost of being
+                    // wrong is asymmetric: reclaiming a still-running render
+                    // duplicates its version row and its S3 object, while
+                    // waiting too long only delays recovery from a genuinely
+                    // dead consumer. Task 20's heartbeat is what would let this
+                    // come back down.
+                    ClaimMinIdle: Milliseconds(configuration, "Docs:ClaimMinIdleMs", 600_000)),
             ],
         };
     }
