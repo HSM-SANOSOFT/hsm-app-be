@@ -4,7 +4,7 @@ using Hsm.Contracts.Ui;
 using Hsm.Web.Services;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Hsm.Web.Components.Tests;
+namespace Hsm.Web.Tests;
 
 /// <summary>
 /// The U8 boundary round trip, rendered (plan U17): a component resolves the

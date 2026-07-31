@@ -1,6 +1,6 @@
 using Hsm.Contracts.Ui;
 
-namespace Hsm.Web.Components.Tests;
+namespace Hsm.Web.Tests;
 
 /// <summary>Contracts-level identity double: what the shell would see for a
 /// signed-in user with the given roles, or for an anonymous visitor.</summary>

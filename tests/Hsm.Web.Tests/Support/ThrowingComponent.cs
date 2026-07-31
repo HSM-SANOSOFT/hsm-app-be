@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Components;
 
-namespace Hsm.Web.Components.Tests;
+namespace Hsm.Web.Tests;
 
 /// <summary>A page body that fails the way a buggy component does.</summary>
 public sealed class ThrowingComponent : ComponentBase

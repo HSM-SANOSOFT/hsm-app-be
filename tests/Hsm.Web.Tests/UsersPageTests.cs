@@ -4,9 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;
 // The page class shares its short name with the Hsm.Web.Users endpoint
 // namespace, which wins plain name lookup from this namespace.
-using UsersPage = Hsm.Web.Components.Pages.Admin.Users;
+using UsersPage = Hsm.Web.Pages.Admin.Users;
 
-namespace Hsm.Web.Components.Tests;
+namespace Hsm.Web.Tests;
 
 /// <summary>
 /// The users-and-roles screen (plan U18, screen 2): listing renders, and the

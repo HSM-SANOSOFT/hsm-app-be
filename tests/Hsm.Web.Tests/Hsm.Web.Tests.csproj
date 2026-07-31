@@ -17,7 +17,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Hsm.Web.Components\Hsm.Web.Components.csproj" />
     <ProjectReference Include="..\..\src\Hsm.Web\Hsm.Web.csproj" />
     <ProjectReference Include="..\..\src\Hsm.Application\Hsm.Application.csproj" />
     <ProjectReference Include="..\..\src\Hsm.Contracts\Hsm.Contracts.csproj" />

@@ -1,9 +1,9 @@
 using Bunit;
 using Hsm.Contracts.Ui;
-using Hsm.Web.Components.Pages.Admin;
+using Hsm.Web.Pages.Admin;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Hsm.Web.Components.Tests;
+namespace Hsm.Web.Tests;
 
 /// <summary>
 /// The settings screen (plan U18, screen 4): items render per category with

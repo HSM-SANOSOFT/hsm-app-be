@@ -1,10 +1,10 @@
 using Bunit;
 using Hsm.Contracts.Ui;
-using Hsm.Web.Components.Pages;
+using Hsm.Web.Pages;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Hsm.Web.Components.Tests;
+namespace Hsm.Web.Tests;
 
 /// <summary>
 /// The sign-in screen (plan U18, screen 1): the form drives the

@@ -1,6 +1,6 @@
 using MudBlazor;
 
-namespace Hsm.Web.Components;
+namespace Hsm.Web;
 
 /// <summary>The single MudBlazor theme both layouts render under.</summary>
 public static class HsmTheme

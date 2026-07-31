@@ -1,8 +1,8 @@
 using Bunit.TestDoubles;
-using Hsm.Web.Components.Layout;
+using Hsm.Web.Layout;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Hsm.Web.Components.Tests;
+namespace Hsm.Web.Tests;
 
 /// <summary>
 /// Unauthenticated redirect (plan U17, DoD C6): the router's NotAuthorized

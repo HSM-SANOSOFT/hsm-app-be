@@ -20,6 +20,7 @@
     <ProjectReference Include="..\..\src\Hsm.Application\Hsm.Application.csproj" />
     <ProjectReference Include="..\..\src\Hsm.Domain\Hsm.Domain.csproj" />
     <ProjectReference Include="..\..\src\Hsm.Contracts\Hsm.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Hsm.Web\Hsm.Web.csproj" />
   </ItemGroup>
 
 </Project>

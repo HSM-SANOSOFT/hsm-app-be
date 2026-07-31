@@ -1,8 +1,8 @@
 using Hsm.Contracts.Ui;
-using Hsm.Web.Components.Layout;
+using Hsm.Web.Layout;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Hsm.Web.Components.Tests;
+namespace Hsm.Web.Tests;
 
 /// <summary>Role-aware navigation (plan U17): items render per role, resolved
 /// through the contracts-declared identity service.</summary>

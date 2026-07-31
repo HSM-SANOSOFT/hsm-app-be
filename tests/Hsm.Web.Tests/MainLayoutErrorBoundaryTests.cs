@@ -1,10 +1,10 @@
 using Bunit;
 using Hsm.Contracts.Ui;
-using Hsm.Web.Components.Layout;
+using Hsm.Web.Layout;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Hsm.Web.Components.Tests;
+namespace Hsm.Web.Tests;
 
 /// <summary>
 /// Error containment (plan U17, DoD C6): a page component throwing an

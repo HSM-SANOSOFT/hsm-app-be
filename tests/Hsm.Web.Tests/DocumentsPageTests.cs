@@ -1,10 +1,10 @@
 using Bunit;
 using Hsm.Contracts.Ui;
-using Hsm.Web.Components.Pages.Admin;
+using Hsm.Web.Pages.Admin;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Hsm.Web.Components.Tests;
+namespace Hsm.Web.Tests;
 
 /// <summary>
 /// The document management screen (plan U18, screen 5): the listing renders,

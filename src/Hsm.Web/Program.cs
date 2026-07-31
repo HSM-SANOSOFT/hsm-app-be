@@ -209,9 +209,10 @@ app.MapSettingsEndpoints();
 app.MapTemplateEndpoints();
 app.MapComsEndpoints();
 app.MapDocsEndpoints();
-// Routable pages live in the component library; the host only maps them.
+// Routable pages live in this same host assembly (Option B, plan U8
+// amendment): the client-isolation boundary is now held by a test, not by a
+// separate assembly, so there is nothing additional to map here.
 app.MapRazorComponents<App>()
-    .AddAdditionalAssemblies(typeof(Hsm.Web.Components.Routes).Assembly)
     .AddInteractiveServerRenderMode();
 
 app.Run();

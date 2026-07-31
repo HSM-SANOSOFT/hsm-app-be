@@ -1,6 +1,6 @@
 using Hsm.Contracts.Ui;
 
-namespace Hsm.Web.Components.Tests;
+namespace Hsm.Web.Tests;
 
 /// <summary>Records sign-in attempts and answers with a configurable result.</summary>
 public sealed class FakeSignInUiService(SignInResult result) : ISignInUiService
