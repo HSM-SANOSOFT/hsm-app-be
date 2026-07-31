@@ -3,7 +3,6 @@ using Hsm.Application.Clinical.Commands.CreatePatient;
 using Hsm.Application.Clinical.Queries.GetPatient;
 using Hsm.Application.Clinical.Queries.SearchPatients;
 using Hsm.Application.Errors;
-using Hsm.Domain.Identity;
 using Hsm.Web.Auth;
 
 namespace Hsm.Web.Fhir;
@@ -12,20 +11,15 @@ namespace Hsm.Web.Fhir;
 /// The FHIR R4 Patient facade at /fhir/R4/Patient (frozen
 /// patient.controller.ts behind @FhirController): version-neutral path (no
 /// /v1 prefix), raw FHIR responses, OperationOutcome errors, and the clinical
-/// PHI roles gate (KTD11) — a single broad clinical-staff grant, with the
-/// frozen RolesGuard's admin bypass and env-gated developer role.
+/// PHI roles gate (KTD11) — a single broad clinical-staff grant.
 ///
-/// The gate is enforced TWICE, deliberately (Task 10's message-assertion
-/// precedent): <see cref="RequestAuth.GateAsync"/> stays here because
-/// <c>PatientFhirContractTests.Non_clinical_roles_are_403</c> and
-/// <c>Integration_only_bearer_is_403</c> assert the exact frozen message
-/// "Insufficient permissions", which only <see cref="RequestAuth.RequireRoles"/>
-/// produces — <see cref="Hsm.Application.Abstractions.Behaviors.AuthorizationBehavior{TRequest,TResult}"/>
-/// throws a message-less 403. The three Patient request types ALSO carry
-/// <c>[RequireRole(...)]</c> (with admin as an explicit member — see
-/// <c>GetPatientQuery</c>'s XML doc) so the policy is real belt-and-suspenders:
-/// today the edge is the authority for the message, and the pipeline
-/// attribute is what Task 15 will lean on once this call is removed.
+/// That grant lives entirely on the three Patient request types now
+/// (<c>[RequireRole(Doctor, Nurse, Technician, Therapist, Pharmacist, Admin)]</c>
+/// — admin is an explicit member because the pipeline has no blanket bypass;
+/// see <c>GetPatientQuery</c>'s XML doc). Task 14 carried the grant here as
+/// well, belt-and-suspenders, purely so the frozen "Insufficient permissions"
+/// diagnostics survived; Task 15 removed the edge copy, so these routes
+/// authenticate, install the actor, and decide nothing.
 ///
 /// The frozen Encounter and ServiceRequest facades are deliberately NOT here:
 /// plan Scope Boundaries exclude clinical modules beyond patient lookup, and
@@ -34,16 +28,6 @@ namespace Hsm.Web.Fhir;
 /// </summary>
 public static class FhirEndpoints
 {
-    /// <summary>The frozen CLINICAL_STAFF_ROLES grant (fhir-controller.base.ts).</summary>
-    public static readonly string[] ClinicalStaffRoles =
-    [
-        Roles.Doctor,
-        Roles.Nurse,
-        Roles.Technician,
-        Roles.Therapist,
-        Roles.Pharmacist,
-    ];
-
     public static void MapFhirEndpoints(this IEndpointRouteBuilder app)
     {
         var patient = app.MapGroup("/fhir/R4/Patient");
@@ -56,7 +40,7 @@ public static class FhirEndpoints
     private static Task SearchPatients(HttpContext ctx, IDispatcher dispatcher) =>
         FhirResponses.ExecuteAsync(ctx, async () =>
         {
-            await RequestAuth.GateAsync(ctx, ClinicalStaffRoles);
+            await RequestAuth.GateAsync(ctx);
             var (system, value) = ReadIdentifierToken(ctx);
             var patients = await dispatcher.Send(
                 new SearchPatientsQuery(system, value), ctx.RequestAborted);
@@ -67,7 +51,7 @@ public static class FhirEndpoints
     private static Task ReadPatient(HttpContext ctx, string id, IDispatcher dispatcher) =>
         FhirResponses.ExecuteAsync(ctx, async () =>
         {
-            await RequestAuth.GateAsync(ctx, ClinicalStaffRoles);
+            await RequestAuth.GateAsync(ctx);
             var patient = await dispatcher.Send(new GetPatientQuery(id), ctx.RequestAborted);
             return FhirResponses.Resource(PatientFhirMapper.ToJson(patient));
         });
@@ -76,7 +60,7 @@ public static class FhirEndpoints
     private static Task CreatePatient(HttpContext ctx, IDispatcher dispatcher) =>
         FhirResponses.ExecuteAsync(ctx, async () =>
         {
-            await RequestAuth.GateAsync(ctx, ClinicalStaffRoles);
+            await RequestAuth.GateAsync(ctx);
             var (body, rawUtf8) = await ReadJsonBodyAsync(ctx);
             var input = PatientFhirMapper.Parse(body, rawUtf8);
             var patient = await dispatcher.Send(new CreatePatientCommand(input), ctx.RequestAborted);

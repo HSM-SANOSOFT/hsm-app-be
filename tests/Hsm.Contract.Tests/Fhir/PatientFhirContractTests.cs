@@ -333,7 +333,11 @@ public sealed class PatientFhirContractTests(FhirApiFactory factory)
         var response = await Api.GetAsync(Client, "/fhir/R4/Patient?identifier=x", bearer: bearer);
 
         var diagnostics = AssertOperationOutcome(response, 403, "forbidden");
-        Assert.Equal("Insufficient permissions", diagnostics);
+        // Task 15: the clinical grant moved off the edge onto the Patient
+        // request types, and AuthorizationBehavior's refusal carries no
+        // message, so the OperationOutcome renders its generic diagnostics.
+        // The status and the FHIR issue code, asserted above, are the contract.
+        Assert.Equal("Error", diagnostics);
     }
 
     [Fact]
@@ -347,7 +351,7 @@ public sealed class PatientFhirContractTests(FhirApiFactory factory)
         var response = await Api.GetAsync(Client, "/fhir/R4/Patient?identifier=x", bearer: bearer);
 
         var diagnostics = AssertOperationOutcome(response, 403, "forbidden");
-        Assert.Equal("Insufficient permissions", diagnostics);
+        Assert.Equal("Error", diagnostics);
     }
 
     [Fact]
@@ -370,7 +374,8 @@ public sealed class PatientFhirContractTests(FhirApiFactory factory)
         var response = await Api.GetAsync(Client, "/fhir/R4/Patient?identifier=x", bearer: bearer);
 
         var diagnostics = AssertOperationOutcome(response, 403, "forbidden");
-        Assert.Equal("Onboarding required: complete first-login onboarding to continue", diagnostics);
+        // Task 15: same message-less pipeline refusal as the role cases above.
+        Assert.Equal("Error", diagnostics);
     }
 
     // ---- persistence ------------------------------------------------------

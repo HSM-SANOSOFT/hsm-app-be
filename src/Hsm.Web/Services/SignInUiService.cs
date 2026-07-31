@@ -13,9 +13,9 @@ namespace Hsm.Web.Services;
 /// renders in static SSR specifically so this service runs during a live HTTP
 /// response — cookies cannot be set from a circuit.
 ///
-/// No <c>UiServiceGate</c> here, and no actor: signing in is the one operation
-/// whose caller has no principal yet, which is why
-/// <see cref="LoginCommand"/> is [AllowAnonymousRequest].
+/// No actor is published here: signing in is the one operation whose caller
+/// has no principal yet, which is why <see cref="LoginCommand"/> is
+/// [AllowAnonymousRequest].
 /// </summary>
 public sealed class SignInUiService(
     IDispatcher dispatcher,

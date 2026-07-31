@@ -1,21 +1,27 @@
 using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
 using Hsm.Application.Errors;
-using Hsm.Domain.Identity;
 
 namespace Hsm.Web.Auth;
 
 /// <summary>
-/// Request authentication and authorization, reproducing the frozen guard
-/// chain (AuthJwtAtGuard → RolesGuard → OnboardingGuard) and its observable
-/// errors. Token transport is dual: httpOnly cookie FIRST, then the
-/// Authorization bearer header — so browser/SSR and integration clients both
-/// resolve.
+/// Request AUTHENTICATION — who is calling — and nothing else. The frozen
+/// guard chain was AuthJwtAtGuard → RolesGuard → OnboardingGuard; only the
+/// first link is a transport concern, and it is all that remains here. Roles
+/// and onboarding are properties of the request, declared on the request type
+/// and enforced once by
+/// <see cref="Hsm.Application.Abstractions.Behaviors.AuthorizationBehavior{TRequest,TResult}"/>,
+/// so an endpoint that forgets to gate cannot fail open — it can only fail to
+/// supply an actor, which the pipeline answers with 401.
+///
+/// Token transport is dual: httpOnly cookie FIRST, then the Authorization
+/// bearer header — so browser/SSR and integration clients both resolve.
 /// </summary>
 public static class RequestAuth
 {
     private const string AccessPrincipalItem = "Hsm.RequestAuth.AccessPrincipal";
     private const string RefreshPrincipalItem = "Hsm.RequestAuth.RefreshPrincipal";
+    private const string ActorItem = "Hsm.RequestAuth.Actor";
 
     /// <summary>The raw access token: access cookie, then bearer header.</summary>
     public static string? AccessToken(HttpContext ctx) =>
@@ -73,97 +79,38 @@ public static class RequestAuth
     }
 
     /// <summary>
-    /// The frozen guard chain in one call: authenticate the access token,
-    /// enforce roles, then the onboarding gate. Returns the principal.
+    /// Authenticate the access token and publish the caller as the actor the
+    /// pipeline authorizes against. This is the whole edge now: it establishes
+    /// identity and decides nothing. Returns the principal.
     /// </summary>
-    public static async Task<AuthPrincipal> GateAsync(HttpContext ctx, params string[] requiredRoles)
+    public static async Task<AuthPrincipal> GateAsync(HttpContext ctx)
     {
         var principal = await AuthenticateAsync(ctx, TokenKind.Access);
-        RequireRoles(ctx, principal, requiredRoles);
-        await RequireOnboardingCompletedAsync(ctx, principal);
-        InstallActor(ctx, principal, onboardingCompleted: true);
+        await InstallActorAsync(ctx, principal);
         return principal;
     }
 
     /// <summary>
-    /// Publishes the gated principal as the request-scoped actor the
-    /// application pipeline authorizes against. Without this a route that
-    /// authenticates by hand — rather than through <see cref="GateAsync"/> —
-    /// reaches the pipeline with no actor and every non-anonymous request 401s
-    /// despite a perfectly valid principal.
+    /// Publishes the authenticated principal as the request's actor, with
+    /// onboarding derived by <see cref="RequestActorFactory"/> — the frozen
+    /// OnboardingGuard's exemptions and its authoritative database fallback
+    /// included. Routes that authenticate by hand rather than through
+    /// <see cref="GateAsync"/> must call this, or they reach the pipeline with
+    /// no actor and every non-anonymous request 401s despite a perfectly valid
+    /// principal.
     /// </summary>
-    /// <param name="onboardingCompleted">
-    /// Pass <see langword="true"/> only where <see cref="RequireOnboardingCompletedAsync"/>
-    /// has just run: it enforces the frozen OnboardingGuard including its
-    /// admin/integration exemptions and its authoritative database fallback,
-    /// none of which the token claims alone can express, so recording
-    /// "satisfied" is a faithful restatement rather than a bypass. Routes that
-    /// deliberately tolerate a pending user (the frozen @AllowPending) must
-    /// instead pass the principal's real state, so the pipeline sees the truth.
-    /// </param>
-    public static void InstallActor(HttpContext ctx, AuthPrincipal principal, bool onboardingCompleted)
+    public static async Task InstallActorAsync(HttpContext ctx, AuthPrincipal principal)
     {
         ArgumentNullException.ThrowIfNull(ctx);
         ArgumentNullException.ThrowIfNull(principal);
-        ctx.RequestServices.GetRequiredService<AmbientPrincipal>().Set(
-            new RequestActor(principal.Id, principal.Roles, onboardingCompleted));
+        var factory = ctx.RequestServices.GetRequiredService<RequestActorFactory>();
+        ctx.Items[ActorItem] = await factory.CreateAsync(
+            principal.Id, principal.Roles, principal.OnboardingCompletedAt, ctx.RequestAborted);
     }
 
-    /// <summary>
-    /// The frozen RolesGuard: developer is env-gated; admin passes everything;
-    /// otherwise at least one required role must be held.
-    /// </summary>
-    public static void RequireRoles(HttpContext ctx, AuthPrincipal principal, params string[] requiredRoles)
-    {
-        if (principal.Roles.Contains(Roles.Developer))
-        {
-            var environment = ctx.RequestServices.GetRequiredService<IEnvironmentPolicy>();
-            if (!environment.IsDev)
-            {
-                throw ApiException.Forbidden("Developer role is not permitted in this environment");
-            }
-
-            return;
-        }
-
-        if (requiredRoles.Length == 0 || principal.Roles.Contains(Roles.Admin))
-        {
-            return;
-        }
-
-        if (!requiredRoles.Any(principal.Roles.Contains))
-        {
-            throw ApiException.Forbidden("Insufficient permissions");
-        }
-    }
-
-    /// <summary>
-    /// The frozen OnboardingGuard for routes that do NOT allow pending users:
-    /// integrations and admins are exempt; a completed claim is trusted; a
-    /// pending claim defers to the authoritative database row and fails closed.
-    /// </summary>
-    public static async Task RequireOnboardingCompletedAsync(HttpContext ctx, AuthPrincipal principal)
-    {
-        if (principal.IsIntegration || principal.Roles.Contains(Roles.Admin))
-        {
-            return;
-        }
-
-        if (principal.OnboardingCompletedAt is not null)
-        {
-            return;
-        }
-
-        var users = ctx.RequestServices.GetRequiredService<IUserStore>();
-        var (found, onboardingCompletedAt) = await users.OnboardingStateAsync(Guid.Parse(principal.Id));
-        if (!found)
-        {
-            throw ApiException.Forbidden("Account is no longer available");
-        }
-
-        if (onboardingCompletedAt is null)
-        {
-            throw ApiException.Forbidden("Onboarding required: complete first-login onboarding to continue");
-        }
-    }
+    /// <summary>The actor installed on this context, or null when none was.</summary>
+    public static RequestActor? InstalledActor(HttpContext? ctx) =>
+        ctx is not null && ctx.Items.TryGetValue(ActorItem, out var actor)
+            ? actor as RequestActor
+            : null;
 }

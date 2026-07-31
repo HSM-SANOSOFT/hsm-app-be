@@ -142,7 +142,11 @@ public sealed class IntegrationModeContractTests(AuthApiFactory factory)
             bearer: login.AccessToken);
 
         var issue = AssertErrorEnvelope(response, 403, "COMMON.FORBIDDEN");
-        Assert.Equal("Insufficient permissions", issue.GetProperty("message").GetString());
+        // Task 15: the role check moved from the edge onto
+        // SignupIntegrationCommand's [RequireRole(Roles.Admin)], and the
+        // pipeline's refusal carries no message — only the status and the
+        // stable code, both asserted above, are contract.
+        Assert.False(issue.TryGetProperty("message", out _));
     }
 
     [Fact]

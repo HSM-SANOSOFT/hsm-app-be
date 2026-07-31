@@ -4,21 +4,21 @@ using Hsm.Application.Docs.Commands.DeleteDocument;
 using Hsm.Application.Docs.Commands.UploadDocuments;
 using Hsm.Application.Docs.Queries.GetDocumentUrl;
 using Hsm.Application.Docs.Queries.ListDocuments;
+using Hsm.Application.Errors;
 using Hsm.Contracts.Ui;
+using Hsm.Web.Auth;
 
 namespace Hsm.Web.Services;
 
 /// <summary>
-/// Host-side document management (plan U18, screen 5): admin gate first, then
-/// the same dispatcher the frozen /v1/docs endpoints use, with the frozen
-/// createdBy scoping bound to the signed-in admin (the gate installs the
-/// admin as the ambient actor before any dispatch — see
-/// <see cref="UiServiceGate.RequireAdminAsync"/>). Uploads land in the
-/// configured docs bucket under a fixed folder — the screen does not expose
-/// bucket/folder choice.
+/// Host-side document management (plan U18, screen 5): publish the actor, then
+/// dispatch the same requests the frozen /v1/docs endpoints do, with the
+/// frozen createdBy scoping bound to the signed-in admin (see
+/// <see cref="ShellActor"/>). Uploads land in the configured docs bucket under
+/// a fixed folder — the screen does not expose bucket/folder choice.
 /// </summary>
 public sealed class DocumentsAdminUiService(
-    UiServiceGate gate,
+    ShellActor shellActor,
     IDispatcher dispatcher,
     DocsOptions docsOptions) : IDocumentsAdminUiService
 {
@@ -28,7 +28,12 @@ public sealed class DocumentsAdminUiService(
     public async Task<DocumentListPageDto> ListDocumentsAsync(
         int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        var adminId = await gate.RequireAdminIdAsync();
+        var actor = await shellActor.InstallAsync(cancellationToken)
+            ?? throw ApiException.Unauthorized();
+        // The frozen createdBy scoping: this screen lists the signed-in
+        // admin's own uploads. Whether that caller may list at all is
+        // ListDocumentsQuery's policy, decided in the pipeline a line later.
+        var adminId = Guid.Parse(actor.Id);
         var filter = new DocumentListFilter(
             adminId, EntityId: null, EntityType: null, Type: null, Status: null, page, pageSize);
         var result = await dispatcher.Send(new ListDocumentsQuery(filter), cancellationToken);
@@ -43,7 +48,7 @@ public sealed class DocumentsAdminUiService(
     public async Task<IReadOnlyList<string>> UploadAsync(
         IReadOnlyList<UploadFileDto> files, CancellationToken cancellationToken = default)
     {
-        await gate.RequireAdminAsync();
+        await shellActor.InstallAsync(cancellationToken);
         if (files.Count == 0)
         {
             return [];
@@ -88,13 +93,13 @@ public sealed class DocumentsAdminUiService(
     public async Task<string> GetDownloadUrlAsync(
         string documentId, CancellationToken cancellationToken = default)
     {
-        await gate.RequireAdminAsync();
+        await shellActor.InstallAsync(cancellationToken);
         return await dispatcher.Send(new GetDocumentUrlQuery(Guid.Parse(documentId)), cancellationToken);
     }
 
     public async Task DeleteAsync(string documentId, CancellationToken cancellationToken = default)
     {
-        await gate.RequireAdminAsync();
+        await shellActor.InstallAsync(cancellationToken);
         await dispatcher.Send(new DeleteDocumentCommand(Guid.Parse(documentId)), cancellationToken);
     }
 }

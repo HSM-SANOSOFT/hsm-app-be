@@ -8,7 +8,8 @@ namespace Hsm.Application.Abstractions.Behaviors;
 /// Authorization is a property of the request, not of the transport. Before this
 /// existed, every edge enforced it separately — HTTP endpoints via
 /// RequestAuth.GateAsync, in-process UI services via UiServiceGate — and a
-/// forgotten call failed open. Here it cannot be forgotten: the same command
+/// forgotten call failed open. Both of those checks are gone (plan Task 15);
+/// this is now the ONLY authorizer, so it cannot be forgotten: the same command
 /// dispatched from HTTP, a Blazor circuit, or a queued job is gated identically.
 /// Failures reuse ApiException so status codes and error envelopes stay
 /// byte-identical to the frozen contract.

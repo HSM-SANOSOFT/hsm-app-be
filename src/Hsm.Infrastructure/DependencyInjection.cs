@@ -4,6 +4,7 @@ using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
 using Hsm.Application.Auth.Commands.CompleteOnboarding;
 using Hsm.Application.Auth.Commands.ForgotPassword;
+using Hsm.Application.Auth.Commands.GeneratePin;
 using Hsm.Application.Auth.Commands.IssueIntegrationTokens;
 using Hsm.Application.Auth.Commands.Login;
 using Hsm.Application.Auth.Commands.Logout;
@@ -14,6 +15,7 @@ using Hsm.Application.Auth.Commands.ResetPassword;
 using Hsm.Application.Auth.Commands.RevokeIntegrationTokens;
 using Hsm.Application.Auth.Commands.Signup;
 using Hsm.Application.Auth.Commands.SignupIntegration;
+using Hsm.Application.Auth.Commands.ValidatePin;
 using Hsm.Application.Auth.Queries.ListIntegrationAccounts;
 using Hsm.Application.Clinical;
 using Hsm.Application.Clinical.Commands.CreatePatient;
@@ -345,6 +347,8 @@ public static class DependencyInjection
         services.AddScoped<IRequestHandler<ForgotPasswordCommand, Unit>, ForgotPasswordHandler>();
         services.AddScoped<IRequestHandler<ResetPasswordCommand, Unit>, ResetPasswordHandler>();
         services.AddScoped<IRequestHandler<RecoverUsernameCommand, Unit>, RecoverUsernameHandler>();
+        services.AddScoped<IRequestHandler<GeneratePinCommand, Unit>, GeneratePinHandler>();
+        services.AddScoped<IRequestHandler<ValidatePinCommand, Unit>, ValidatePinHandler>();
 
         // In-process UI surface only (plan U18): no /v1 routes map to these.
         services.AddScoped<

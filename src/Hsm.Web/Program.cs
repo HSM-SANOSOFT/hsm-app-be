@@ -85,13 +85,18 @@ builder.Services.AddScoped<IHostEnvironmentAuthenticationStateProvider>(sp =>
 builder.Services.AddHsmInfrastructure(builder.Configuration);
 
 // The request pipeline (dispatcher + telemetry/authorization/validation/
-// transaction behaviors) and the actor it authorizes against. Both the REST
-// surface (RequestAuth.GateAsync) and the Blazor surface (UiServiceGate)
-// publish the authenticated principal into the same request-scoped
-// AmbientPrincipal, so a command is gated identically from either edge.
+// transaction behaviors) and the actor it authorizes against. Authorization
+// happens HERE and nowhere else: no endpoint and no UI service checks a role.
+// Both surfaces only publish WHO is calling — the REST edge through
+// RequestAuth.GateAsync, the Blazor circuit through ShellActor — and
+// HttpCurrentPrincipal reads whichever one spoke. Publishing nothing leaves
+// the actor null, which the pipeline answers with 401, so a forgotten install
+// fails closed.
 builder.Services.AddHsmPipeline();
 builder.Services.AddScoped<AmbientPrincipal>();
-builder.Services.AddScoped<ICurrentPrincipal>(sp => sp.GetRequiredService<AmbientPrincipal>());
+builder.Services.AddScoped<ICurrentPrincipal, HttpCurrentPrincipal>();
+builder.Services.AddScoped<RequestActorFactory>();
+builder.Services.AddScoped<ShellActor>();
 
 // Application handlers.
 builder.Services.AddScoped<IRequestHandler<GetSystemStatusQuery, SystemStatusDto>, GetSystemStatusHandler>();
@@ -102,12 +107,12 @@ builder.Services.AddScoped<ISystemStatusUiService, SystemStatusUiService>();
 builder.Services.AddScoped<ICurrentUserUiService, CurrentUserUiService>();
 
 // Administrative screens (plan U18): each screen's data path goes through a
-// contracts-declared UI service; the admin-gated ones re-check the role from
-// the authenticated principal because no endpoint guard fronts an in-process
-// call. Sign-in runs in static SSR and needs the live HttpContext to set the
-// session cookies.
+// contracts-declared UI service, which dispatches through the same pipeline
+// the REST surface does — so the admin requirement is the request type's
+// [RequireRole(Roles.Admin)], enforced once, whichever edge called. Sign-in
+// runs in static SSR and needs the live HttpContext to set the session
+// cookies.
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<UiServiceGate>();
 builder.Services.AddScoped<ISignInUiService, SignInUiService>();
 builder.Services.AddScoped<IUsersAdminUiService, UsersAdminUiService>();
 builder.Services.AddScoped<IIntegrationAccountsUiService, IntegrationAccountsUiService>();

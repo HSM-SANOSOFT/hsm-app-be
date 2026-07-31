@@ -18,8 +18,8 @@ namespace Hsm.Web.Users;
 /// does transport work only — authenticate, bind and shape-validate the
 /// request, dispatch, render. Role and onboarding policy rides on the request
 /// types (AuthorizationBehavior); none of the frozen routes carried
-/// @AllowPending, so pending non-admin users are still blocked, by
-/// RequestAuth's onboarding gate at authentication time.
+/// @AllowPending, so none of these commands is [AllowPendingOnboarding] and a
+/// pending non-admin actor is refused by the pipeline.
 /// POST returns 201 and GET/PATCH 200, matching the frozen runtime.
 /// </summary>
 public static class UserEndpoints

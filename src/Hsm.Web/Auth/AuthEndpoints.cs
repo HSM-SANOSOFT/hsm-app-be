@@ -3,6 +3,7 @@ using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
 using Hsm.Application.Auth.Commands.CompleteOnboarding;
 using Hsm.Application.Auth.Commands.ForgotPassword;
+using Hsm.Application.Auth.Commands.GeneratePin;
 using Hsm.Application.Auth.Commands.Login;
 using Hsm.Application.Auth.Commands.Logout;
 using Hsm.Application.Auth.Commands.LogoutIntegration;
@@ -11,6 +12,7 @@ using Hsm.Application.Auth.Commands.RefreshTokens;
 using Hsm.Application.Auth.Commands.ResetPassword;
 using Hsm.Application.Auth.Commands.Signup;
 using Hsm.Application.Auth.Commands.SignupIntegration;
+using Hsm.Application.Auth.Commands.ValidatePin;
 using Hsm.Domain.Identity;
 using Hsm.Web.Api;
 
@@ -123,7 +125,6 @@ public static class AuthEndpoints
     private static async Task<IResult> Refresh(HttpContext ctx, IDispatcher dispatcher)
     {
         var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Refresh);
-        RequestAuth.RequireRoles(ctx, principal);
         var rawToken = RequestAuth.RefreshToken(ctx)!;
         // No actor: RefreshTokensCommand is [AllowAnonymousRequest] because the
         // refresh token is its credential, and it carries the principal this
@@ -136,16 +137,12 @@ public static class AuthEndpoints
 
     private static async Task<IResult> Onboarding(HttpContext ctx, IDispatcher dispatcher)
     {
-        // @AllowPending — a pending user must be able to reach this, so the
-        // onboarding gate deliberately does NOT run and the actor carries the
-        // principal's REAL onboarding state. CompleteOnboardingCommand is
-        // [AllowPendingOnboarding], so a pending actor passes the pipeline; had
-        // this route hardcoded "completed" it would be lying to every future
-        // request in the same scope.
+        // @AllowPending — a pending user must be able to reach this, and the
+        // actor carries the principal's REAL onboarding state.
+        // CompleteOnboardingCommand is [AllowPendingOnboarding], so a pending
+        // actor passes the pipeline on this route and only this route.
         var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        RequestAuth.RequireRoles(ctx, principal);
-        RequestAuth.InstallActor(
-            ctx, principal, onboardingCompleted: principal.OnboardingCompletedAt is not null);
+        await RequestAuth.InstallActorAsync(ctx, principal);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var newPassword = body.RequiredString("newPassword", minLength: 8);
@@ -162,12 +159,10 @@ public static class AuthEndpoints
 
     private static async Task<IResult> SignupIntegration(HttpContext ctx, IDispatcher dispatcher)
     {
-        // GateAsync is authenticate → roles → onboarding → install actor, which
-        // is exactly the chain this route ran by hand; the role argument stays
-        // so the frozen 403 keeps its "Insufficient permissions" message
-        // (IntegrationModeContractTests pins it), and the actor now reaches the
-        // pipeline's [RequireRole(Roles.Admin)].
-        await RequestAuth.GateAsync(ctx, Roles.Admin);
+        // Authenticate and install the actor; the admin requirement lives on
+        // SignupIntegrationCommand's [RequireRole(Roles.Admin)] and is
+        // enforced once, in the pipeline.
+        await RequestAuth.GateAsync(ctx);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var name = body.RequiredString("name");
@@ -184,10 +179,9 @@ public static class AuthEndpoints
 
     private static async Task<IResult> LogoutIntegration(HttpContext ctx, IDispatcher dispatcher)
     {
-        // Same chain as SignupIntegration. The frozen edge requires admin here
-        // even though LogoutIntegrationCommand's own policy is "authenticated":
-        // the edge role check is the frozen behavior and stays until Task 15.
-        await RequestAuth.GateAsync(ctx, Roles.Admin);
+        // Same chain as SignupIntegration. The frozen edge's admin requirement
+        // now rides on LogoutIntegrationCommand's [RequireRole(Roles.Admin)].
+        await RequestAuth.GateAsync(ctx);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var token = body.RequiredString("token");
@@ -200,27 +194,26 @@ public static class AuthEndpoints
 
     private static async Task<IResult> Profile(HttpContext ctx)
     {
-        // @AllowPending — the token payload is returned as-is (id, claims, iat, exp).
+        // @AllowPending — the token payload is returned as-is (id, claims, iat,
+        // exp). Nothing is dispatched, so no actor is installed.
         var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        RequestAuth.RequireRoles(ctx, principal);
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, ProfileJson(principal));
     }
 
     private static async Task<IResult> Csrf(HttpContext ctx, CsrfProtection csrf)
     {
-        // @AllowPending; authenticated (cookie session or bearer).
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        RequestAuth.RequireRoles(ctx, principal);
+        // @AllowPending; authenticated (cookie session or bearer). Dispatches
+        // nothing.
+        await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
         var token = csrf.IssueToken(ctx);
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, new JsonObject { ["csrfToken"] = token });
     }
 
-    private static async Task<IResult> PinGenerate(HttpContext ctx)
+    private static async Task<IResult> PinGenerate(HttpContext ctx, IDispatcher dispatcher)
     {
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        RequestAuth.RequireRoles(ctx, principal);
-        // NOT @AllowPending in the frozen controller — pending users are blocked.
-        await RequestAuth.RequireOnboardingCompletedAsync(ctx, principal);
+        // NOT @AllowPending in the frozen controller — pending users are
+        // blocked, and GeneratePinCommand's (absent) policy is what says so now.
+        await RequestAuth.GateAsync(ctx);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var purpose = body.RequiredString("purpose", oneOf: PinPurposes);
@@ -228,15 +221,13 @@ public static class AuthEndpoints
         body.RejectUnknownFields();
         body.ThrowIfInvalid();
 
-        await PinHandlers.GenerateAsync(purpose, target);
+        await dispatcher.Send(new GeneratePinCommand(purpose, target), ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, includeData: false);
     }
 
-    private static async Task<IResult> PinValidate(HttpContext ctx)
+    private static async Task<IResult> PinValidate(HttpContext ctx, IDispatcher dispatcher)
     {
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        RequestAuth.RequireRoles(ctx, principal);
-        await RequestAuth.RequireOnboardingCompletedAsync(ctx, principal);
+        await RequestAuth.GateAsync(ctx);
 
         var body = await BodyValidator.ReadAsync(ctx);
         var purpose = body.RequiredString("purpose", oneOf: PinPurposes);
@@ -245,7 +236,7 @@ public static class AuthEndpoints
         body.RejectUnknownFields();
         body.ThrowIfInvalid();
 
-        await PinHandlers.ValidateAsync(purpose, target, code);
+        await dispatcher.Send(new ValidatePinCommand(purpose, target, code), ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, includeData: false);
     }
 

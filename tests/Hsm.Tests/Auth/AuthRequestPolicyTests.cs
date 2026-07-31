@@ -2,6 +2,7 @@ using System.Reflection;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Auth.Commands.CompleteOnboarding;
 using Hsm.Application.Auth.Commands.ForgotPassword;
+using Hsm.Application.Auth.Commands.GeneratePin;
 using Hsm.Application.Auth.Commands.IssueIntegrationTokens;
 using Hsm.Application.Auth.Commands.Login;
 using Hsm.Application.Auth.Commands.Logout;
@@ -12,6 +13,7 @@ using Hsm.Application.Auth.Commands.ResetPassword;
 using Hsm.Application.Auth.Commands.RevokeIntegrationTokens;
 using Hsm.Application.Auth.Commands.Signup;
 using Hsm.Application.Auth.Commands.SignupIntegration;
+using Hsm.Application.Auth.Commands.ValidatePin;
 using Hsm.Application.Auth.Queries.ListIntegrationAccounts;
 using Hsm.Domain.Identity;
 
@@ -87,7 +89,7 @@ public class AuthRequestPolicyTests
     }
 
     [Fact]
-    public void Integration_sign_out_requires_a_principal_and_a_completed_onboarding()
+    public void Integration_sign_out_requires_an_admin_with_a_completed_onboarding()
     {
         // No pending exemption here: unlike LogoutCommand this one is a
         // machine-account administration call, not a self-service escape hatch.
@@ -95,6 +97,28 @@ public class AuthRequestPolicyTests
             typeof(LogoutIntegrationCommand).GetCustomAttribute<AllowAnonymousRequestAttribute>());
         Assert.Null(
             typeof(LogoutIntegrationCommand).GetCustomAttribute<AllowPendingOnboardingAttribute>());
-        Assert.Null(typeof(LogoutIntegrationCommand).GetCustomAttribute<RequireRoleAttribute>());
+
+        // Task 15: the frozen @Roles(admin) moved off the edge and onto the
+        // request. Without it, deleting the edge role check would have let any
+        // authenticated caller sign out a machine account.
+        var policy = typeof(LogoutIntegrationCommand).GetCustomAttribute<RequireRoleAttribute>();
+        Assert.NotNull(policy);
+        Assert.Equal([Roles.Admin], policy.Roles);
+    }
+
+    [Fact]
+    public void The_two_pin_stubs_refuse_a_pending_caller()
+    {
+        // The frozen PIN routes are NOT @AllowPending, and they dispatch the
+        // only requests in the module that exist purely to carry that policy —
+        // there is no state to command. Without these request types, deleting
+        // the edge onboarding gate would have silently opened both routes to
+        // pending users.
+        foreach (var type in new[] { typeof(GeneratePinCommand), typeof(ValidatePinCommand) })
+        {
+            Assert.Null(type.GetCustomAttribute<AllowAnonymousRequestAttribute>());
+            Assert.Null(type.GetCustomAttribute<AllowPendingOnboardingAttribute>());
+            Assert.Null(type.GetCustomAttribute<RequireRoleAttribute>());
+        }
     }
 }

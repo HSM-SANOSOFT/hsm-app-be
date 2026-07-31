@@ -4,31 +4,29 @@ using Hsm.Application.Auth.Commands.RevokeIntegrationTokens;
 using Hsm.Application.Auth.Commands.SignupIntegration;
 using Hsm.Application.Auth.Queries.ListIntegrationAccounts;
 using Hsm.Contracts.Ui;
+using Hsm.Web.Auth;
 
 namespace Hsm.Web.Services;
 
 /// <summary>
-/// Host-side integration account administration (plan U18, screen 3): admin
-/// gate first, then the pipeline. Token plaintext flows through the returned
+/// Host-side integration account administration (plan U18, screen 3): the
+/// actor first, then the pipeline. Token plaintext flows through the returned
 /// DTO exactly once — this service holds no token state, and the stores
 /// persist only bcrypt hashes, so nothing on this path can re-produce a secret
 /// after issuance.
 ///
-/// <see cref="UiServiceGate"/> stays in front of every method for two reasons:
-/// it is what makes a non-admin circuit see an
-/// <see cref="UnauthorizedAccessException"/> (pinned by the shell contract
-/// tests), and it is what installs the actor the pipeline's
-/// [RequireRole(Roles.Admin)] then authorizes. The real policy now lives on the
-/// requests; the gate is an exception-language adapter plus the actor source.
+/// <see cref="ShellActor"/> runs first in every method for one reason only:
+/// to publish the circuit's identity so the pipeline's
+/// [RequireRole(Roles.Admin)] has something to authorize. It decides nothing.
 /// </summary>
 public sealed class IntegrationAccountsUiService(
-    UiServiceGate gate,
+    ShellActor shellActor,
     IDispatcher dispatcher) : IIntegrationAccountsUiService
 {
     public async Task<IReadOnlyList<IntegrationAccountDto>> ListAccountsAsync(
         CancellationToken cancellationToken = default)
     {
-        await gate.RequireAdminAsync();
+        await shellActor.InstallAsync(cancellationToken);
         var items = await dispatcher.Send(new ListIntegrationAccountsQuery(), cancellationToken);
         return [.. items.Select(item => new IntegrationAccountDto(
             item.Account.Id.ToString(),
@@ -42,7 +40,7 @@ public sealed class IntegrationAccountsUiService(
     public async Task<IssuedIntegrationTokensDto> ProvisionAsync(
         NewIntegrationAccountDto command, CancellationToken cancellationToken = default)
     {
-        await gate.RequireAdminAsync();
+        await shellActor.InstallAsync(cancellationToken);
         if (!UiIntegrationFunctionality.All.Contains(command.Functionality, StringComparer.Ordinal))
         {
             // The endpoint's oneOf validation equivalent.
@@ -63,7 +61,7 @@ public sealed class IntegrationAccountsUiService(
     public async Task<IssuedIntegrationTokensDto> IssueTokensAsync(
         string accountId, CancellationToken cancellationToken = default)
     {
-        await gate.RequireAdminAsync();
+        await shellActor.InstallAsync(cancellationToken);
         var id = Guid.Parse(accountId);
         var tokens = await dispatcher.Send(new IssueIntegrationTokensCommand(id), cancellationToken);
         var account = (await dispatcher.Send(new ListIntegrationAccountsQuery(), cancellationToken))
@@ -74,7 +72,7 @@ public sealed class IntegrationAccountsUiService(
 
     public async Task RevokeTokensAsync(string accountId, CancellationToken cancellationToken = default)
     {
-        await gate.RequireAdminAsync();
+        await shellActor.InstallAsync(cancellationToken);
         await dispatcher.Send(new RevokeIntegrationTokensCommand(Guid.Parse(accountId)), cancellationToken);
     }
 

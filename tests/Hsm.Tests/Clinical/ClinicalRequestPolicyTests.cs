@@ -14,16 +14,14 @@ namespace Hsm.Tests.Clinical;
 /// The frozen <c>@FhirController</c> decorates every <c>/fhir/R4/Patient</c>
 /// route with <c>@Roles(...CLINICAL_STAFF_ROLES)</c> — doctor, nurse,
 /// technician, therapist, pharmacist — enforced by the frozen
-/// <c>RolesGuard</c>, which ALSO grants any <c>admin</c> principal a blanket
-/// pass regardless of the required-roles list
-/// (<see cref="Hsm.Web.Auth.RequestAuth.RequireRoles"/> reproduces this).
+/// <c>RolesGuard</c>, which ALSO granted any <c>admin</c> principal a blanket
+/// pass regardless of the required-roles list.
 /// <see cref="Hsm.Application.Abstractions.Behaviors.AuthorizationBehavior{TRequest,TResult}"/>
 /// has NO such bypass — it checks only <see cref="RequireRoleAttribute.Roles"/>
 /// membership. Task 8's review already proved this gap for the users module.
-/// So the admin bypass has to be encoded as an explicit member of the role
-/// list here, or an admin FHIR call would clear the (still-present, see
-/// <c>FhirEndpoints.GateAsync</c>) edge gate and then 403 in the pipeline —
-/// a contract-visible regression the moment Task 15 removes the edge gate.
+/// So the admin bypass is encoded as an explicit member of the role list here.
+/// Task 15 deleted the edge gate that used to mask the difference, which makes
+/// this list the only thing standing between an admin and a 403.
 /// <c>PatientFhirContractTests.Every_clinical_role_and_admin_pass_the_gate</c>
 /// is the executable proof admin belongs in the list.
 /// </summary>
