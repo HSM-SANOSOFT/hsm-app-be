@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Hsm.Infrastructure\Hsm.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Hsm.Worker\Hsm.Worker.csproj" />
     <ProjectReference Include="..\..\src\Hsm.Application\Hsm.Application.csproj" />
   </ItemGroup>
 

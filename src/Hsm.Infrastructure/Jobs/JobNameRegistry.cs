@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Hsm.Application.Abstractions;
 
@@ -66,10 +67,18 @@ public sealed class JobNameRegistry
             : throw new InvalidOperationException(
                 $"{commandType?.Name} carries no [JobName]; it cannot be queued.");
 
-    public Type TypeOf(string jobName) =>
-        _byName.TryGetValue(jobName, out var type)
-            ? type
-            : throw new InvalidOperationException($"Unknown job name '{jobName}'.");
+    /// <summary>
+    /// The type for <paramref name="jobName"/>, or false if this process has
+    /// never heard of it.
+    ///
+    /// <para>Deliberately a Try: during a rolling deploy an old worker will be
+    /// handed jobs a newer producer introduced, and "I do not know this name"
+    /// has to be distinguishable from "this envelope is garbage". The first is
+    /// temporary and worth retrying; only the second is hopeless. See
+    /// <see cref="RedisStreamJobConsumer"/>.</para>
+    /// </summary>
+    public bool TryTypeOf(string jobName, [NotNullWhen(true)] out Type? commandType) =>
+        _byName.TryGetValue(jobName, out commandType);
 
     /// <summary>The queue a job name belongs to — its first dotted segment.</summary>
     public static string QueueOf(string jobName)

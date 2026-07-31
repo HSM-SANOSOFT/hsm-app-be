@@ -11,7 +11,6 @@ using Hsm.Api.Users;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
 using Hsm.Infrastructure;
-using Hsm.Infrastructure.Jobs;
 using Microsoft.AspNetCore.RateLimiting;
 using Npgsql;
 using OpenTelemetry;
@@ -58,26 +57,13 @@ builder.Services.AddHsmInfrastructure(builder.Configuration);
 // Hsm.Application's, so both doors decide it identically.
 builder.Services.AddHsmPipeline();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<HttpCurrentPrincipal>();
-builder.Services.AddScoped<AmbientPrincipal>();
-// Two sources, selected by whether there IS a request. An HTTP request always
-// reads HttpCurrentPrincipal — the ambient one can never leak an actor into a
-// route — while a scope with no HttpContext is a queued job's scope, where the
-// consumer has installed the actor the job was enqueued with. This selection
-// exists only while the job consumer is co-hosted here (see
-// AddInHostJobConsumer); Task 20 moves consumption to Hsm.Worker and this host
-// goes back to registering HttpCurrentPrincipal alone.
-builder.Services.AddScoped<ICurrentPrincipal>(sp =>
-    sp.GetRequiredService<IHttpContextAccessor>().HttpContext is null
-        ? sp.GetRequiredService<AmbientPrincipal>()
-        : sp.GetRequiredService<HttpCurrentPrincipal>());
+// ONE source of who is calling, and it is the request. This host serves HTTP
+// and nothing else: it enqueues background work into the shared queue
+// namespace and never consumes it — Hsm.Worker does — so there is no scope
+// here without an HttpContext and no second, ambient actor that could leak
+// into a route.
+builder.Services.AddScoped<ICurrentPrincipal, HttpCurrentPrincipal>();
 builder.Services.AddScoped<RequestActorFactory>();
-
-// INTERIM (Task 20): this host also consumes the job queue, so queued sends and
-// document generation are processed by whoever serves the API — the arrangement
-// the in-process channel queue had. Task 20 deletes this line and Hsm.Worker
-// becomes the consumer.
-builder.Services.AddInHostJobConsumer(builder.Configuration);
 
 // Auth web surface (plan U12): cookie posture + CSRF from configuration. The
 // cookie NAMES, paths, SameSite modes and lifetimes are Hsm.Contracts'

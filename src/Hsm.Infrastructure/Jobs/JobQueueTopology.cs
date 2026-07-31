@@ -37,21 +37,21 @@ public sealed record JobQueueDefinition(
     /// that just failed — would run in the gap and be overwritten when the retry
     /// lands.
     ///
-    /// <para><b>Scope: one consuming PROCESS.</b> This is enforced by a consumer
-    /// deciding not to read new work while it can see scheduled or due entries.
-    /// Two consuming processes both make that decision independently, both see
-    /// an empty delayed set at the same instant, and both take a job — nothing
-    /// here is a distributed lock, and <c>Consumers = 1</c> configures this
-    /// host's loop count, not the cluster's. Cluster-wide seriality therefore
-    /// requires exactly ONE consuming process for the queue.</para>
+    /// <para><b>What this property alone gives you is one PROCESS.</b> The
+    /// no-newer-work rule is enforced by a consumer deciding not to read new
+    /// work while it can see scheduled or due entries. Two consuming processes
+    /// make that decision independently, both see an empty delayed set at the
+    /// same instant, and both take a job — nothing in this file is a
+    /// distributed lock, and <c>Consumers</c> configures one host's loop count,
+    /// not the cluster's.</para>
     ///
-    /// <para><b>Requirement for Task 20:</b> when consumption moves to
-    /// <c>Hsm.Worker</c>, coms consumption must be pinned to a single worker
-    /// instance (a singleton deployment, or a leader election / distributed lock
-    /// around the coms loop). Scaling the worker horizontally without that
-    /// silently reintroduces the overtaking this property exists to prevent.
-    /// Until then the interim consumer's per-host key namespace makes each host
-    /// its own queue, so the guarantee holds by construction.</para>
+    /// <para><b>Cluster-wide seriality is the consumer's lease.</b>
+    /// <c>Hsm.Worker</c>'s <c>JobConsumerService</c> runs a serial queue's loop
+    /// only while it holds <see cref="JobQueueTopology.LeaseKey"/> for that
+    /// queue (<c>SET NX PX</c>, renewed while held, released on shutdown), so N
+    /// worker replicas still consume the queue one at a time. Without it,
+    /// scaling the worker horizontally silently reintroduces the overtaking
+    /// this property exists to prevent.</para>
     /// </summary>
     public bool IsSerial => Consumers <= 1;
 }
@@ -59,6 +59,15 @@ public sealed record JobQueueDefinition(
 /// <summary>
 /// Where the queues live in Redis and how they behave. One instance per host,
 /// bound from configuration.
+///
+/// <para><b>KeyPrefix is the deployment's namespace, and it is shared.</b>
+/// Every producer (<c>Hsm.Api</c>, <c>Hsm.Web</c>) enqueues into it and
+/// <c>Hsm.Worker</c> consumes it, so a restarted producer strands nothing:
+/// what it wrote is still there for the worker. It is plain configuration
+/// (<c>Jobs:KeyPrefix</c>) with a fixed default, never derived per host or per
+/// process — that would give each host a private queue nobody else can see,
+/// which is exactly the defect this queue replaced. Test hosts that must not
+/// see each other's jobs set the key themselves.</para>
 ///
 /// <para>Keys are <c>{KeyPrefix}:jobs:{queue}</c> (jobs enqueued now),
 /// <c>…:delayed</c> (the sorted set of jobs waiting out a first-attempt delay
@@ -81,8 +90,9 @@ public sealed record JobQueueDefinition(
 /// take. It is set per queue for that reason, and generously for docs, at the
 /// cost of recovery latency: a consumer that really does die leaves its job
 /// unclaimed for that long. A heartbeat (periodic XCLAIM by the running
-/// consumer, which would let the threshold drop to seconds again) is Task 20's
-/// to add.</para>
+/// consumer, which would let the threshold drop to seconds again) is a
+/// follow-up, and is NOT part of Task 20 — the worker inherits this threshold
+/// unchanged.</para>
 /// </summary>
 public sealed class JobQueueTopology
 {
@@ -106,6 +116,18 @@ public sealed class JobQueueTopology
     /// without bound. Approximate trimming never drops recent entries.</summary>
     public int StreamMaxLength { get; init; } = 100_000;
 
+    /// <summary>
+    /// How long a consumer's claim on a serial queue survives without renewal.
+    /// The worker renews at a third of it while it is running and releases it on
+    /// clean shutdown, so this value is only ever spent by a worker that DIED
+    /// holding it: it is the queue's failover window, during which no replica
+    /// consumes and jobs simply wait in Redis. Longer means slower failover;
+    /// shorter risks a paused process (a long GC, a stalled Redis round trip)
+    /// losing a lease it still believes it holds, which would put two consumers
+    /// on a queue whose whole point is that there is one.
+    /// </summary>
+    public TimeSpan LeaseTtl { get; init; } = TimeSpan.FromSeconds(15);
+
     public IReadOnlyList<JobQueueDefinition> Queues { get; init; } = [];
 
     public JobQueueDefinition For(string queue) =>
@@ -120,4 +142,18 @@ public sealed class JobQueueTopology
     public string DueKey(string queue) => $"{KeyPrefix}:jobs:{queue}:due";
 
     public string DeadLetterKey(string queue) => $"{KeyPrefix}:jobs:{queue}:dead";
+
+    /// <summary>
+    /// Who is allowed to consume a serial queue right now. Held by exactly one
+    /// worker replica at a time (<see cref="LeaseTtl"/>); a queue that is not
+    /// serial has no lease and every replica consumes it.
+    /// </summary>
+    public string LeaseKey(string queue) => $"{KeyPrefix}:lease:{queue}";
+
+    /// <summary>
+    /// Who already fired a scheduled job for the current tick. Written
+    /// <c>NX PX</c> at just under the schedule's interval, so N workers running
+    /// the same schedule fire it once and the key is gone before the next tick.
+    /// </summary>
+    public string ScheduleKey(string name) => $"{KeyPrefix}:sched:{name}";
 }

@@ -17,6 +17,9 @@ public sealed class DocsApiFactory : ContractApiFactory
 
     protected override string DatabaseName => "hsm_docs_test";
 
+    /// <summary>This suite waits on queued generation, so its host also consumes it.</summary>
+    protected override bool ConsumesJobs => true;
+
     protected override void ConfigureModule(IWebHostBuilder builder)
     {
         builder.UseSetting(

@@ -141,6 +141,33 @@ public sealed class JobQueueDurabilityTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Job_naming_a_type_this_worker_does_not_have_is_rescheduled_not_dead_lettered()
+    {
+        await using var provider = BuildProvider(_prefix);
+        var topology = provider.GetRequiredService<JobQueueTopology>();
+        var db = await provider.GetRequiredService<IJobConnection>().GetDatabaseAsync();
+
+        // The shape of a rolling deploy: a producer that has already been
+        // updated enqueues a job whose handler only exists in the new worker
+        // image, and an old worker picks it up first.
+        await db.StreamAddAsync(
+            topology.StreamKey("test"),
+            JobEnvelope.Field,
+            new JobEnvelope("test.not-yet-deployed", "{}", null, Attempt: 1).ToJson());
+
+        var processed = await provider.GetRequiredService<IJobConsumer>()
+            .DrainOnceAsync("test", 10, CancellationToken.None);
+
+        // Settled, but as a retry: dead-lettering here would destroy real work
+        // for the length of every deploy. It waits on the delayed set for a
+        // worker that knows the name.
+        Assert.Equal(1, processed);
+        Assert.Equal(0, await DeadLetterCountAsync(provider));
+        Assert.Equal(1, await DelayedCountAsync(provider));
+        Assert.Equal(0, await UnsettledAsync(provider));
+    }
+
+    [Fact]
     public async Task Job_left_pending_by_a_dead_consumer_is_reclaimed_after_the_idle_threshold()
     {
         var runId = Guid.NewGuid();

@@ -34,9 +34,13 @@ namespace Hsm.Infrastructure.Jobs;
 /// consumer that dies mid-job leaves its entry pending, XAUTOCLAIM hands it to
 /// another consumer after <see cref="JobQueueDefinition.ClaimMinIdle"/>, and
 /// the job runs again. Handlers stay idempotent. That threshold is per queue
-/// and deliberately generous for docs: without mid-flight lock renewal (Task
-/// 20) the only thing separating a slow job from a duplicate concurrent run is
-/// the threshold exceeding the job's worst-case runtime.</para>
+/// and deliberately generous for docs: without mid-flight lock renewal (still a
+/// follow-up) the only thing separating a slow job from a duplicate concurrent
+/// run is the threshold exceeding the job's worst-case runtime.</para>
+///
+/// <para>Who drives this is <c>Hsm.Worker</c>'s <c>JobConsumerService</c>, and
+/// nothing else. The request-serving hosts register the queue so they can
+/// enqueue; a drain never happens inside one.</para>
 /// </summary>
 public sealed partial class RedisStreamJobConsumer(
     IJobConnection connection,
@@ -194,14 +198,52 @@ public sealed partial class RedisStreamJobConsumer(
         try
         {
             envelope = JobEnvelope.FromJson(raw!);
-            command = (ICommand<Unit>)JsonSerializer.Deserialize(
-                envelope.Payload, registry.TypeOf(envelope.JobName), JobJson.Options)!;
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // An envelope this consumer cannot read is not retryable — a later
-            // attempt would fail identically. Dead-letter it verbatim so the
-            // payload is still there to look at.
+            // An envelope this consumer cannot even read is not retryable — a
+            // later attempt would fail identically. Dead-letter it verbatim so
+            // the payload is still there to look at.
+            LogUnreadable(logger, exception, definition.Name, entry.Id.ToString());
+            await DeadLetterAsync(db, definition.Name, raw).ConfigureAwait(false);
+            await db.StreamAcknowledgeAsync(
+                streamKey, JobQueueTopology.ConsumerGroup, entry.Id).ConfigureAwait(false);
+            return;
+        }
+
+        if (!registry.TryTypeOf(envelope.JobName, out var commandType))
+        {
+            // A name this process has never heard of is the ordinary shape of a
+            // ROLLING DEPLOY: a producer that has already been updated enqueues
+            // a job whose handler only exists in the new worker image, and an
+            // old worker picks it up. Dead-lettering there would destroy real
+            // work for the length of a deploy, so it is rescheduled with the
+            // queue's normal backoff instead — by which time the worker that
+            // takes it is likely the new one. If the name is genuinely bogus
+            // the attempts still run out and it still dead-letters; the only
+            // thing traded is a few minutes.
+            LogUnknownJobName(logger, definition.Name, envelope.JobName, envelope.Attempt);
+            await FailAsync(
+                db,
+                definition,
+                envelope,
+                new InvalidOperationException(
+                    $"No handler for job name '{envelope.JobName}' is deployed in this worker."))
+                .ConfigureAwait(false);
+            await db.StreamAcknowledgeAsync(
+                streamKey, JobQueueTopology.ConsumerGroup, entry.Id).ConfigureAwait(false);
+            return;
+        }
+
+        try
+        {
+            command = (ICommand<Unit>)JsonSerializer.Deserialize(
+                envelope.Payload, commandType, JobJson.Options)!;
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // A known name whose payload will not deserialize into it: the
+            // shape is wrong, and no retry changes that.
             LogUnreadable(logger, exception, definition.Name, entry.Id.ToString());
             await DeadLetterAsync(db, definition.Name, raw).ConfigureAwait(false);
             await db.StreamAcknowledgeAsync(
@@ -275,6 +317,12 @@ public sealed partial class RedisStreamJobConsumer(
         Message = "{Queue} job {JobName} failed after {Attempts} attempts; moved to the dead-letter stream")]
     private static partial void LogDeadLettered(
         ILogger logger, Exception exception, string queue, string jobName, int attempts);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "{Queue} job name '{JobName}' is not deployed in this worker (attempt {Attempt}); rescheduling")]
+    private static partial void LogUnknownJobName(
+        ILogger logger, string queue, string jobName, int attempt);
 
     [LoggerMessage(
         Level = LogLevel.Error,

@@ -1,8 +1,12 @@
 using System.Collections.Concurrent;
+using Hsm.Api.Auth;
+using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
 using Hsm.Domain.Identity;
 using Hsm.Infrastructure.Persistence;
+using Hsm.Worker;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -45,15 +49,64 @@ public abstract class ContractHostFactory<TEntryPoint> : WebApplicationFactory<T
     private static readonly SemaphoreSlim SchemaGate = new(1, 1);
     private static readonly ConcurrentDictionary<string, bool> ReadySchemas = new(StringComparer.Ordinal);
 
+    private readonly string _jobKeyPrefix = $"hsmtest:{Guid.NewGuid():N}";
+
     /// <summary>The dedicated database this factory's host runs against.</summary>
     protected abstract string DatabaseName { get; }
 
     /// <summary>The same value, reachable by a sibling host on the same data.</summary>
     internal string Database => DatabaseName;
 
+    /// <summary>
+    /// The queue namespace this factory's host enqueues into
+    /// (<c>Jobs:KeyPrefix</c>). Production runs ONE namespace for the whole
+    /// deployment — that is the point of the worker being the consumer — but
+    /// several factories boot in one test process against one Redis, each with
+    /// its own transport double, and each asserts on the jobs IT enqueued (one
+    /// suite arms its transport to fail the next five sends and requires all
+    /// five failures to be its own). So each factory gets its own namespace,
+    /// through configuration, exactly as two deployments sharing a Redis would.
+    /// </summary>
+    protected virtual string JobKeyPrefix => _jobKeyPrefix;
+
+    /// <summary>The same value, reachable by a sibling host on the same queue.</summary>
+    internal string JobNamespace => JobKeyPrefix;
+
+    /// <summary>
+    /// Whether this host also PROCESSES what it enqueues. Production splits
+    /// that — Hsm.Api enqueues, Hsm.Worker consumes — but a contract suite that
+    /// waits on a job's observable outcome needs a consumer in the test
+    /// process, so the suites that do (coms, docs) boot the worker's job
+    /// processing INSIDE their host. Nothing about this arrangement exists in
+    /// production code: it is composed here, out of the same registrations
+    /// Hsm.Worker composes.
+    /// </summary>
+    protected virtual bool ConsumesJobs => false;
+
     protected sealed override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("ConnectionStrings:HsmDb", ConnectionStringFor(DatabaseName));
+        builder.UseSetting("Jobs:KeyPrefix", JobKeyPrefix);
+        if (ConsumesJobs)
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.AddHsmJobProcessing();
+
+                // A job scope has no HttpContext — the consumer puts the
+                // envelope's actor on AmbientPrincipal instead — so this host,
+                // which production registers with HttpCurrentPrincipal alone,
+                // needs to read whichever one applies. The test order is the
+                // safe one: an HTTP request ALWAYS reads HttpCurrentPrincipal,
+                // so an ambient actor can never leak into a route.
+                services.AddScoped<HttpCurrentPrincipal>();
+                services.AddScoped<ICurrentPrincipal>(sp =>
+                    sp.GetRequiredService<IHttpContextAccessor>().HttpContext is null
+                        ? sp.GetRequiredService<AmbientPrincipal>()
+                        : sp.GetRequiredService<HttpCurrentPrincipal>());
+            });
+        }
+
         // HS256 keys must be at least 256 bits.
         builder.UseSetting("Auth:JwtAccessSecret", "contract_test_at_secret_0123456789abcdef");
         builder.UseSetting("Auth:JwtRefreshSecret", "contract_test_rt_secret_0123456789abcdef");
@@ -224,6 +277,9 @@ public abstract class ContractShellFactory : ContractHostFactory<Hsm.Web.Program
     private sealed class ApiSurfaceFactory(ContractShellFactory shell) : ContractHostFactory<Hsm.Api.Program>
     {
         protected override string DatabaseName => shell.Database;
+
+        /// <summary>One deployment: the sidecar enqueues where the shell does.</summary>
+        protected override string JobKeyPrefix => shell.JobNamespace;
 
         protected override void ConfigureModule(IWebHostBuilder builder) =>
             shell.ApplyModuleConfiguration(builder);
