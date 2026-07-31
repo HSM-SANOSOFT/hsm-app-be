@@ -1,0 +1,9 @@
+# Everything in this folder is scaffolded by `dotnet ef migrations add` and is
+# never hand-edited — the model is the source of truth, so a "fix" here would
+# only re-appear on the next scaffold. Marking the folder generated exempts it
+# from the analyzers (CA1861 on the scaffolder's column arrays, etc.) that the
+# repo's TreatWarningsAsErrors bar turns into build failures. The bar itself is
+# untouched: this scope covers exactly the generated files, and `dotnet format`
+# already skips generated code for the same reason.
+[*.cs]
+generated_code = true

@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using Hsm.Api;
 using Hsm.Api.Auth;
 using Hsm.Api.Coms;
 using Hsm.Api.Docs;
@@ -18,6 +19,14 @@ using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+
+// The migrate step short-circuits before ANY host is built: `--migrate` runs
+// migrations and exits, and normal boot never migrates. See MigrateCommand for
+// why the two are separate invocations.
+if (MigrateCommand.IsRequested(args))
+{
+    return await MigrateCommand.RunAsync(args);
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -149,6 +158,7 @@ app.MapComsEndpoints();
 app.MapDocsEndpoints();
 
 app.Run();
+return 0;
 
 namespace Hsm.Api
 {

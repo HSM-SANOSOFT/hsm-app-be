@@ -41,8 +41,7 @@ public sealed class ConsumerLeaseTests : IAsyncLifetime
         // TransactionBehavior opens a real transaction per command, so the
         // schema has to exist even though this handler writes nothing.
         await using var provider = BuildWorker("schema", _prefix);
-        using var scope = provider.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<HsmDbContext>().Database.EnsureCreatedAsync();
+        await TestServices.MigrateAsync(provider);
     }
 
     public Task DisposeAsync() => Task.CompletedTask;

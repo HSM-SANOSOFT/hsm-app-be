@@ -6,6 +6,7 @@ using Hsm.Domain.Identity;
 using Hsm.Infrastructure.Persistence;
 using Hsm.Worker;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -153,8 +154,13 @@ public abstract class ContractHostFactory<TEntryPoint> : WebApplicationFactory<T
             {
                 using var scope = Services.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<HsmDbContext>();
+                // Dropped, then MIGRATED back up — not EnsureCreated. Every
+                // contract suite therefore starts from an empty database and
+                // applies the migrations a deployment applies, so the frozen
+                // contract is asserted against the schema that ships rather
+                // than against one built straight from the model.
                 await db.Database.EnsureDeletedAsync();
-                await db.Database.EnsureCreatedAsync();
+                await db.Database.MigrateAsync();
                 await OnSchemaCreatedAsync();
                 ReadySchemas[DatabaseName] = true;
             }

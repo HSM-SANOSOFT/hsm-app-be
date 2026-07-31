@@ -43,9 +43,7 @@ public sealed class CommandTransactionTests : IAsyncLifetime
             services.AddScoped<IRequestHandler<WriteThenThrow, Unit>, WriteThenThrowHandler>();
         });
 
-        using var scope = _provider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<HsmDbContext>();
-        await db.Database.EnsureCreatedAsync();
+        await TestServices.MigrateAsync(_provider);
     }
 
     public async Task DisposeAsync() => await _provider.DisposeAsync();

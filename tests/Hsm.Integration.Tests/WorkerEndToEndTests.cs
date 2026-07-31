@@ -33,10 +33,7 @@ public sealed class WorkerEndToEndTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _provider = BuildWorker(_transport);
-        using var scope = _provider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<HsmDbContext>();
-        await db.Database.EnsureDeletedAsync();
-        await db.Database.EnsureCreatedAsync();
+        await TestServices.RecreateAsync(_provider);
     }
 
     public async Task DisposeAsync() => await _provider.DisposeAsync();

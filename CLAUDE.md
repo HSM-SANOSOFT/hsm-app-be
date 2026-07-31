@@ -33,6 +33,9 @@ dotnet test Hsm.sln --filter "FullyQualifiedName!~Integration"   # unit only
 dotnet test tests/Hsm.Integration.Tests                          # real infra
 dotnet format Hsm.sln --verify-no-changes                        # lint gate
 
+# Apply the schema — an explicit step, never done on host boot
+dotnet run --project src/Hsm.Api -- --migrate
+
 # Run the hosts (two doors onto one core — either runs without the other)
 dotnet run --project src/Hsm.Web        # staff shell on :5000 (published to host)
 dotnet run --project src/Hsm.Api        # REST/FHIR on :5001 (published to host)

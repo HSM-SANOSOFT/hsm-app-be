@@ -10,6 +10,15 @@
     <!-- FHIR R4 validation/parsing at the API edge only (frozen @medplum/core
          validateResource replacement). Application/Domain never see it. -->
     <PackageReference Include="Hl7.Fhir.R4" />
+    <!-- Design-time only. `dotnet ef` requires the STARTUP project to
+         reference this package: the migrations live in Hsm.Infrastructure but
+         the host that composes the DbContext from configuration is this one,
+         so the scaffolder boots it. PrivateAssets keeps the assembly out of
+         the published output and off every consumer. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Npgsql.OpenTelemetry" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />

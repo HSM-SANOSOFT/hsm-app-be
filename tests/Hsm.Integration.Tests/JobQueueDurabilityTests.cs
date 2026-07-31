@@ -61,9 +61,7 @@ public sealed class JobQueueDurabilityTests : IAsyncLifetime
         // TransactionBehavior opens a real transaction for every ICommand, so
         // the schema has to exist even though these handlers write nothing.
         await using var provider = BuildProvider(_prefix);
-        using var scope = provider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<HsmDbContext>();
-        await db.Database.EnsureCreatedAsync();
+        await TestServices.MigrateAsync(provider);
     }
 
     public Task DisposeAsync() => Task.CompletedTask;

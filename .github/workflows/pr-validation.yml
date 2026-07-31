@@ -65,6 +65,22 @@ jobs:
       - name: Build (warnings as errors via Directory.Build.props)
         run: |
           dotnet build Hsm.sln --configuration Release
+      # The schema is only ever created by migrations now (Hsm.Api -- --migrate;
+      # the test fixtures apply them too). A model change WITHOUT a matching
+      # migration would therefore build, test green against every already-
+      # migrated database, and then produce a wrong schema the first time
+      # someone created a real one. This step is what makes that impossible:
+      # it compares the model against the migrations snapshot and exits
+      # non-zero when they disagree. dotnet-ef is pinned in
+      # .config/dotnet-tools.json so CI and developers run the same tool.
+      - name: Restore .NET local tools (dotnet-ef)
+        run: dotnet tool restore
+      - name: Migration drift check (model must have a migration)
+        run: |
+          dotnet dotnet-ef migrations has-pending-model-changes \
+            --project src/Hsm.Infrastructure \
+            --startup-project src/Hsm.Api \
+            --configuration Release
 
   # --- unit tests: no live infrastructure ----------------------------------------
   # Hsm.Tests is the only infrastructure-free project (DI resolution and
