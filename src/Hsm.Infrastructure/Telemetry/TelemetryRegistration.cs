@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using Hsm.Application.Abstractions.Behaviors;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -70,6 +71,19 @@ public static class TelemetryRegistration
     /// collector must never stop this host from starting or serving. Only the
     /// "otlp selected, no endpoint configured" case — a config mistake, not a
     /// runtime condition — fails fast.</para>
+    ///
+    /// <para><b>The base endpoint gets the signal path appended explicitly.</b>
+    /// <c>OtlpExporterOptions.Endpoint</c>, once assigned programmatically,
+    /// stops the SDK from appending <c>/v1/traces</c> / <c>/v1/metrics</c> /
+    /// <c>/v1/logs</c> itself — that auto-append only fires when the option is
+    /// left at its own default. Setting <c>Endpoint</c> to the bare configured
+    /// base (as the pre-Task-23 code effectively risked once it stopped going
+    /// through <c>UseOtlpExporter(protocol, baseUri)</c>'s own per-signal
+    /// wiring) would silently POST every signal to the bare base path instead
+    /// — a 404 the collector answers and the exporter swallows exactly like
+    /// any other export failure, so it would never surface as an error
+    /// anywhere. <see cref="OtlpSignalEndpoint"/> appends the correct path
+    /// itself, per signal, so this cannot regress silently again.</para>
     ///
     /// <para><b>No ASP.NET Core instrumentation here, on purpose.</b>
     /// <c>Hsm.Worker</c> has no HTTP surface and runs on the plain (non-ASP.NET)
@@ -174,27 +188,43 @@ public static class TelemetryRegistration
         return set;
     }
 
+    /// <summary>
+    /// Appends the OTLP/HTTP signal path to the configured base endpoint.
+    /// <c>OtlpExporterOptions.Endpoint</c>, once assigned, is used EXACTLY as
+    /// given — the SDK only appends <c>/v1/{signal}</c> itself when the caller
+    /// never touches <c>Endpoint</c> (i.e. relies on its own per-signal
+    /// default). Any code that assigns <c>Endpoint</c> to a shared base value
+    /// must therefore build the full per-signal URL itself, or every signal
+    /// silently posts to the bare base path (a 404 the exporter treats as an
+    /// ordinary export failure — nothing surfaces).
+    /// </summary>
+    private static Uri OtlpSignalEndpoint(string baseEndpoint, string signalPath) =>
+        new($"{baseEndpoint.TrimEnd('/')}/{signalPath}", UriKind.Absolute);
+
     private static void ConfigureTraceExporters(
         TracerProviderBuilder tracing, SignalExporters exporters, TelemetryOptions options)
     {
         if (exporters.Console)
         {
-            tracing.AddProcessor(new SimpleActivityExportProcessor(TextLineExporter<Activity>.ToConsole()));
+            tracing.AddConsoleExporter();
         }
 
         if (exporters.Otlp)
         {
             tracing.AddOtlpExporter(otlp =>
             {
-                otlp.Endpoint = new Uri(options.OtlpEndpoint!);
+                otlp.Endpoint = OtlpSignalEndpoint(options.OtlpEndpoint!, "v1/traces");
                 otlp.Protocol = OtlpExportProtocol.HttpProtobuf;
             });
         }
 
         if (exporters.File)
         {
-            tracing.AddProcessor(new SimpleActivityExportProcessor(
-                TextLineExporter<Activity>.ToFile(FilePathFor(options, "traces"))));
+            // Batch, not Simple: a request thread must never block on a
+            // synchronous file write (plan U10's spirit extends to the local
+            // destinations too, not only network ones).
+            tracing.AddProcessor(new BatchActivityExportProcessor(
+                FileLineExporter<Activity>.Open(FilePathFor(options, "traces"))));
         }
     }
 
@@ -203,22 +233,25 @@ public static class TelemetryRegistration
     {
         if (exporters.Console)
         {
-            metrics.AddReader(new PeriodicExportingMetricReader(TextLineExporter<Metric>.ToConsole()));
+            metrics.AddConsoleExporter();
         }
 
         if (exporters.Otlp)
         {
             metrics.AddOtlpExporter(otlp =>
             {
-                otlp.Endpoint = new Uri(options.OtlpEndpoint!);
+                otlp.Endpoint = OtlpSignalEndpoint(options.OtlpEndpoint!, "v1/metrics");
                 otlp.Protocol = OtlpExportProtocol.HttpProtobuf;
             });
         }
 
         if (exporters.File)
         {
+            // Metric export already runs off the request thread (a periodic
+            // reader on its own timer), so there is no Simple/Batch choice to
+            // make here the way there is for traces and logs.
             metrics.AddReader(new PeriodicExportingMetricReader(
-                TextLineExporter<Metric>.ToFile(FilePathFor(options, "metrics"))));
+                FileLineExporter<Metric>.Open(FilePathFor(options, "metrics"))));
         }
     }
 
@@ -227,22 +260,22 @@ public static class TelemetryRegistration
     {
         if (exporters.Console)
         {
-            logging.AddProcessor(new SimpleLogRecordExportProcessor(TextLineExporter<LogRecord>.ToConsole()));
+            logging.AddConsoleExporter();
         }
 
         if (exporters.Otlp)
         {
             logging.AddOtlpExporter(otlp =>
             {
-                otlp.Endpoint = new Uri(options.OtlpEndpoint!);
+                otlp.Endpoint = OtlpSignalEndpoint(options.OtlpEndpoint!, "v1/logs");
                 otlp.Protocol = OtlpExportProtocol.HttpProtobuf;
             });
         }
 
         if (exporters.File)
         {
-            logging.AddProcessor(new SimpleLogRecordExportProcessor(
-                TextLineExporter<LogRecord>.ToFile(FilePathFor(options, "logs"))));
+            logging.AddProcessor(new BatchLogRecordExportProcessor(
+                FileLineExporter<LogRecord>.Open(FilePathFor(options, "logs"))));
         }
     }
 
@@ -251,49 +284,64 @@ public static class TelemetryRegistration
 }
 
 /// <summary>
-/// The <c>console</c> and <c>file</c> destinations, both: one line per item,
-/// via <c>ToString()</c>, written to a <see cref="TextWriter"/> — stdout for
-/// <c>console</c>, an append-mode file for <c>file</c>. Neither is an official
-/// OpenTelemetry .NET exporter package (the project ships a console exporter,
-/// but not a file one; this keeps the two symmetric rather than pulling in a
-/// dependency for one and hand-rolling the other). Both are "read it yourself"
-/// destinations, not a structured format other tooling consumes — anyone
-/// wanting durable, structured telemetry uses <c>otlp</c>. Export failure here
-/// follows the same rule as everywhere else (plan U10): caught and reported to
-/// the SDK as a failed export, never thrown into the app.
+/// The <c>file</c> destination: one line per item, via a small per-type
+/// formatter (see <see cref="FormatLine"/>), appended to a file. No official
+/// OpenTelemetry .NET file exporter exists (the project ships console and
+/// OTLP only) — this is this repo's minimal stand-in. It is a "read it
+/// yourself locally" sink, not a structured format other tooling is meant to
+/// consume; anyone wanting durable, structured telemetry uses <c>otlp</c>.
 /// </summary>
-internal sealed class TextLineExporter<T> : BaseExporter<T>
+internal sealed class FileLineExporter<T> : BaseExporter<T>
     where T : class
 {
-    private readonly TextWriter _writer;
-    private readonly bool _ownsWriter;
+    private readonly StreamWriter _writer;
+    private bool _disposed;
 
-    private TextLineExporter(TextWriter writer, bool ownsWriter)
+    private FileLineExporter(StreamWriter writer) => _writer = writer;
+
+    /// <summary>
+    /// Opens the destination file, creating its directory if needed. Export
+    /// failure — including AT SETUP, here — must never affect startup (U10):
+    /// an uncreatable path (bad permissions, a missing drive, a read-only
+    /// container filesystem) degrades this signal's file export to a no-op
+    /// for the run instead of taking the host down. The failure is reported
+    /// to stderr, once, at startup, since there is no ILogger available this
+    /// early in the builder pipeline.
+    /// </summary>
+    public static BaseExporter<T> Open(string path)
     {
-        _writer = writer;
-        _ownsWriter = ownsWriter;
-    }
-
-    public static TextLineExporter<T> ToConsole() => new(Console.Out, ownsWriter: false);
-
-    public static TextLineExporter<T> ToFile(string path)
-    {
-        var fullPath = Path.GetFullPath(path);
-        var directory = Path.GetDirectoryName(fullPath);
-        if (!string.IsNullOrEmpty(directory))
+        try
         {
-            Directory.CreateDirectory(directory);
+            var fullPath = Path.GetFullPath(path);
+            var directory = Path.GetDirectoryName(fullPath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            var writer = new StreamWriter(
+                new FileStream(fullPath, FileMode.Append, FileAccess.Write, FileShare.Read))
+            {
+                AutoFlush = false,
+            };
+            return new FileLineExporter<T>(writer);
         }
-
-        var writer = new StreamWriter(new FileStream(fullPath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+        catch (Exception ex)
         {
-            AutoFlush = true,
-        };
-        return new TextLineExporter<T>(writer, ownsWriter: true);
+            Console.Error.WriteLine(
+                $"Telemetry: could not open the file destination '{path}' ({ex.GetType().Name}: {ex.Message}); "
+                + "file export for this signal is disabled for this run rather than failing startup (U10).");
+            return new NoopExporter<T>();
+        }
     }
 
     public override ExportResult Export(in Batch<T> batch)
     {
+        if (_disposed)
+        {
+            return ExportResult.Failure;
+        }
+
         try
         {
             foreach (var item in batch)
@@ -301,12 +349,28 @@ internal sealed class TextLineExporter<T> : BaseExporter<T>
                 _writer.WriteLine(FormatLine(item));
             }
 
+            // Flushed once per BATCH here, not per item (that was the
+            // AutoFlush=true problem I5 flagged), and not deferred to
+            // OnForceFlush/OnShutdown alone: BatchActivityExportProcessor's
+            // own ForceFlush drains its queue by calling this method, but
+            // does not reliably also invoke the underlying exporter's
+            // OnForceFlush — confirmed empirically (a diagnostic build showed
+            // Export() running on every ForceFlush call while OnForceFlush
+            // never fired). Flushing here is what actually guarantees a
+            // batch's bytes reach disk, on every path that calls Export
+            // (scheduled delay, ForceFlush, or the drain before shutdown) —
+            // OnForceFlush/OnShutdown below still flush too, for defense in
+            // depth, but are not load-bearing.
+            _writer.Flush();
+
             return ExportResult.Success;
         }
-        catch (IOException)
+        catch (Exception)
         {
             // Export failure must never affect the host (U10): report it to
             // the SDK as a failed export, do not let it escape into the app.
+            // Broad on purpose — disk writes fail in more ways than IOException
+            // (a writer raced with Dispose, permissions changing mid-run, ...).
             return ExportResult.Failure;
         }
     }
@@ -314,42 +378,124 @@ internal sealed class TextLineExporter<T> : BaseExporter<T>
     /// <summary>
     /// <c>Activity</c>/<c>Metric</c>/<c>LogRecord</c> do not override
     /// <c>ToString()</c> with anything useful (it is the CLR default, the type
-    /// name) — this pulls the handful of fields a human actually wants to see
-    /// locally out of each of the three signal types this exporter is ever
-    /// instantiated for.
+    /// name) — this pulls the fields a human actually wants to see locally out
+    /// of each of the three signal types this exporter is ever instantiated
+    /// for, including tags/attributes and (for metrics) the actual recorded
+    /// values, not just the instrument's name.
     /// </summary>
     private static string FormatLine(T item) => item switch
     {
         Activity activity =>
             $"{activity.StartTimeUtc:O} trace_id={activity.TraceId} span_id={activity.SpanId} "
-            + $"name={activity.DisplayName} status={activity.Status} duration_ms={activity.Duration.TotalMilliseconds}",
-        Metric metric =>
-            $"{DateTimeOffset.UtcNow:O} metric={metric.Name} unit={metric.Unit} type={metric.MetricType}",
+            + $"name={activity.DisplayName} status={activity.Status} duration_ms={activity.Duration.TotalMilliseconds} "
+            + $"tags={{{FormatTags(activity.TagObjects)}}}",
+        Metric metric => FormatMetric(metric),
         LogRecord log =>
             $"{log.Timestamp:O} level={log.LogLevel} category={log.CategoryName} "
-            + $"message={log.FormattedMessage ?? log.Body}",
+            + $"message={log.FormattedMessage ?? log.Body} attributes={{{FormatTags(log.Attributes)}}}",
         _ => item.ToString() ?? string.Empty,
     };
 
+    private static string FormatMetric(Metric metric)
+    {
+        var points = new List<string>();
+        foreach (var point in metric.GetMetricPoints())
+        {
+            var tags = FormatTags(point.Tags);
+            var value = FormatMetricValue(metric.MetricType, point);
+            points.Add(tags.Length > 0 ? $"{{{tags}}}={value}" : value);
+        }
+
+        var pointsText = points.Count > 0 ? string.Join(' ', points) : "(no data points)";
+        return $"{DateTimeOffset.UtcNow:O} metric={metric.Name} unit={metric.Unit} type={metric.MetricType} {pointsText}";
+    }
+
+    private static string FormatMetricValue(MetricType type, MetricPoint point) => type switch
+    {
+        MetricType.LongSum or MetricType.LongSumNonMonotonic =>
+            point.GetSumLong().ToString(CultureInfo.InvariantCulture),
+        MetricType.DoubleSum or MetricType.DoubleSumNonMonotonic =>
+            point.GetSumDouble().ToString("G", CultureInfo.InvariantCulture),
+        MetricType.LongGauge => point.GetGaugeLastValueLong().ToString(CultureInfo.InvariantCulture),
+        MetricType.DoubleGauge => point.GetGaugeLastValueDouble().ToString("G", CultureInfo.InvariantCulture),
+        MetricType.Histogram or MetricType.ExponentialHistogram =>
+            $"count={point.GetHistogramCount().ToString(CultureInfo.InvariantCulture)} "
+            + $"sum={point.GetHistogramSum().ToString("G", CultureInfo.InvariantCulture)}",
+        _ => "(unsupported metric type)",
+    };
+
+    private static string FormatTags(IEnumerable<KeyValuePair<string, object?>>? tags) =>
+        tags is null ? string.Empty : string.Join(",", tags.Select(t => $"{t.Key}={t.Value}"));
+
+    private static string FormatTags(ReadOnlyTagCollection tags)
+    {
+        var pairs = new List<string>(tags.Count);
+        foreach (var tag in tags)
+        {
+            pairs.Add($"{tag.Key}={tag.Value}");
+        }
+
+        return string.Join(",", pairs);
+    }
+
     protected override bool OnForceFlush(int timeoutMilliseconds)
     {
-        _writer.Flush();
+        if (_disposed)
+        {
+            return true;
+        }
+
+        try
+        {
+            _writer.Flush();
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+
         return true;
     }
 
     protected override bool OnShutdown(int timeoutMilliseconds)
     {
-        _writer.Flush();
+        if (_disposed)
+        {
+            return true;
+        }
+
+        try
+        {
+            _writer.Flush();
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+
         return true;
     }
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing && _ownsWriter)
+        if (disposing && !_disposed)
         {
+            _disposed = true;
             _writer.Dispose();
         }
 
         base.Dispose(disposing);
     }
+}
+
+/// <summary>
+/// Returned when the <c>file</c> destination's own setup fails (bad path,
+/// permissions, a read-only filesystem) — export failure, including at setup
+/// time, must never affect startup (U10). Silently accepts and discards
+/// everything; the failure was already reported once, at setup, to stderr.
+/// </summary>
+internal sealed class NoopExporter<T> : BaseExporter<T>
+    where T : class
+{
+    public override ExportResult Export(in Batch<T> batch) => ExportResult.Success;
 }
