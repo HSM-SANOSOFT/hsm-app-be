@@ -8,7 +8,6 @@ namespace Hsm.Contract.Tests.Health;
 /// with empty info/error/details, wrapped in the success envelope — and the
 /// version endpoint exposes ONLY the semantic version.
 /// </summary>
-[Trait("Infra", "true")]
 public sealed class HealthContractTests(HealthContractTests.HealthApiFactory factory)
     : IClassFixture<HealthContractTests.HealthApiFactory>
 {
