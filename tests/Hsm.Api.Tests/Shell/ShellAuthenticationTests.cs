@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace Hsm.Contract.Tests.Shell;
+namespace Hsm.Api.Tests.Shell;
 
 /// <summary>
 /// The Blazor shell's session behavior end to end through the real host
@@ -8,13 +8,13 @@ namespace Hsm.Contract.Tests.Shell;
 /// is redirected to sign-in, the sign-in placeholder renders anonymously, and
 /// a session signed in through the REST login cookie reaches the shell.
 /// </summary>
-public sealed class ShellFactory : ContractShellFactory
+public sealed class ShellAuthenticationFactory : ShellFactory
 {
     protected override string DatabaseName => "hsm_shell_test";
 }
 
-public sealed class ShellAuthenticationTests(ShellFactory factory)
-    : ContractTest<ShellFactory>(factory), IClassFixture<ShellFactory>
+public sealed class ShellAuthenticationTests(ShellAuthenticationFactory factory)
+    : ShellTest<ShellAuthenticationFactory>(factory), IClassFixture<ShellAuthenticationFactory>
 {
     [Fact]
     public async Task Anonymous_visitor_to_the_shell_is_redirected_to_login()

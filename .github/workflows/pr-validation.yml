@@ -178,9 +178,9 @@ jobs:
       - name: Run integration tests
         run: |
           dotnet test tests/Hsm.Integration.Tests --configuration Release
-      - name: Run infra-backed contract tests (auth, dedicated database)
+      - name: Run API surface tests (dedicated database per suite)
         run: |
-          dotnet test tests/Hsm.Contract.Tests --configuration Release
+          dotnet test tests/Hsm.Api.Tests --configuration Release
 
   # --- single required status check -> reference this name in the rulesets --------
   pr-gate:

@@ -6,9 +6,9 @@ using Hsm.Web.Auth;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Hsm.Contract.Tests.Shell;
+namespace Hsm.Api.Tests.Shell;
 
-public sealed class PipelineAuthorizationFactory : ContractShellFactory
+public sealed class PipelineAuthorizationFactory : ShellFactory
 {
     protected override string DatabaseName => "hsm_pipeline_authorization_test";
 }
@@ -26,7 +26,7 @@ public sealed class PipelineAuthorizationFactory : ContractShellFactory
 /// "in-process dispatch never works".
 /// </summary>
 public sealed class PipelineAuthorizationTests(PipelineAuthorizationFactory factory)
-    : ContractTest<PipelineAuthorizationFactory>(factory), IClassFixture<PipelineAuthorizationFactory>
+    : ShellTest<PipelineAuthorizationFactory>(factory), IClassFixture<PipelineAuthorizationFactory>
 {
     [Fact]
     public async Task Wrong_role_in_process_dispatch_is_refused_with_no_edge_check_present()

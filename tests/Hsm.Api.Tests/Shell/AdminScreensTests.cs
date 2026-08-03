@@ -1,5 +1,6 @@
 using System.Net;
 using System.Security.Claims;
+using System.Text;
 using System.Text.RegularExpressions;
 using Amazon.S3;
 using Hsm.Application.Auth;
@@ -10,7 +11,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Hsm.Contract.Tests.Shell;
+namespace Hsm.Api.Tests.Shell;
 
 /// <summary>
 /// The U18 administrative screens through the real booted host (DoD C7):
@@ -20,7 +21,7 @@ namespace Hsm.Contract.Tests.Shell;
 /// screen's UI-service data path working end to end against real
 /// PostgreSQL/RustFS.
 /// </summary>
-public sealed class AdminScreensFactory : ContractShellFactory
+public sealed class AdminScreensFactory : ShellFactory
 {
     public const string Bucket = "hsm-admin-screens-tests";
 
@@ -53,7 +54,7 @@ public sealed class AdminScreensFactory : ContractShellFactory
 }
 
 public sealed class AdminScreensTests(AdminScreensFactory factory)
-    : ContractTest<AdminScreensFactory>(factory), IClassFixture<AdminScreensFactory>
+    : ShellTest<AdminScreensFactory>(factory), IClassFixture<AdminScreensFactory>
 {
     public static readonly TheoryData<string, string> AdminScreens = new()
     {
@@ -249,7 +250,7 @@ public sealed class AdminScreensTests(AdminScreensFactory factory)
         using var scope = CreateUiScope(adminId, "admin");
         var docs = scope.ServiceProvider.GetRequiredService<IDocumentsAdminUiService>();
 
-        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(content));
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(content));
         var ids = await docs.UploadAsync(
             [new UploadFileDto("informe.txt", "text/plain", stream.Length, stream)]);
         var documentId = Assert.Single(ids);
