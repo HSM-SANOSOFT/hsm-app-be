@@ -11,8 +11,9 @@ namespace Hsm.Application.Abstractions.Behaviors;
 /// forgotten call failed open. Both of those checks are gone (plan Task 15);
 /// this is now the ONLY authorizer, so it cannot be forgotten: the same command
 /// dispatched from HTTP, a Blazor circuit, or a queued job is gated identically.
-/// Failures reuse ApiException so status codes and error envelopes stay
-/// byte-identical to the frozen contract.
+/// Failures throw the closed exception set (<see cref="UnauthorizedException"/>,
+/// <see cref="ForbiddenException"/>), mapped to status codes by one handler per
+/// transport.
 /// </summary>
 public sealed class AuthorizationBehavior<TRequest, TResult>(ICurrentPrincipal principal)
     : IPipelineBehavior<TRequest, TResult>
@@ -30,16 +31,16 @@ public sealed class AuthorizationBehavior<TRequest, TResult>(ICurrentPrincipal p
             return next();
         }
 
-        var actor = principal.Actor ?? throw ApiException.Unauthorized();
+        var actor = principal.Actor ?? throw new UnauthorizedException();
 
         if (policy.Roles.Count > 0 && !policy.Roles.Any(actor.IsInRole))
         {
-            throw ApiException.Forbidden();
+            throw new ForbiddenException();
         }
 
         if (!actor.OnboardingCompleted && !policy.AllowPendingOnboarding)
         {
-            throw ApiException.Forbidden();
+            throw new ForbiddenException("Onboarding is not complete.");
         }
 
         return next();

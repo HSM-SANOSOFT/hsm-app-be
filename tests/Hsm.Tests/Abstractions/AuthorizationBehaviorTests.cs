@@ -48,10 +48,9 @@ public class AuthorizationBehaviorTests
     public async Task Unauthenticated_request_is_rejected_before_the_handler()
     {
         var next = Reached(out var reached);
-        var ex = await Assert.ThrowsAsync<ApiException>(() => Behavior<NeedsAuth>(actor: null)
+        await Assert.ThrowsAsync<UnauthorizedException>(() => Behavior<NeedsAuth>(actor: null)
             .HandleAsync(new NeedsAuth(), next, CancellationToken.None));
 
-        Assert.Equal(401, ex.StatusCode);
         Assert.False(reached());
     }
 
@@ -61,10 +60,9 @@ public class AuthorizationBehaviorTests
         var doctor = new RequestActor("u1", ["doctor"], OnboardingCompleted: true);
         var next = Reached(out var reached);
 
-        var ex = await Assert.ThrowsAsync<ApiException>(() => Behavior<NeedsAdmin>(doctor)
+        await Assert.ThrowsAsync<ForbiddenException>(() => Behavior<NeedsAdmin>(doctor)
             .HandleAsync(new NeedsAdmin(), next, CancellationToken.None));
 
-        Assert.Equal(403, ex.StatusCode);
         Assert.False(reached());
     }
 
@@ -85,10 +83,9 @@ public class AuthorizationBehaviorTests
     {
         var pending = new RequestActor("u1", ["admin"], OnboardingCompleted: false);
 
-        var ex = await Assert.ThrowsAsync<ApiException>(() => Behavior<NeedsAdmin>(pending)
+        await Assert.ThrowsAsync<ForbiddenException>(() => Behavior<NeedsAdmin>(pending)
             .HandleAsync(new NeedsAdmin(), () => Task.FromResult("ok"),
                 CancellationToken.None));
-        Assert.Equal(403, ex.StatusCode);
 
         await Behavior<AdminDuringOnboarding>(pending).HandleAsync(
             new AdminDuringOnboarding(), () => Task.FromResult("ok"),

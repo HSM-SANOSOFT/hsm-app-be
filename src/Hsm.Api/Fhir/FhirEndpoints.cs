@@ -1,9 +1,9 @@
+using FluentValidation;
 using Hsm.Api.Auth;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Clinical.Commands.CreatePatient;
 using Hsm.Application.Clinical.Queries.GetPatient;
 using Hsm.Application.Clinical.Queries.SearchPatients;
-using Hsm.Application.Errors;
 
 namespace Hsm.Api.Fhir;
 
@@ -79,7 +79,7 @@ public static class FhirEndpoints
         {
             if (values.Count != 1)
             {
-                throw Unprocessable($"Search param '{key}' must be a single string value");
+                throw Unprocessable(key, $"Search param '{key}' must be a single string value");
             }
         }
 
@@ -88,7 +88,7 @@ public static class FhirEndpoints
             : null;
         if (string.IsNullOrEmpty(raw))
         {
-            throw Unprocessable("Patient search requires an 'identifier' parameter");
+            throw Unprocessable("identifier", "Patient search requires an 'identifier' parameter");
         }
 
         // The frozen token grammar: ^(?:([^|]+)\|)?([^|]+)$ — at most one '|',
@@ -98,7 +98,8 @@ public static class FhirEndpoints
         {
             [{ Length: > 0 } value] => (null, value),
             [{ Length: > 0 } system, { Length: > 0 } value] => (system, value),
-            _ => throw Unprocessable("Invalid identifier token for 'identifier' (expected 'system|value')"),
+            _ => throw Unprocessable(
+                "identifier", "Invalid identifier token for 'identifier' (expected 'system|value')"),
         };
     }
 
@@ -127,10 +128,14 @@ public static class FhirEndpoints
         }
         catch (System.Text.Json.JsonException)
         {
-            throw Unprocessable("FHIR resource body must be a JSON object");
+            throw Unprocessable("body", "FHIR resource body must be a JSON object");
         }
     }
 
-    private static ApiException Unprocessable(string message) =>
-        new(StatusCodes.Status422UnprocessableEntity, message, errorLabel: "Unprocessable Entity");
+    /// <summary>
+    /// Rendered as 422 by <see cref="FhirResponses"/> only — every other door
+    /// treats a <see cref="ValidationException"/> as a 400.
+    /// </summary>
+    private static ValidationException Unprocessable(string field, string message) =>
+        new([new FluentValidation.Results.ValidationFailure(field, message)]);
 }

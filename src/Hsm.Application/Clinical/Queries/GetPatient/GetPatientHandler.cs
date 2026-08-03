@@ -17,6 +17,6 @@ public sealed class GetPatientHandler(IPatientStore patients) : IRequestHandler<
         var patient = Guid.TryParse(request.Id, out var parsed)
             ? await patients.FindByIdAsync(parsed, ct)
             : null;
-        return patient ?? throw new ApiException(404, $"Patient '{request.Id}' not found", errorLabel: "Not Found");
+        return patient ?? throw new NotFoundException("Patient", request.Id);
     }
 }

@@ -16,16 +16,13 @@ public sealed class CreateStaffUserHandler(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        // Patient-facing roles never come through this path (frozen guard).
-        // Deliberately NOT an IValidator: the frozen envelope for this refusal
-        // is a plain 400 (issue.message a string, issue.error "Bad Request"),
-        // whereas ValidationBehavior renders the ValidationPipe shape
-        // (issue.message an array plus issue.errors). CreateStaffContractTests
-        // .Patient_facing_roles_are_rejected pins the former.
-        if (!RoleCatalog.IsAssignableToStaff(request.Role))
+        // A duplicate username is a state conflict, not a shape problem — the
+        // request is well-formed, it just collides with an existing row. Checked
+        // ahead of the unique-index write so the caller gets 409 instead of an
+        // untranslated database constraint failure surfacing as a bare 500.
+        if (await users.FindByUsernameAsync(request.Username, ct) is not null)
         {
-            throw ApiException.BadRequest(
-                "This endpoint provisions staff accounts only; patient/family roles are not allowed");
+            throw new ConflictException($"Username '{request.Username}' is already taken.");
         }
 
         // The temp-password hash is computed before any write, as the frozen

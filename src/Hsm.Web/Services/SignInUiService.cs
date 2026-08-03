@@ -35,7 +35,7 @@ public sealed class SignInUiService(
             AuthCookies.Set(ctx, options, tokens);
             return SignInResult.Success;
         }
-        catch (ApiException)
+        catch (HsmException)
         {
             // Unknown username and wrong password surface the same message —
             // the screen must not leak which accounts exist (frozen posture).

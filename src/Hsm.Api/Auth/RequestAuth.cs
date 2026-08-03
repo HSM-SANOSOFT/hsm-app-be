@@ -58,7 +58,7 @@ public static class RequestAuth
         var raw = kind == TokenKind.Access ? AccessToken(ctx) : RefreshToken(ctx);
         if (string.IsNullOrEmpty(raw))
         {
-            throw ApiException.Unauthorized();
+            throw new UnauthorizedException();
         }
 
         // Decode-once per request: a second consumer of the same token in the
@@ -76,8 +76,8 @@ public static class RequestAuth
         if (result.Principal is null)
         {
             throw result.IsExpired
-                ? ApiException.Unauthorized("token expired", errorLabel: "TOKEN_EXPIRED")
-                : ApiException.Unauthorized("Invalid token", errorLabel: "INVALID_TOKEN");
+                ? new UnauthorizedException("token expired")
+                : new UnauthorizedException("Invalid token");
         }
 
         ctx.Items[cacheKey] = (raw, result.Principal);

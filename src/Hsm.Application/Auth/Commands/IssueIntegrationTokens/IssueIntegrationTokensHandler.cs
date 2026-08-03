@@ -12,11 +12,11 @@ public sealed class IssueIntegrationTokensHandler(IIntegrationAccountStore accou
         ArgumentNullException.ThrowIfNull(request);
 
         var account = await accounts.FindByIdAsync(request.AccountId, ct)
-            ?? throw ApiException.NotFound($"Integration account with id {request.AccountId} not found");
+            ?? throw new NotFoundException("IntegrationAccount", request.AccountId);
 
         if (!account.IsActive)
         {
-            throw ApiException.BadRequest("Integration account is inactive");
+            throw new ConflictException("Integration account is not active.");
         }
 
         var principal = new AuthPrincipal

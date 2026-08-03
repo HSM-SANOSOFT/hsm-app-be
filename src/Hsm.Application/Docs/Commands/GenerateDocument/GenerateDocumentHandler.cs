@@ -23,7 +23,7 @@ public sealed class GenerateDocumentHandler(IDocumentStore store, ICurrentPrinci
     public async Task<GenerateDocumentResult> HandleAsync(GenerateDocumentCommand request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var actor = principal.Actor ?? throw ApiException.Unauthorized();
+        var actor = principal.Actor ?? throw new UnauthorizedException();
         var userId = Guid.Parse(actor.Id);
 
         // Minted (no I/O), not enqueued — see class doc comment.

@@ -1,5 +1,5 @@
+using FluentValidation;
 using Hsm.Application.Abstractions;
-using Hsm.Application.Errors;
 
 namespace Hsm.Application.Auth.Commands.ResetPassword;
 
@@ -11,7 +11,7 @@ public sealed class ResetPasswordHandler(
     IAuthUnitOfWork unitOfWork)
     : IRequestHandler<ResetPasswordCommand, Unit>
 {
-    private const string GenericFailure = "Invalid or expired reset token";
+    private const string GenericFailure = "The password reset link is invalid or has expired.";
 
     public async Task<Unit> HandleAsync(ResetPasswordCommand request, CancellationToken ct)
     {
@@ -20,7 +20,7 @@ public sealed class ResetPasswordHandler(
         var row = await resetTokens.FindByHashAsync(TokenDigests.Sha256Hex(request.Token), ct);
         if (row is null || row.UsedAt is not null || row.ExpiresAt < DateTimeOffset.UtcNow)
         {
-            throw ApiException.BadRequest(GenericFailure);
+            throw new ValidationException([new FluentValidation.Results.ValidationFailure("token", GenericFailure)]);
         }
 
         var passwordHash = hasher.Hash(request.NewPassword);
@@ -30,7 +30,7 @@ public sealed class ResetPasswordHandler(
         // never both apply a password.
         if (!await resetTokens.TryConsumeAsync(row.Id, ct))
         {
-            throw ApiException.BadRequest(GenericFailure);
+            throw new ValidationException([new FluentValidation.Results.ValidationFailure("token", GenericFailure)]);
         }
 
         await users.UpdatePasswordAsync(row.UserId, passwordHash, ct);

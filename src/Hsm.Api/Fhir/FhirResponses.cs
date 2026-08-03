@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
-using Hsm.Api.Http;
+using FluentValidation;
+using Hsm.Application.Errors;
 
 namespace Hsm.Api.Fhir;
 
@@ -60,22 +61,49 @@ public static class FhirResponses
 
     /// <summary>
     /// Wraps a FHIR endpoint so application failures render OperationOutcome
-    /// instead of the /v1 error envelope (the frozen controller-scoped filter
-    /// shadowing the global ResponseFilter).
+    /// instead of problem+json. The FHIR door is the ONE place a validation
+    /// failure is not a 400: FHIR clients expect 422 for a resource they sent
+    /// that the server could not accept, and the R4 spec's own examples use it.
+    /// Everything else is the same closed set, same statuses.
     /// </summary>
-    public static Task ExecuteAsync(HttpContext ctx, Func<Task<IResult>> endpoint) =>
-        ApiErrorGuard.RunAsync(
-            ctx,
-            async () =>
-            {
-                var result = await endpoint();
-                await result.ExecuteAsync(ctx);
-            },
-            (c, exception) =>
-                WriteOperationOutcomeAsync(c, exception.StatusCode, exception.IssueMessage ?? "Error"),
-            c => WriteOperationOutcomeAsync(
-                c, StatusCodes.Status500InternalServerError, "Internal server error"));
+    public static async Task ExecuteAsync(HttpContext ctx, Func<Task<IResult>> endpoint)
+    {
+        ArgumentNullException.ThrowIfNull(ctx);
+        ArgumentNullException.ThrowIfNull(endpoint);
+        try
+        {
+            var result = await endpoint();
+            await result.ExecuteAsync(ctx);
+        }
+        catch (Exception exception) when (!ctx.Response.HasStarted)
+        {
+            var (status, diagnostics) = Classify(exception);
+            await WriteOperationOutcomeAsync(ctx, status, diagnostics);
+        }
+    }
 
-    /// <summary>The frozen HTTP-status → FHIR IssueType map (fhir-operation-outcome.filter.ts).</summary>
-    private static string IssueCode(int statusCode) => ErrorStatusCodes.For(statusCode).FhirIssueCode;
+    private static (int Status, string Diagnostics) Classify(Exception exception) => exception switch
+    {
+        ValidationException validation => (
+            StatusCodes.Status422UnprocessableEntity,
+            string.Join("; ", validation.Errors.Select(e => e.ErrorMessage))),
+        UnauthorizedException => (StatusCodes.Status401Unauthorized, "Unauthorized"),
+        ForbiddenException => (StatusCodes.Status403Forbidden, "Forbidden"),
+        NotFoundException notFound => (StatusCodes.Status404NotFound, notFound.Message),
+        ConflictException conflict => (StatusCodes.Status409Conflict, conflict.Message),
+        TooManyRequestsException => (StatusCodes.Status429TooManyRequests, "Too Many Requests"),
+        _ => (StatusCodes.Status500InternalServerError, "Internal server error"),
+    };
+
+    /// <summary>The HTTP-status → FHIR IssueType map, formerly ErrorStatusCodes.</summary>
+    private static string IssueCode(int statusCode) => statusCode switch
+    {
+        StatusCodes.Status401Unauthorized or StatusCodes.Status403Forbidden => "forbidden",
+        StatusCodes.Status404NotFound => "not-found",
+        StatusCodes.Status409Conflict => "duplicate",
+        StatusCodes.Status429TooManyRequests => "processing",
+        StatusCodes.Status400BadRequest or StatusCodes.Status422UnprocessableEntity => "invalid",
+        >= StatusCodes.Status500InternalServerError => "exception",
+        _ => "processing",
+    };
 }

@@ -12,9 +12,7 @@ namespace Hsm.Application.Coms;
 /// </remarks>
 public static class ComsErrors
 {
-    public static ApiException BatchNotFound(Guid id) =>
-        ApiException.NotFound($"Email batch with id {id} not found");
+    public static NotFoundException BatchNotFound(Guid id) => new("EmailBatch", id);
 
-    public static ApiException RecipientNotFound(Guid id) =>
-        ApiException.NotFound($"Email recipient with id {id} not found");
+    public static NotFoundException RecipientNotFound(Guid id) => new("EmailRecipient", id);
 }

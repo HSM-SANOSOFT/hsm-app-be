@@ -24,7 +24,7 @@ public sealed class TokenIssuer(
     {
         if (principal.Roles.Contains(Roles.Developer) && !environment.IsDev)
         {
-            throw ApiException.Forbidden("Developer role cannot be assigned in this environment");
+            throw new ForbiddenException("Developer role cannot be assigned in this environment");
         }
 
         var integration = principal.IsIntegration;

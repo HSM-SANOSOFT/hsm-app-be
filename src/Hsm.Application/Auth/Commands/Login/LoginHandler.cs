@@ -10,14 +10,14 @@ public sealed class LoginHandler(IUserStore users, IPasswordHasher hasher, Token
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        // Unknown username and wrong password surface the SAME coded error —
-        // the login form must not leak which accounts exist.
+        // Unknown username and wrong password surface the SAME message — the
+        // login form must not leak which accounts exist.
         var user = await users.FindByUsernameAsync(request.Username, ct)
-            ?? throw ApiException.Unauthorized("Invalid credentials", ApiErrorCode.InvalidCredentials);
+            ?? throw new UnauthorizedException("Invalid username or password.");
 
         if (!hasher.Verify(request.Password, user.PasswordHash))
         {
-            throw ApiException.Unauthorized("Invalid password", ApiErrorCode.InvalidCredentials);
+            throw new UnauthorizedException("Invalid username or password.");
         }
 
         return await issuer.IssueAsync(TokenIssuer.PrincipalFor(user), ct);

@@ -10,11 +10,11 @@ public sealed class DeleteDocumentHandler(IDocumentStore store, IObjectStorage s
     public async Task<Unit> HandleAsync(DeleteDocumentCommand request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var actor = principal.Actor ?? throw ApiException.Unauthorized();
+        var actor = principal.Actor ?? throw new UnauthorizedException();
         var userId = Guid.Parse(actor.Id);
 
         var document = await store.FindWithVersionsAsync(request.Id, userId, ct)
-            ?? throw ApiException.NotFound($"Document '{request.Id}' not found");
+            ?? throw new NotFoundException("Document", request.Id);
 
         await store.SoftDeleteAsync(request.Id, ct);
 

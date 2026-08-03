@@ -12,6 +12,6 @@ public sealed class GetUserHandler(IUserStore users) : IRequestHandler<GetUserQu
         ArgumentNullException.ThrowIfNull(request);
 
         return await users.FindByIdAsync(request.UserId, ct)
-            ?? throw ApiException.NotFound($"User with id {request.UserId} not found");
+            ?? throw new NotFoundException("User", request.UserId);
     }
 }

@@ -174,7 +174,10 @@ public abstract class ApiHostFactory<TEntryPoint> : WebApplicationFactory<TEntry
 
     /// <summary>
     /// THE AUTH SEAM. Seeds an account in <paramref name="role"/> and returns a
-    /// client already carrying its session.
+    /// client already carrying its session — and the double-submit CSRF
+    /// credentials the middleware requires on every cookie-authenticated
+    /// mutation, so callers of this seam can POST/PATCH/DELETE without
+    /// reimplementing the CSRF handshake per module suite.
     ///
     /// <para>Tasks 2-10 run on the pre-Identity machinery, so the body below
     /// signs in through POST /v1/auth/login and replays the Set-Cookie header.
@@ -200,10 +203,38 @@ public abstract class ApiHostFactory<TEntryPoint> : WebApplicationFactory<TEntry
                 $"Seed sign-in for role '{role}' failed with {(int)response.StatusCode}.");
         }
 
-        var cookies = response.Headers.TryGetValues("Set-Cookie", out var values)
+        var cookies = (response.Headers.TryGetValues("Set-Cookie", out var values)
             ? values.Select(value => value.Split(';', 2)[0])
-            : [];
+            : []).ToList();
         client.DefaultRequestHeaders.Add("Cookie", string.Join("; ", cookies));
+
+        // GET /v1/auth/csrf issues the double-submit cookie and returns the
+        // matching token; both must ride every subsequent mutation on this
+        // client or CsrfProtection.Validate refuses it before the pipeline
+        // sees the request.
+        var csrf = await client.GetAsync(new Uri("/v1/auth/csrf", UriKind.Relative), CancellationToken.None);
+        if (csrf.IsSuccessStatusCode)
+        {
+            var csrfCookie = csrf.Headers.TryGetValues("Set-Cookie", out var csrfSetCookies)
+                ? csrfSetCookies
+                    .Select(value => value.Split(';', 2)[0])
+                    .FirstOrDefault(value => value.StartsWith($"{CsrfProtection.CookieName}=", StringComparison.Ordinal))
+                : null;
+            if (csrfCookie is not null)
+            {
+                cookies.Add(csrfCookie);
+                client.DefaultRequestHeaders.Remove("Cookie");
+                client.DefaultRequestHeaders.Add("Cookie", string.Join("; ", cookies));
+            }
+
+            using var body = await csrf.Content.ReadAsStreamAsync(CancellationToken.None);
+            var payload = await JsonSerializer.DeserializeAsync<JsonElement>(body, cancellationToken: CancellationToken.None);
+            if (payload.GetProperty("data").TryGetProperty("csrfToken", out var token))
+            {
+                client.DefaultRequestHeaders.Add(CsrfProtection.HeaderName, token.GetString());
+            }
+        }
+
         return client;
     }
 

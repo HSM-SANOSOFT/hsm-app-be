@@ -1,3 +1,4 @@
+using FluentValidation;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
 using Hsm.Application.Errors;
@@ -20,15 +21,18 @@ public sealed class ChangeOwnPasswordHandler(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var actor = principal.Actor ?? throw ApiException.Unauthorized();
+        var actor = principal.Actor ?? throw new UnauthorizedException();
         var userId = Guid.Parse(actor.Id);
 
         var user = await users.FindByIdAsync(userId, ct)
-            ?? throw ApiException.NotFound($"User with id {userId} not found");
+            ?? throw new NotFoundException("User", actor.Id);
 
         if (!hasher.Verify(request.CurrentPassword, user.PasswordHash))
         {
-            throw ApiException.Unauthorized("Current password is incorrect");
+            // The caller's session is fine; a 401 here reads as "you were
+            // signed out" and causes spurious re-auth loops.
+            throw new ValidationException(
+                [new FluentValidation.Results.ValidationFailure("currentPassword", "Current password is incorrect.")]);
         }
 
         await users.UpdatePasswordAsync(userId, hasher.Hash(request.NewPassword), ct);

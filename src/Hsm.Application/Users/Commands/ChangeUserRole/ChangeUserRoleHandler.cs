@@ -12,15 +12,8 @@ public sealed class ChangeUserRoleHandler(IUserStore users, IAuthUnitOfWork unit
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        // The endpoint's isIn validation makes this unreachable in practice;
-        // kept for parity with the frozen service-level guard.
-        if (RoleCatalog.DomainOf(request.Role) is null)
-        {
-            throw ApiException.BadRequest($"Unknown role '{request.Role}'");
-        }
-
         var user = await users.FindByIdAsync(request.UserId, ct)
-            ?? throw ApiException.NotFound($"User with id {request.UserId} not found");
+            ?? throw new NotFoundException("User", request.UserId);
 
         var replaced = await users.ReplaceRolesAsync(request.UserId, [request.Role], ct);
         await unitOfWork.SaveChangesAsync(ct);

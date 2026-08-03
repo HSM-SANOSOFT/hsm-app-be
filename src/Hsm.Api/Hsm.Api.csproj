@@ -10,6 +10,9 @@
     <!-- FHIR R4 validation/parsing at the API edge only (frozen @medplum/core
          validateResource replacement). Application/Domain never see it. -->
     <PackageReference Include="Hl7.Fhir.R4" />
+    <!-- HsmExceptionHandler maps FluentValidation.ValidationException (the
+         closed set's 400 vehicle) to problem+json. -->
+    <PackageReference Include="FluentValidation" />
     <!-- Design-time only. `dotnet ef` requires the STARTUP project to
          reference this package: the migrations live in Hsm.Infrastructure but
          the host that composes the DbContext from configuration is this one,

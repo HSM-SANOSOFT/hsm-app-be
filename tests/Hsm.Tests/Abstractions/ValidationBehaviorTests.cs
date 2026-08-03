@@ -1,6 +1,5 @@
 using Hsm.Application.Abstractions;
 using Hsm.Application.Abstractions.Behaviors;
-using Hsm.Application.Errors;
 
 namespace Hsm.Tests.Abstractions;
 
@@ -36,12 +35,11 @@ public class ValidationBehaviorTests
         var behavior = new ValidationBehavior<Create, string>([new CreateValidator()]);
         var reached = false;
 
-        var ex = await Assert.ThrowsAsync<ApiException>(() => behavior.HandleAsync(
+        var ex = await Assert.ThrowsAsync<FluentValidation.ValidationException>(() => behavior.HandleAsync(
             new Create("  "),
             () => { reached = true; return Task.FromResult("done"); },
             CancellationToken.None));
 
-        Assert.Equal(400, ex.StatusCode);
         Assert.False(reached);
         Assert.Contains("name", ex.Message, StringComparison.Ordinal);
     }

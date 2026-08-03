@@ -91,7 +91,7 @@ public static class AuthEndpoints
         var password = body.OptionalString("password");
         if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
         {
-            throw Hsm.Application.Errors.ApiException.Unauthorized();
+            throw new Hsm.Application.Errors.UnauthorizedException();
         }
 
         // Whitelist validation now runs BEFORE credential verification rather

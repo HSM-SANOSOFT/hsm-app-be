@@ -22,7 +22,7 @@ public sealed class RefreshTokensHandler(
 
         if (activeHash is null)
         {
-            throw ApiException.Unauthorized("Active Refresh token not found");
+            throw new UnauthorizedException("Active Refresh token not found");
         }
 
         // Pre-digest before bcrypt — see TokenDigests. Without it bcrypt would
@@ -30,7 +30,7 @@ public sealed class RefreshTokensHandler(
         // share, and every prior token would still verify.
         if (!hasher.Verify(TokenDigests.Sha256Hex(request.RawRefreshToken), activeHash))
         {
-            throw ApiException.Unauthorized("Refresh token is not valid");
+            throw new UnauthorizedException("Refresh token is not valid");
         }
 
         // Reissue from the token's own claims, minus iat/exp.

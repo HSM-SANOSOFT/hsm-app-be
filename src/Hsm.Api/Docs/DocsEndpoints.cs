@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using FluentValidation;
 using Hsm.Api.Auth;
 using Hsm.Api.Http;
 using Hsm.Application;
@@ -14,7 +15,6 @@ using Hsm.Application.Docs.Queries.GetDocument;
 using Hsm.Application.Docs.Queries.GetDocumentUrl;
 using Hsm.Application.Docs.Queries.ListDocuments;
 using Hsm.Application.Docs.Queries.PresignDocuments;
-using Hsm.Application.Errors;
 using Hsm.Application.Ports;
 using Hsm.Domain.Docs;
 
@@ -191,9 +191,14 @@ public static class DocsEndpoints
 
         // Frozen FilesInterceptor('files'): a file under any other field name
         // was a Multer LIMIT_UNEXPECTED_FILE — 400 "Unexpected field".
-        if (form.Files.Any(f => f.Name != "files"))
+        var unexpectedField = form.Files.FirstOrDefault(f => f.Name != "files")?.Name;
+        if (unexpectedField is not null)
         {
-            throw ApiException.BadRequest("Unexpected field");
+            throw new ValidationException(
+                [
+                    new FluentValidation.Results.ValidationFailure(
+                        "files", $"Unexpected multipart field '{unexpectedField}'; expected 'files'."),
+                ]);
         }
 
         var payload = ReadUploadPayload(form);
@@ -330,7 +335,9 @@ public static class DocsEndpoints
             catch (JsonException)
             {
                 // Frozen: JSON.parse threw inside @Transform — a bare 500.
-                throw new ApiException(500, "Internal server error");
+                // The handler is the mapper now: an unparseable payload string
+                // is our bug, not the caller's malformed request.
+                throw new InvalidOperationException("Unable to parse the 'payload' field as JSON.");
             }
         }
 

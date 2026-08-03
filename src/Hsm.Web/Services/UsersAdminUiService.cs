@@ -14,8 +14,8 @@ namespace Hsm.Web.Services;
 /// The admin policy is declared on the request types and enforced by the
 /// pipeline, so this service performs no authorization of its own —
 /// <see cref="ShellActor"/> only publishes WHO is calling. A non-admin
-/// circuit therefore fails with the pipeline's ApiException (403), the same
-/// refusal the REST surface renders, rather than a UI-local exception type.
+/// circuit therefore fails with the pipeline's ForbiddenException (403), the
+/// same refusal the REST surface renders, rather than a UI-local exception type.
 /// </summary>
 public sealed class UsersAdminUiService(
     ShellActor shellActor,

@@ -281,14 +281,12 @@ public sealed class AdminScreensTests(AdminScreensFactory factory)
 
         // Task 15 deleted UiServiceGate, whose UnauthorizedAccessException was
         // a second, UI-local authorization language. The refusal is now the
-        // pipeline's — the SAME 403 ApiException a REST caller gets, from the
-        // request type's own [RequireRole(Roles.Admin)]. What is asserted is
+        // pipeline's — the SAME 403 ForbiddenException a REST caller gets, from
+        // the request type's own [RequireRole(Roles.Admin)]. What is asserted is
         // still exactly what was asserted before: both calls are refused.
-        var listing = await Assert.ThrowsAsync<ApiException>(() => users.ListUsersAsync(1, 10));
-        Assert.Equal(403, listing.StatusCode);
-        var provisioning = await Assert.ThrowsAsync<ApiException>(() => integrations.ProvisionAsync(
+        await Assert.ThrowsAsync<ForbiddenException>(() => users.ListUsersAsync(1, 10));
+        await Assert.ThrowsAsync<ForbiddenException>(() => integrations.ProvisionAsync(
             new NewIntegrationAccountDto("intruso", "no debería existir", "dev")));
-        Assert.Equal(403, provisioning.StatusCode);
     }
 
     // ----- plumbing -------------------------------------------------------

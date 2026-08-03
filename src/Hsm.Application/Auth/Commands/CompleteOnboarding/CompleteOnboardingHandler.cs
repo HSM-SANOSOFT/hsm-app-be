@@ -1,3 +1,4 @@
+using FluentValidation;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Errors;
 
@@ -17,20 +18,24 @@ public sealed class CompleteOnboardingHandler(
 
         // AuthorizationBehavior has already refused an actor-less dispatch;
         // the throw keeps the same 401 if this ever runs outside the pipeline.
-        var actor = principal.Actor ?? throw ApiException.Unauthorized();
+        var actor = principal.Actor ?? throw new UnauthorizedException();
         var userId = Guid.Parse(actor.Id);
 
         var user = await users.FindByIdAsync(userId, ct)
-            ?? throw ApiException.NotFound($"User with id {userId} not found");
+            ?? throw new NotFoundException("User", actor.Id);
 
         if (!string.Equals(request.ConfirmEmail, user.Email, StringComparison.OrdinalIgnoreCase))
         {
-            throw ApiException.BadRequest("Confirmation email does not match the account email");
+            throw new ValidationException(
+                [
+                    new FluentValidation.Results.ValidationFailure(
+                        "confirmEmail", "Confirmation email does not match the account email."),
+                ]);
         }
 
         if (user.OnboardingCompletedAt is not null)
         {
-            throw ApiException.BadRequest("Onboarding already completed");
+            throw new ConflictException("Onboarding is already complete.");
         }
 
         user.PasswordHash = hasher.Hash(request.NewPassword);

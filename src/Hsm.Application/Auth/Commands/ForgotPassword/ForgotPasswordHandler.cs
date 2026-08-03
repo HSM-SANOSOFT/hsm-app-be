@@ -26,7 +26,7 @@ public sealed class ForgotPasswordHandler(
         var recent = await resetTokens.CountForUserSinceAsync(user.Id, since, ct);
         if (recent >= RecoveryPolicy.MaxRequestsPerHour)
         {
-            throw ApiException.TooManyRequests();
+            throw new TooManyRequestsException();
         }
 
         var plaintext = RandomNumberGenerator.GetHexString(64, lowercase: true);

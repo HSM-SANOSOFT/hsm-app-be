@@ -1,11 +1,12 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using FluentValidation;
+using FluentValidation.Results;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Serialization;
 using Hl7.Fhir.Utility;
 using Hl7.Fhir.Validation;
 using Hsm.Application.Clinical;
-using Hsm.Application.Errors;
 
 namespace Hsm.Api.Fhir;
 
@@ -33,7 +34,7 @@ public static class PatientFhirMapper
     {
         if (body is not JsonObject resource)
         {
-            throw Unprocessable("FHIR resource body must be a JSON object");
+            throw Unprocessable("body", "FHIR resource body must be a JSON object");
         }
 
         Validate(rawUtf8);
@@ -130,11 +131,11 @@ public static class PatientFhirMapper
             var structural = exception.Exceptions.FirstOrDefault(e => !IsTerminologyIssue(e));
             if (structural is not null)
             {
-                throw Unprocessable(structural.Message);
+                throw Unprocessable("resource", structural.Message);
             }
 
             parsed = exception.PartialResult as Resource
-                ?? throw Unprocessable(exception.Message);
+                ?? throw Unprocessable("resource", exception.Message);
         }
 
         if (parsed is not Patient)
@@ -142,7 +143,7 @@ public static class PatientFhirMapper
             // The frozen pipe validated any resource type and the controller
             // then silently treated it as a Patient; rejecting the mismatch
             // is a deliberate, documented divergence.
-            throw Unprocessable("Expected a Patient resource");
+            throw Unprocessable("resourceType", "Expected a Patient resource");
         }
     }
 
@@ -154,8 +155,12 @@ public static class PatientFhirMapper
         exception is CodedValidationException coded
         && coded.ErrorCode == CodedValidationException.INVALID_CODED_VALUE_CODE;
 
-    private static ApiException Unprocessable(string message) =>
-        new(StatusCodes.Status422UnprocessableEntity, message, errorLabel: "Unprocessable Entity");
+    /// <summary>
+    /// Rendered as 422 by <see cref="FhirResponses"/> only — every other door
+    /// treats a <see cref="ValidationException"/> as a 400.
+    /// </summary>
+    private static ValidationException Unprocessable(string field, string message) =>
+        new([new ValidationFailure(field, message)]);
 
     private static string? StringOf(JsonNode? node) =>
         node is JsonValue value && value.GetValueKind() == JsonValueKind.String

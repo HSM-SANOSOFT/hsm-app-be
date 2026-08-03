@@ -20,7 +20,7 @@ public sealed class UpdateSettingsHandler(
 
         // AuthorizationBehavior has already refused an actor-less dispatch;
         // the throw keeps the same 401 if this ever runs outside the pipeline.
-        var actor = principal.Actor ?? throw ApiException.Unauthorized();
+        var actor = principal.Actor ?? throw new UnauthorizedException();
 
         var rows = await store.FindByKeysAsync(
             [.. request.Updates.Select(u => u.Key).Distinct(StringComparer.Ordinal)], ct);

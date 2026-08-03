@@ -1,28 +1,24 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Hsm.Application.Errors;
+using FluentValidation;
+using FluentValidation.Results;
 
 namespace Hsm.Api.Http;
 
 /// <summary>
-/// A 400 whose envelope carries the frozen ValidationPipe shape:
-/// issue.code COMMON.VALIDATION, issue.message as a string array, and
-/// issue.errors as per-field machine-readable constraint keys.
+/// The 400 vehicle behind body and query validation. Retargeted onto
+/// FluentValidation's own <see cref="ValidationException"/> — the same type
+/// <see cref="Hsm.Api.Errors.HsmExceptionHandler"/> renders as a field-keyed
+/// problem+json response everywhere else. Deleted with this file in Task 3,
+/// once FluentValidation validators replace the hand-rolled Body/QueryValidator
+/// traversal.
 /// </summary>
-public sealed class ApiValidationException(
-    IReadOnlyList<string> messages,
-    IReadOnlyList<(string Field, IReadOnlyList<string> Constraints)> fieldConstraints)
-    : ApiException(400, "Validation failed", ApiErrorCode.Validation)
-{
-    public IReadOnlyList<string> Messages { get; } = messages;
-
-    public IReadOnlyList<(string Field, IReadOnlyList<string> Constraints)> FieldConstraints { get; } = fieldConstraints;
-}
+public sealed class ApiValidationException(IReadOnlyList<ValidationFailure> failures)
+    : ValidationException(failures);
 
 /// <summary>
 /// The shared failure collector behind body and query validation: ordered
-/// failures, grouped per field with distinct constraint keys when thrown as
-/// the frozen ValidationPipe envelope.
+/// failures, reported per field as FluentValidation failures when thrown.
 /// </summary>
 public sealed class ValidationFailures
 {
@@ -39,12 +35,8 @@ public sealed class ValidationFailures
             return;
         }
 
-        var messages = _failures.Select(f => f.Message).ToList();
-        var byField = _failures
-            .GroupBy(f => f.Field)
-            .Select(g => (g.Key, (IReadOnlyList<string>)g.Select(f => f.Key).Distinct().ToList()))
-            .ToList();
-        throw new ApiValidationException(messages, byField);
+        throw new ApiValidationException(
+            [.. _failures.Select(f => new ValidationFailure(f.Field, f.Message))]);
     }
 }
 
@@ -56,8 +48,6 @@ public sealed class ValidationFailures
 /// </summary>
 public sealed class BodyValidator
 {
-    private static readonly string[] MalformedJsonConstraint = ["malformedJson"];
-
     private readonly JsonObject _body;
     private readonly HashSet<string> _knownFields = new(StringComparer.Ordinal);
     private readonly ValidationFailures _failures = new();
@@ -88,7 +78,7 @@ public sealed class BodyValidator
         }
         catch (JsonException)
         {
-            throw new ApiValidationException(["Malformed JSON body"], [("body", MalformedJsonConstraint)]);
+            throw new ApiValidationException([new ValidationFailure("body", "Malformed JSON body")]);
         }
     }
 
@@ -756,21 +746,36 @@ public sealed class NestedValidator
     }
 }
 
-/// <summary>Route-parameter parsing pinned to the two frozen id postures.</summary>
+/// <summary>
+/// Route-parameter parsing pinned to the two frozen id postures.
+///
+/// <para>Both factories still exist only because their callers (Templates,
+/// Docs) have not migrated to <c>{id:guid}</c> route constraints yet — plan
+/// Tasks 7 and 8. Once every caller migrates, an unmatched route answers the
+/// same postures directly and this type is deleted with the rest of the file
+/// (Task 3).</para>
+/// </summary>
 public static class RouteParams
 {
-    /// <summary>The frozen ParseUUIDPipe surface: a malformed id is a 400.</summary>
+    /// <summary>
+    /// The frozen ParseUUIDPipe surface: a malformed id is a 400. Retargeted
+    /// onto <see cref="ValidationException"/> — the eventual per-module
+    /// <c>{id:guid}</c> constraint (Task 5 onward) makes a bad id an unmatched
+    /// route (404) instead, but that migration is module-by-module, not this
+    /// task's.
+    /// </summary>
     public static Guid PipedUuid(string id) =>
         Guid.TryParse(id, out var parsed)
             ? parsed
-            : throw ApiException.BadRequest("Validation failed (uuid is expected)");
+            : throw new ValidationException(
+                [new ValidationFailure("id", "Validation failed (uuid is expected)")]);
 
     /// <summary>
     /// The frozen no-pipe routes: a malformed id reached PostgreSQL, whose
-    /// uuid-cast failure surfaced as a bare 500. Pinned.
+    /// uuid-cast failure surfaced as a bare 500. Pinned by letting
+    /// <see cref="Guid.Parse(string)"/> throw its own <see cref="FormatException"/>
+    /// — outside the closed set, so <c>HsmExceptionHandler</c>'s default branch
+    /// answers the same bare 500 with no caller-facing detail.
     /// </summary>
-    public static Guid UnpipedUuid(string id) =>
-        Guid.TryParse(id, out var parsed)
-            ? parsed
-            : throw new ApiException(500, "Internal server error");
+    public static Guid UnpipedUuid(string id) => Guid.Parse(id);
 }

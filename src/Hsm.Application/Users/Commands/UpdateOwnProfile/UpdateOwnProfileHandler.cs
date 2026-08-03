@@ -17,11 +17,11 @@ public sealed class UpdateOwnProfileHandler(
 
         // AuthorizationBehavior has already refused an actor-less dispatch;
         // the throw keeps the same 401 if this ever runs outside the pipeline.
-        var actor = principal.Actor ?? throw ApiException.Unauthorized();
+        var actor = principal.Actor ?? throw new UnauthorizedException();
         var userId = Guid.Parse(actor.Id);
 
         var user = await users.FindByIdAsync(userId, ct)
-            ?? throw ApiException.NotFound($"User with id {userId} not found");
+            ?? throw new NotFoundException("User", actor.Id);
 
         var changed = false;
         if (request.FirstName is not null)

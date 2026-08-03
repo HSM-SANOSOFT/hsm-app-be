@@ -37,14 +37,11 @@ public sealed class PipelineAuthorizationTests(PipelineAuthorizationFactory fact
         using var scope = await SignedInScopeAsync(doctorId, "doctor");
         var dispatcher = scope.ServiceProvider.GetRequiredService<IDispatcher>();
 
-        var refusal = await Assert.ThrowsAsync<ApiException>(
-            () => dispatcher.Send(new ListUsersQuery(1, 10), CancellationToken.None));
-
-        // The pipeline's refusal: a message-less 403 (ApiException.Forbidden()).
+        // The pipeline's refusal: a message-less 403 (new ForbiddenException()).
         // A 401 here would mean the actor never reached the pipeline, and the
         // test would be passing for the wrong reason.
-        Assert.Equal(403, refusal.StatusCode);
-        Assert.Null(refusal.IssueMessage);
+        await Assert.ThrowsAsync<ForbiddenException>(
+            () => dispatcher.Send(new ListUsersQuery(1, 10), CancellationToken.None));
     }
 
     [Fact]
@@ -70,10 +67,8 @@ public sealed class PipelineAuthorizationTests(PipelineAuthorizationFactory fact
         await scope.ServiceProvider.GetRequiredService<ShellActor>().InstallAsync(CancellationToken.None);
         var dispatcher = scope.ServiceProvider.GetRequiredService<IDispatcher>();
 
-        var refusal = await Assert.ThrowsAsync<ApiException>(
+        await Assert.ThrowsAsync<UnauthorizedException>(
             () => dispatcher.Send(new ListUsersQuery(1, 10), CancellationToken.None));
-
-        Assert.Equal(401, refusal.StatusCode);
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using FluentValidation;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Coms;
 using Hsm.Application.Errors;
@@ -42,14 +43,15 @@ public sealed class ReceiveWebhookHandler(
             return new ReceiveWebhookResult(0, []);
         }
 
+        // A missing signing key is OUR misconfiguration, not the caller's
+        // malformed request.
         var signingKey = await SigningKeyForAsync(request.Provider, ct)
-            ?? throw ApiException.BadRequest($"No signing key configured for provider: {request.Provider}");
+            ?? throw new InvalidOperationException(
+                $"No signing key is configured for provider '{request.Provider}'.");
 
         if (!MandrillSignatureVerifier.Verify(request.Signature, request.RawBody, signingKey))
         {
-            // Frozen UnauthorizedException('Webhook signature invalid'):
-            // rejected before ANYTHING is parsed, persisted, or enqueued.
-            throw new ApiException(401, "Webhook signature invalid", errorLabel: "Unauthorized");
+            throw new UnauthorizedException("Webhook signature verification failed.");
         }
 
         JsonNode? payload;
@@ -59,7 +61,7 @@ public sealed class ReceiveWebhookHandler(
         }
         catch (JsonException)
         {
-            throw ApiException.BadRequest("Invalid webhook body: not valid JSON");
+            throw new ValidationException([new FluentValidation.Results.ValidationFailure("body", "Webhook body is not valid JSON.")]);
         }
 
         var normalized = MandrillWebhookAdapter.Normalize(payload);

@@ -1,3 +1,4 @@
+using FluentValidation;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Errors;
 using Hsm.Application.Ports;
@@ -10,7 +11,7 @@ public sealed class UploadDocumentsHandler(IDocumentStore store, IObjectStorage 
     public async Task<UploadDocumentsResult> HandleAsync(UploadDocumentsCommand request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var actor = principal.Actor ?? throw ApiException.Unauthorized();
+        var actor = principal.Actor ?? throw new UnauthorizedException();
         var userId = Guid.Parse(actor.Id);
 
         // Frozen matching: a queue per trimmed original filename; each
@@ -45,10 +46,12 @@ public sealed class UploadDocumentsHandler(IDocumentStore store, IObjectStorage 
             {
                 if (!fileQueues.TryGetValue(payloadFile.FileName, out var queue) || queue.Count == 0)
                 {
-                    throw new ApiException(
-                        500,
-                        $"No uploaded file matched payload filename=\"{payloadFile.FileName}\" (bucket=\"{item.Bucket}\")",
-                        errorLabel: "Internal Server Error");
+                    throw new ValidationException(
+                        [
+                            new FluentValidation.Results.ValidationFailure(
+                                "files",
+                                $"No uploaded file matched payload filename=\"{payloadFile.FileName}\" (bucket=\"{item.Bucket}\")"),
+                        ]);
                 }
 
                 var file = queue.Dequeue();
@@ -65,10 +68,12 @@ public sealed class UploadDocumentsHandler(IDocumentStore store, IObjectStorage 
 
         if (fileQueues.Count > 0)
         {
-            throw new ApiException(
-                500,
-                $"Uploaded files not referenced in payload: {string.Join(", ", fileQueues.Keys)}",
-                errorLabel: "Internal Server Error");
+            throw new ValidationException(
+                [
+                    new FluentValidation.Results.ValidationFailure(
+                        "files",
+                        $"Uploaded files not referenced in payload: {string.Join(", ", fileQueues.Keys)}"),
+                ]);
         }
 
         // Blob uploads first (frozen order), grouped per payload item;

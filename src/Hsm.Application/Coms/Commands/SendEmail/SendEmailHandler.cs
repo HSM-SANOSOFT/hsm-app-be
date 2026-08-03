@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using FluentValidation;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
 using Hsm.Application.Errors;
@@ -31,7 +32,7 @@ public sealed class SendEmailHandler(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var actor = principal.Actor ?? throw ApiException.Unauthorized();
+        var actor = principal.Actor ?? throw new UnauthorizedException();
         var userId = Guid.Parse(actor.Id);
 
         var template = await templates.FindByIdentifierAsync(request.EmailTemplate, ct: ct)
@@ -40,9 +41,11 @@ public sealed class SendEmailHandler(
         var issues = TemplateSchema.Validate(JsonNode.Parse(template.SchemaJson), request.Data);
         if (issues.Count > 0)
         {
-            // Frozen envelope: the issue carries only the message (the frozen
-            // filter dropped the issues array from the thrown payload).
-            throw new ApiException(400, "Template data validation failed");
+            // The schema issues already carry paths — they become per-field
+            // errors instead of one prose string.
+            throw new ValidationException(
+                issues.Select(i => new FluentValidation.Results.ValidationFailure(
+                    $"data.{i.Path}", $"expected {i.Expected}, got {i.Received}")));
         }
 
         var suppressed = await suppressions.SuppressedAmongAsync([.. request.ToEmails], ct);

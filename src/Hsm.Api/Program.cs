@@ -3,6 +3,7 @@ using Hsm.Api;
 using Hsm.Api.Auth;
 using Hsm.Api.Coms;
 using Hsm.Api.Docs;
+using Hsm.Api.Errors;
 using Hsm.Api.Fhir;
 using Hsm.Api.Health;
 using Hsm.Api.Http;
@@ -13,6 +14,8 @@ using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
 using Hsm.Infrastructure;
 using Hsm.Infrastructure.Telemetry;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
@@ -76,6 +79,15 @@ builder.Services.AddSingleton(new AuthWebOptions
 });
 builder.Services.AddSingleton<CsrfProtection>();
 
+// RFC 9457 for every failure on this door. traceId is attached HERE, once, so
+// a mapping branch cannot ship without it — and the Activity id is preferred
+// over TraceIdentifier because that is what a reader will find in the traces.
+builder.Services.AddProblemDetails(options =>
+    options.CustomizeProblemDetails = context =>
+        context.ProblemDetails.Extensions["traceId"] =
+            System.Diagnostics.Activity.Current?.Id ?? context.HttpContext.TraceIdentifier);
+builder.Services.AddExceptionHandler<HsmExceptionHandler>();
+
 // Frozen per-IP throttle on the account-recovery routes: 10 per 60s per
 // route (auth.controller.ts @Throttle long).
 builder.Services.AddRateLimiter(limiter =>
@@ -91,20 +103,31 @@ builder.Services.AddRateLimiter(limiter =>
             }));
     limiter.OnRejected = async (context, cancellationToken) =>
     {
-        // The frozen ThrottlerException envelope carried only the
-        // status-mapped code (its payload was a bare string).
-        await ApiEnvelope.WriteErrorAsync(
-            context.HttpContext,
-            StatusCodes.Status429TooManyRequests,
-            []);
+        // The rejection never reaches an endpoint, so nothing throws — the 429
+        // problem is written here directly, in the same shape the handler
+        // produces for TooManyRequestsException.
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        await context.HttpContext.RequestServices
+            .GetRequiredService<IProblemDetailsService>()
+            .TryWriteAsync(new ProblemDetailsContext
+            {
+                HttpContext = context.HttpContext,
+                ProblemDetails = new ProblemDetails
+                {
+                    Status = StatusCodes.Status429TooManyRequests,
+                    Title = "Too Many Requests",
+                },
+            });
     };
 });
 
 var app = builder.Build();
 
-// API failures render the frozen error envelope (scoped to /v1/*); the FHIR
-// surface renders OperationOutcome through its own wrapper.
-app.UseApiErrorEnvelope();
+// RFC 9457 problem+json for every failure on this door — the ONE place an
+// exception becomes a response (HsmExceptionHandler). Placed first so
+// everything downstream, including the antiforgery middleware Task 12 adds,
+// renders through it.
+app.UseExceptionHandler();
 
 if (!app.Environment.IsDevelopment())
 {

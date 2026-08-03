@@ -7,6 +7,7 @@
   <ItemGroup>
     <PackageVersion Include="AWSSDK.S3" Version="4.0.101.5" />
     <PackageVersion Include="BCrypt.Net-Next" Version="4.2.0" />
+    <PackageVersion Include="FluentValidation" Version="12.1.1" />
     <PackageVersion Include="Handlebars.Net" Version="2.1.6" />
     <PackageVersion Include="Hl7.Fhir.R4" Version="6.3.0" />
     <PackageVersion Include="MeiliSearch" Version="0.20.0" />

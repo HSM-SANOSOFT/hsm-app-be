@@ -15,17 +15,17 @@ public sealed class LogoutIntegrationHandler(
 
         var principal = (await codec.ValidateAsync(request.Token, TokenKind.Access, ignoreExpiration: true)).Principal
             ?? (await codec.ValidateAsync(request.Token, TokenKind.Refresh, ignoreExpiration: true)).Principal
-            ?? throw ApiException.Unauthorized("Invalid token");
+            ?? throw new UnauthorizedException("Invalid token");
 
         if (!principal.IsIntegration)
         {
-            throw ApiException.Unauthorized("Not an integration token");
+            throw new UnauthorizedException("Not an integration token");
         }
 
         var affected = await integrationTokens.DeactivateActiveAsync(Guid.Parse(principal.Id), ct);
         if (affected == 0)
         {
-            throw ApiException.BadRequest("already logged out");
+            throw new ConflictException("No active session to end.");
         }
 
         await unitOfWork.SaveChangesAsync(ct);

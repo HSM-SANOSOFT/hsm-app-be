@@ -10,10 +10,10 @@ public sealed class GetDocumentHandler(IDocumentStore store, ICurrentPrincipal p
     public async Task<Document> HandleAsync(GetDocumentQuery request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var actor = principal.Actor ?? throw ApiException.Unauthorized();
+        var actor = principal.Actor ?? throw new UnauthorizedException();
         var userId = Guid.Parse(actor.Id);
 
         return await store.FindWithVersionsAsync(request.Id, userId, ct)
-            ?? throw ApiException.NotFound($"Document '{request.Id}' not found");
+            ?? throw new NotFoundException("Document", request.Id);
     }
 }

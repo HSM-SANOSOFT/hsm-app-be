@@ -17,10 +17,7 @@ public sealed class CreatePatientHandler(IPatientStore patients) : IRequestHandl
         var pairs = input.Identifiers.Select(i => (i.System, i.Value)).ToList();
         if (pairs.Count > 0 && await patients.AnyIdentifierExistsAsync(pairs, ct))
         {
-            throw new ApiException(
-                409,
-                "A patient with one of these identifiers already exists",
-                errorLabel: "Conflict");
+            throw new ConflictException("A patient with one of these identifiers already exists");
         }
 
         var now = DateTimeOffset.UtcNow;

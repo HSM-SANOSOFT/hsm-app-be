@@ -1,15 +1,16 @@
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Hsm.Application;
-using Hsm.Application.Errors;
 
 namespace Hsm.Api.Http;
 
 /// <summary>
-/// The frozen response envelope (response.interceptor.ts / response.filter.ts):
-/// success wraps payloads as { metadata, data }, errors as { metadata, issue }
-/// with a stable machine-readable issue.code. Integration consumers depend on
-/// this shape — it is contract, not decoration.
+/// The frozen response envelope (response.interceptor.ts), surviving here for
+/// the eleven /v1/auth routes and any module route Tasks 5-10 have not yet
+/// reshaped: success wraps payloads as { metadata, data }. The error half —
+/// IssueFor/WriteErrorAsync/ValidationIssue/CodeForStatus — is gone; failures
+/// render RFC 9457 problem+json through <see cref="Hsm.Api.Errors.HsmExceptionHandler"/>
+/// now. Task 13 deletes this type once the surviving routes reshape.
 /// </summary>
 public static partial class ApiEnvelope
 {
@@ -34,92 +35,6 @@ public static partial class ApiEnvelope
 
         return Results.Json(body, statusCode: statusCode);
     }
-
-    public static async Task WriteErrorAsync(HttpContext ctx, int statusCode, JsonObject issue)
-    {
-        // Guarantee a stable code on every error envelope.
-        issue["code"] ??= CodeForStatus(statusCode);
-
-        var body = new JsonObject
-        {
-            ["metadata"] = Metadata(ctx, statusCode, success: false),
-            ["issue"] = issue,
-        };
-        ctx.Response.StatusCode = statusCode;
-        await ctx.Response.WriteAsJsonAsync(body);
-    }
-
-    public static JsonObject IssueFor(ApiException exception)
-    {
-        if (exception is ApiValidationException webValidation)
-        {
-            return ValidationIssue(webValidation.Messages, webValidation.FieldConstraints);
-        }
-
-        if (exception.ValidationFailures.Count > 0)
-        {
-            var messages = exception.ValidationFailures.Select(f => f.Message).ToList();
-            var byField = exception.ValidationFailures
-                .GroupBy(f => f.Field)
-                .Select(g => (g.Key, (IReadOnlyList<string>)g.Select(f => f.Key).Distinct().ToList()))
-                .ToList();
-            return ValidationIssue(messages, byField);
-        }
-
-        var issue = new JsonObject();
-        if (exception.IssueMessage is not null)
-        {
-            issue["message"] = exception.IssueMessage;
-        }
-
-        if (exception.ErrorLabel is not null)
-        {
-            issue["error"] = exception.ErrorLabel;
-        }
-
-        if (exception.Code is not null)
-        {
-            issue["code"] = exception.Code;
-        }
-
-        return issue;
-    }
-
-    /// <summary>
-    /// The frozen ValidationPipe issue shape shared by this host's edge-level
-    /// ApiValidationException and Hsm.Application's ApiException.Validation:
-    /// issue.message as an ordered string array, issue.errors as per-field
-    /// distinct constraint keys.
-    /// </summary>
-    private static JsonObject ValidationIssue(
-        IReadOnlyList<string> messages, IReadOnlyList<(string Field, IReadOnlyList<string> Constraints)> fieldConstraints)
-    {
-        var issue = new JsonObject { ["code"] = ApiErrorCode.Validation };
-        var messageArray = new JsonArray();
-        foreach (var message in messages)
-        {
-            messageArray.Add(message);
-        }
-
-        issue["message"] = messageArray;
-        var errors = new JsonArray();
-        foreach (var (field, constraints) in fieldConstraints)
-        {
-            var keys = new JsonArray();
-            foreach (var key in constraints)
-            {
-                keys.Add(key);
-            }
-
-            errors.Add(new JsonObject { ["field"] = field, ["constraints"] = keys });
-        }
-
-        issue["errors"] = errors;
-        return issue;
-    }
-
-    /// <summary>The frozen status→code fallback map (response.filter.ts).</summary>
-    private static string CodeForStatus(int status) => ErrorStatusCodes.For(status).EnvelopeCode;
 
     /// <summary>
     /// The frozen buildPaginationMeta shape: metadata.extra.pagination with

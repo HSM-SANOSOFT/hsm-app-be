@@ -29,7 +29,7 @@ public sealed class DocumentsAdminUiService(
         int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var actor = await shellActor.InstallAsync(cancellationToken)
-            ?? throw ApiException.Unauthorized();
+            ?? throw new UnauthorizedException();
         // The frozen createdBy scoping: this screen lists the signed-in
         // admin's own uploads. Whether that caller may list at all is
         // ListDocumentsQuery's policy, decided in the pipeline a line later.
