@@ -8,7 +8,7 @@ namespace Hsm.Contract.Tests.Shell;
 /// is redirected to sign-in, the sign-in placeholder renders anonymously, and
 /// a session signed in through the REST login cookie reaches the shell.
 /// </summary>
-public sealed class ShellFactory : ContractApiFactory
+public sealed class ShellFactory : ContractShellFactory
 {
     protected override string DatabaseName => "hsm_shell_test";
 }

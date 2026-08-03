@@ -20,6 +20,27 @@ transliterate it.
 - The .NET solution (`Hsm.sln`, `src/`, `tests/`) is standing up incrementally.
   If `Hsm.sln` does not exist yet, the solution-foundation units of the plan have
   not landed — check the plan before assuming structure.
+- **Conventions:** `docs/reference/dotnet-conventions.md` — one-page reference for exactly which
+  project and folder a given kind of code (entity, command, query, validator, port, adapter,
+  endpoint, Blazor page, UI service, each test kind) belongs in, the dependency arrows between
+  projects, and the pipeline behavior order. Read it before adding a new module slice.
+
+### Projects
+
+Libraries, named by layer — `Hsm.Domain` (entities), `Hsm.Application` (CQRS
+commands/queries/handlers, ports, the pipeline), `Hsm.Contracts` (UI service interfaces; the
+client-isolation leaf — no `Hsm.*` references), `Hsm.Infrastructure` (adapters: EF Core/Npgsql,
+S3, Meilisearch, Redis, job queue).
+
+Deployables, named by the door they open onto that same core — `Hsm.Api` (REST + FHIR,
+stateless), `Hsm.Web` (the staff Blazor Server shell, dispatching in-process), `Hsm.Worker` (the
+durable Redis Streams job consumer + scheduled work). None of the three talks to another over
+HTTP; each can be built, deployed, and restarted independently.
+
+Four test projects — `Hsm.Tests` (unit + architecture/boundary tests), `Hsm.Contract.Tests`
+(pinned to the frozen HTTP contract, exercises HTTP and never names a handler class),
+`Hsm.Integration.Tests` (real Postgres/Redis/RustFS containers), `Hsm.Web.Tests` (bUnit component
+tests against `.razor` pages).
 
 ## Commands (inside the dev container)
 
@@ -27,21 +48,29 @@ transliterate it.
 # Infra (the dev container's runServices already starts these)
 docker compose -f docker/docker-compose.yaml up -d postgres redis rustfs meilisearch otel-collector
 
-# Build / test (once Hsm.sln exists)
+# Build / test (once Hsm.sln exists) — mirrors .github/workflows/pr-validation.yml
 dotnet build Hsm.sln
-dotnet test Hsm.sln --filter "FullyQualifiedName!~Integration"   # unit only
-dotnet test tests/Hsm.Integration.Tests                          # real infra
+dotnet test tests/Hsm.Tests && dotnet test tests/Hsm.Web.Tests   # fast, no infra (CI's unit-tests job)
+dotnet test tests/Hsm.Integration.Tests                          # real Postgres/Redis/RustFS/Meilisearch
+dotnet test tests/Hsm.Contract.Tests                             # same infra; needs a live Postgres too
+dotnet test Hsm.sln                                              # full gate, all four test projects
 dotnet format Hsm.sln --verify-no-changes                        # lint gate
 
-# Run the app host
-dotnet run --project src/Hsm.Web        # app on :5000 (published to host)
+# Apply the schema — an explicit step, never done on host boot
+dotnet run --project src/Hsm.Api -- --migrate
+
+# Run the hosts (three doors onto one core — any subset runs without the others)
+dotnet run --project src/Hsm.Web        # staff shell on :5000 (published to host)
+dotnet run --project src/Hsm.Api        # REST/FHIR on :5001 (published to host)
+dotnet run --project src/Hsm.Worker     # durable job consumer + scheduler, no HTTP surface
 ```
 
 ### Infra port map (host)
 
 | Service | Host port |
 | --------- | ----------- |
-| App (Hsm.Web, run locally) | 5000 |
+| Staff shell (Hsm.Web, run locally) | 5000 |
+| REST/FHIR API (Hsm.Api, run locally) | 5001 |
 | Postgres | 10004 |
 | Redis | 10005 |
 | RustFS (S3) | 10006 |
@@ -71,7 +100,7 @@ working tree.
 
 ## Oracle database constraint
 
-The Oracle database (`DB_ORACLE_*`) is the **production legacy system**. You may only issue `SELECT` or `UPDATE` queries against it. **Never issue `DELETE`, `DROP`, `ALTER`, `CREATE`, or any DDL/destructive statement** against Oracle. No schema changes, no new tables, no migrations targeting Oracle.
+The Oracle database (`DB_ORACLE_*`) is the **production legacy system**. You may only issue `SELECT` queries against it. **Never issue `DELETE`, `DROP`, `ALTER`, `CREATE`, or any DDL/destructive statement** against Oracle. No schema changes, no new tables, no migrations targeting Oracle.
 
 The rewritten application has **no runtime Oracle connection** (PostgreSQL
 only) — but the legacy system remains in production and the constraint applies
@@ -80,7 +109,7 @@ to any tooling or session that reaches it.
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **hsm-app** (4037 symbols, 9529 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **hsm-app** (4012 symbols, 9523 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 

@@ -18,9 +18,7 @@ public sealed class ProvingAggregateTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _provider = TestServices.Build();
-        using var scope = _provider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<HsmDbContext>();
-        await db.Database.EnsureCreatedAsync();
+        await TestServices.MigrateAsync(_provider);
     }
 
     public async Task DisposeAsync() => await _provider.DisposeAsync();

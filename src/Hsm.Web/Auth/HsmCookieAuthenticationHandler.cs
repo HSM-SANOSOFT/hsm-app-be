@@ -7,12 +7,13 @@ namespace Hsm.Web.Auth;
 
 /// <summary>
 /// The shell's authentication scheme: validates the access-token cookie (or
-/// bearer header) through the same token transport and codec the REST surface
-/// uses (<see cref="RequestAuth"/>), so a browser session signs in exactly
-/// once, via <c>POST /v1/auth/login</c>. Only Blazor page endpoints carry
-/// authorization metadata — the /v1 API keeps its own frozen guard chain and
-/// never challenges. A failed or absent session on a protected page redirects
-/// to the sign-in page.
+/// bearer header) through the same token transport (<see cref="RequestAuth"/>)
+/// and the same <c>IAuthTokenCodec</c> the REST door uses, so a browser
+/// session signs in exactly once — at this host's sign-in screen or at
+/// <c>Hsm.Api</c>'s <c>POST /v1/auth/login</c>, interchangeably, because both
+/// write <c>AuthCookiePolicy</c>'s cookies. Every endpoint in this host is a
+/// Blazor page, so a failed or absent session on a protected page redirects
+/// to the sign-in page rather than 401-ing.
 /// </summary>
 public sealed class HsmCookieAuthenticationHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options,

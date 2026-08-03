@@ -13,7 +13,6 @@ namespace Hsm.Contract.Tests.Routes;
 /// drift in the other direction (no unaccounted-for implemented API route,
 /// no allowlisted operation that is silently implemented after all).
 /// </summary>
-[Trait("Infra", "true")]
 public sealed class RouteClosureTests(RouteClosureTests.RoutesFactory factory)
     : IClassFixture<RouteClosureTests.RoutesFactory>
 {

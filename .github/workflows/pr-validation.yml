@@ -65,8 +65,29 @@ jobs:
       - name: Build (warnings as errors via Directory.Build.props)
         run: |
           dotnet build Hsm.sln --configuration Release
+      # The schema is only ever created by migrations now (Hsm.Api -- --migrate;
+      # the test fixtures apply them too). A model change WITHOUT a matching
+      # migration would therefore build, test green against every already-
+      # migrated database, and then produce a wrong schema the first time
+      # someone created a real one. This step is what makes that impossible:
+      # it compares the model against the migrations snapshot and exits
+      # non-zero when they disagree. dotnet-ef is pinned in
+      # .config/dotnet-tools.json so CI and developers run the same tool.
+      - name: Restore .NET local tools (dotnet-ef)
+        run: dotnet tool restore
+      - name: Migration drift check (model must have a migration)
+        run: |
+          dotnet dotnet-ef migrations has-pending-model-changes \
+            --project src/Hsm.Infrastructure \
+            --startup-project src/Hsm.Api \
+            --configuration Release
 
-  # --- unit tests: no live infrastructure (Domain/Application/Architecture) ------
+  # --- unit tests: no live infrastructure ----------------------------------------
+  # Hsm.Tests is the only infrastructure-free project (DI resolution and
+  # architecture assertions only, no live host); Hsm.Web.Tests renders Blazor
+  # components against bunit's in-memory container. Contract suites that need a
+  # live host (Postgres and, for Docs, RustFS) run in the integration-tests job
+  # below.
   unit-tests:
     runs-on: ubuntu-latest
     steps:
@@ -76,14 +97,9 @@ jobs:
         with:
           dotnet-version: 10.0.x
       - name: Run unit tests
-        run: |
-          # Contract suites needing a live host (Postgres and, for Docs,
-          # RustFS) carry the Infra trait via their shared base classes and
-          # run in the integration-tests job below; everything untraited
-          # (Domain/Application/Architecture + host-free contract tests like
-          # CircuitMetricsTests) runs here.
-          dotnet test Hsm.sln --configuration Release \
-            --filter "FullyQualifiedName!~Integration&Infra!=true"
+        run: dotnet test tests/Hsm.Tests --configuration Release
+      - name: Run component tests
+        run: dotnet test tests/Hsm.Web.Tests --configuration Release
 
   # --- integration tests: real Postgres/Redis/RustFS, same shape as local dev ----
   # Mocks cannot prove EF Core change tracking, migration correctness, or S3

@@ -20,6 +20,9 @@ public sealed class ComsApiFactory : ContractApiFactory
 
     protected override string DatabaseName => "hsm_coms_test";
 
+    /// <summary>This suite waits on queued sends, so its host also consumes them.</summary>
+    protected override bool ConsumesJobs => true;
+
     protected override void ConfigureModule(IWebHostBuilder builder)
     {
         builder.UseSetting(

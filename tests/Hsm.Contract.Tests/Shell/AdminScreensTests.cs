@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Amazon.S3;
 using Hsm.Application.Auth;
+using Hsm.Application.Errors;
 using Hsm.Contracts.Ui;
 using Hsm.Web.Auth;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -19,7 +20,7 @@ namespace Hsm.Contract.Tests.Shell;
 /// screen's UI-service data path working end to end against real
 /// PostgreSQL/RustFS.
 /// </summary>
-public sealed class AdminScreensFactory : ContractApiFactory
+public sealed class AdminScreensFactory : ContractShellFactory
 {
     public const string Bucket = "hsm-admin-screens-tests";
 
@@ -268,7 +269,7 @@ public sealed class AdminScreensTests(AdminScreensFactory factory)
     }
 
     [Fact]
-    public async Task Non_admin_session_is_blocked_at_the_ui_service_gate()
+    public async Task Non_admin_session_is_blocked_by_the_pipeline()
     {
         var doctorId = await Factory.SeedUserAsync(
             Unique("gate_doctor"), "Contract-Passw0rd", "doctor", DateTimeOffset.UtcNow);
@@ -277,9 +278,16 @@ public sealed class AdminScreensTests(AdminScreensFactory factory)
         var users = scope.ServiceProvider.GetRequiredService<IUsersAdminUiService>();
         var integrations = scope.ServiceProvider.GetRequiredService<IIntegrationAccountsUiService>();
 
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => users.ListUsersAsync(1, 10));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => integrations.ProvisionAsync(
+        // Task 15 deleted UiServiceGate, whose UnauthorizedAccessException was
+        // a second, UI-local authorization language. The refusal is now the
+        // pipeline's — the SAME 403 ApiException a REST caller gets, from the
+        // request type's own [RequireRole(Roles.Admin)]. What is asserted is
+        // still exactly what was asserted before: both calls are refused.
+        var listing = await Assert.ThrowsAsync<ApiException>(() => users.ListUsersAsync(1, 10));
+        Assert.Equal(403, listing.StatusCode);
+        var provisioning = await Assert.ThrowsAsync<ApiException>(() => integrations.ProvisionAsync(
             new NewIntegrationAccountDto("intruso", "no debería existir", "dev")));
+        Assert.Equal(403, provisioning.StatusCode);
     }
 
     // ----- plumbing -------------------------------------------------------
@@ -290,7 +298,7 @@ public sealed class AdminScreensTests(AdminScreensFactory factory)
     /// <summary>
     /// A service scope carrying the authenticated principal the way the shell
     /// does: the validated session lands in the scoped authentication state
-    /// provider, and the UI services gate on it.
+    /// provider, and the UI services derive the pipeline's actor from it.
     /// </summary>
     private IServiceScope CreateUiScope(Guid userId, string role)
     {

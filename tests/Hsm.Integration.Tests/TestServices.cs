@@ -1,4 +1,6 @@
 using Hsm.Infrastructure;
+using Hsm.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -29,7 +31,9 @@ public static class TestServices
         .AddEnvironmentVariables()
         .Build();
 
-    public static ServiceProvider Build(Action<IConfigurationBuilder>? customize = null)
+    public static ServiceProvider Build(
+        Action<IConfigurationBuilder>? customize = null,
+        Action<IServiceCollection>? customizeServices = null)
     {
         var configuration = Configuration;
         if (customize is not null)
@@ -42,6 +46,38 @@ public static class TestServices
         var services = new ServiceCollection();
         services.AddSingleton(configuration);
         services.AddHsmInfrastructure(configuration);
+        customizeServices?.Invoke(services);
         return services.BuildServiceProvider();
+    }
+
+    /// <summary>
+    /// Brings a suite's database to the current schema the way a deployment
+    /// does — by APPLYING MIGRATIONS, the same path
+    /// <c>Hsm.Api -- --migrate</c> takes.
+    ///
+    /// It used to be <c>EnsureCreated</c>, which builds the schema straight
+    /// from the model and never reads a migration: a migration that had
+    /// drifted from the model would still have passed every test here, and the
+    /// first real database created from it would have been wrong. Now the
+    /// tests run on the artifact that ships, so drift fails the suite.
+    /// </summary>
+    public static async Task MigrateAsync(IServiceProvider provider)
+    {
+        using var scope = provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HsmDbContext>();
+        await db.Database.MigrateAsync();
+    }
+
+    /// <summary>
+    /// The same, for suites that need a schema no earlier run can have left
+    /// rows in: drop the database, then migrate it back up from nothing —
+    /// which also proves the baseline applies to an empty database.
+    /// </summary>
+    public static async Task RecreateAsync(IServiceProvider provider)
+    {
+        using var scope = provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HsmDbContext>();
+        await db.Database.EnsureDeletedAsync();
+        await db.Database.MigrateAsync();
     }
 }

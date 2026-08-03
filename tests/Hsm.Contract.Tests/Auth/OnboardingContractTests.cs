@@ -27,16 +27,17 @@ public sealed class OnboardingContractTests(AuthApiFactory factory)
     {
         var (_, _, login) = await SeedPendingStaffAsync();
 
-        // A non-@AllowPending route: blocked with the frozen message.
+        // A non-@AllowPending route: blocked.
         var blocked = await Api.PostJsonAsync(
             Client,
             "/v1/auth/pin/generate",
             new { purpose = "email_verification", target = "x@contract.test" },
             bearer: login.AccessToken);
         var issue = AssertErrorEnvelope(blocked, 403, "COMMON.FORBIDDEN");
-        Assert.Equal(
-            "Onboarding required: complete first-login onboarding to continue",
-            issue.GetProperty("message").GetString());
+        // Task 15: the onboarding gate moved off the edge. GeneratePinCommand
+        // is not [AllowPendingOnboarding], so AuthorizationBehavior refuses —
+        // with the status and stable code above and no message.
+        Assert.False(issue.TryGetProperty("message", out _));
 
         // @AllowPending routes stay reachable so completion can't deadlock.
         var profile = await Api.GetAsync(Client, "/v1/auth/profile", bearer: login.AccessToken);

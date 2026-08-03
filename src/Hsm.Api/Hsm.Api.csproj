@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Hsm.Application\Hsm.Application.csproj" />
+    <ProjectReference Include="..\Hsm.Contracts\Hsm.Contracts.csproj" />
+    <ProjectReference Include="..\Hsm.Infrastructure\Hsm.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- FHIR R4 validation/parsing at the API edge only (frozen @medplum/core
+         validateResource replacement). Application/Domain never see it. -->
+    <PackageReference Include="Hl7.Fhir.R4" />
+    <!-- Design-time only. `dotnet ef` requires the STARTUP project to
+         reference this package: the migrations live in Hsm.Infrastructure but
+         the host that composes the DbContext from configuration is this one,
+         so the scaffolder boots it. PrivateAssets keeps the assembly out of
+         the published output and off every consumer. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <!-- The rest of the OpenTelemetry stack (OTLP/console exporters, hosting
+         extensions, HTTP/runtime/Npgsql instrumentation) is a transitive
+         dependency of Hsm.Infrastructure, which owns AddHsmTelemetry — this
+         package alone is ASP.NET-Core-specific, so it stays a direct
+         reference here (see TelemetryRegistration's doc comment for why it
+         cannot live in the shared assembly: Hsm.Worker's runtime image has no
+         ASP.NET Core shared framework). -->
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+  </ItemGroup>
+
+</Project>

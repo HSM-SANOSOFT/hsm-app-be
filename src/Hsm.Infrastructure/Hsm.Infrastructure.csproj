@@ -12,9 +12,29 @@
     <PackageReference Include="MeiliSearch" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+    <!-- Design-time only (migrations scaffolding); never flows to consumers
+         or ships in the published output. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="QuestPDF" />
+    <PackageReference Include="StackExchange.Redis" />
+    <!-- Telemetry (Task 23): the shared AddHsmTelemetry registration lives
+         here, so its packages do too. OpenTelemetry.Instrumentation.AspNetCore
+         is deliberately NOT here — see TelemetryRegistration's doc comment;
+         it stays a direct reference of Hsm.Api/Hsm.Web only. `console` uses
+         the official exporter package below; `file` has no official package
+         to use (none exists) and stays a small hand-rolled BaseExporter
+         (FileLineExporter, in TelemetryRegistration.cs). -->
+    <PackageReference Include="Npgsql.OpenTelemetry" />
+    <PackageReference Include="OpenTelemetry.Exporter.Console" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
   </ItemGroup>
 
   <PropertyGroup>

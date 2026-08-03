@@ -9,9 +9,8 @@ namespace Hsm.Contract.Tests;
 /// (and, per module, RustFS), so CI's unit job filters them out with
 /// Infra!=true.
 /// </summary>
-[Trait("Infra", "true")]
 public abstract class ContractTest<TFactory>(TFactory factory) : IAsyncLifetime
-    where TFactory : ContractApiFactory
+    where TFactory : IContractHost
 {
     protected TFactory Factory { get; } = factory;
 

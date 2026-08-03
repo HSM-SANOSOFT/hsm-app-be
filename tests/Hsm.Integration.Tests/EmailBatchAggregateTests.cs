@@ -18,8 +18,8 @@ public sealed class EmailBatchAggregateTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        // A database dedicated to this suite: the schema is recreated per run,
-        // which EnsureCreated alone would skip on a stale shared database.
+        // A database dedicated to this suite: dropped and migrated back per
+        // run, so no earlier run's rows can be mistaken for this one's.
         var configured = TestServices.Configuration["ConnectionStrings:HsmDb"]!;
         var dedicated = string.Join(
             ';',
@@ -33,10 +33,7 @@ public sealed class EmailBatchAggregateTests : IAsyncLifetime
                 ["ConnectionStrings:HsmDb"] = dedicated,
             }));
 
-        using var scope = _provider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<HsmDbContext>();
-        await db.Database.EnsureDeletedAsync();
-        await db.Database.EnsureCreatedAsync();
+        await TestServices.RecreateAsync(_provider);
     }
 
     public async Task DisposeAsync() => await _provider.DisposeAsync();

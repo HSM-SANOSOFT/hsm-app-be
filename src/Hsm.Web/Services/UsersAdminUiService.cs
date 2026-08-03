@@ -1,24 +1,31 @@
-using Hsm.Application.Users;
+using Hsm.Application.Abstractions;
+using Hsm.Application.Users.Commands.ChangeUserRole;
+using Hsm.Application.Users.Commands.CreateStaffUser;
+using Hsm.Application.Users.Queries.ListUsers;
 using Hsm.Contracts.Ui;
 using Hsm.Domain.Identity;
+using Hsm.Web.Auth;
 
 namespace Hsm.Web.Services;
 
 /// <summary>
-/// Host-side user administration (plan U18, screen 2): admin gate first, then
-/// the same transactional handlers the frozen /v1/user endpoints call.
+/// Host-side user administration (plan U18, screen 2): the same commands and
+/// queries the frozen /v1/user endpoints dispatch, through the same pipeline.
+/// The admin policy is declared on the request types and enforced by the
+/// pipeline, so this service performs no authorization of its own —
+/// <see cref="ShellActor"/> only publishes WHO is calling. A non-admin
+/// circuit therefore fails with the pipeline's ApiException (403), the same
+/// refusal the REST surface renders, rather than a UI-local exception type.
 /// </summary>
 public sealed class UsersAdminUiService(
-    UiServiceGate gate,
-    ListUsersHandler listUsers,
-    CreateStaffHandler createStaff,
-    ChangeUserRoleHandler changeRole) : IUsersAdminUiService
+    ShellActor shellActor,
+    IDispatcher dispatcher) : IUsersAdminUiService
 {
     public async Task<UserListPageDto> ListUsersAsync(
         int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        await gate.RequireAdminAsync();
-        var result = await listUsers.HandleAsync(page, pageSize, cancellationToken);
+        await shellActor.InstallAsync(cancellationToken);
+        var result = await dispatcher.Send(new ListUsersQuery(page, pageSize), cancellationToken);
         return new UserListPageDto(
             [.. result.Users.Select(ToRow)], result.Page, result.PageSize, result.TotalItems);
     }
@@ -26,9 +33,11 @@ public sealed class UsersAdminUiService(
     public async Task<UserRowDto> CreateStaffAsync(
         NewStaffUserDto command, CancellationToken cancellationToken = default)
     {
-        await gate.RequireAdminAsync();
-        var created = await createStaff.HandleAsync(
-            new CreateStaffHandler.Command(
+        ArgumentNullException.ThrowIfNull(command);
+
+        await shellActor.InstallAsync(cancellationToken);
+        var created = await dispatcher.Send(
+            new CreateStaffUserCommand(
                 command.Username,
                 command.Email,
                 command.FirstName,
@@ -45,24 +54,27 @@ public sealed class UsersAdminUiService(
     public async Task<UserRowDto> ChangeRoleAsync(
         string userId, string role, CancellationToken cancellationToken = default)
     {
-        await gate.RequireAdminAsync();
+        await shellActor.InstallAsync(cancellationToken);
         if (RoleCatalog.DomainOf(role) is null)
         {
             // The endpoint's isIn validation equivalent: unknown roles are
-            // rejected before they reach the handler.
+            // rejected before they reach the pipeline.
             throw new ArgumentException($"Rol desconocido: '{role}'.", nameof(role));
         }
 
-        var user = await changeRole.HandleAsync(Guid.Parse(userId), role, cancellationToken);
+        var user = await dispatcher.Send(
+            new ChangeUserRoleCommand(Guid.Parse(userId), role), cancellationToken);
         return ToRow(user);
     }
 
     public async Task<IReadOnlyList<string>> GetAssignableRolesAsync(
         CancellationToken cancellationToken = default)
     {
-        await gate.RequireAdminAsync();
+        // No dispatch, so no policy: this reads a compile-time constant
+        // (RoleCatalog) and discloses nothing about any account. The screen
+        // that calls it is [Authorize(Roles = admin)] at the routing layer.
         // Staff provisioning excludes the patient-facing roles (frozen guard).
-        return [.. RoleCatalog.All.Where(r => r is not (Roles.Patient or Roles.Family))];
+        return [.. RoleCatalog.All.Where(RoleCatalog.IsAssignableToStaff)];
     }
 
     private static UserRowDto ToRow(User user)

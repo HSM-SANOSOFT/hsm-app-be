@@ -106,6 +106,15 @@ public static class RoleCatalog
 
     public static bool IsKnown(string role) => DomainByRole.ContainsKey(role);
 
+    /// <summary>
+    /// Whether a role may be handed to a staff account. The frozen
+    /// createStaffUser guard rejects the patient-facing branch outright: those
+    /// accounts are created by the patient signup path, never by an admin
+    /// provisioning staff.
+    /// </summary>
+    public static bool IsAssignableToStaff(string role) =>
+        role is not (Roles.Patient or Roles.Family);
+
     /// <summary>The domain branch for a role, or null when unknown.</summary>
     public static string? DomainOf(string role) =>
         DomainByRole.TryGetValue(role, out var domain) ? domain : null;
