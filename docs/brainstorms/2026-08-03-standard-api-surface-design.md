@@ -102,8 +102,8 @@ effects on GET; camelCase JSON; `page`/`pageSize`.
 | GET /coms/emails/batches | GET /api/v1/emails (paged) |
 | GET /coms/emails/batches/{id} | GET /api/v1/emails/{id} (includes recipient statuses) |
 | POST /coms/emails/batches/{id}/resend | POST /api/v1/emails/{id}/resend |
-| GET /coms/emails/recipients | GET /api/v1/email-recipients?email={id} (list views) |
-| GET /coms/emails/recipients/{id} | folded into email detail; standalone GET stays if a screen needs it (planner verifies) |
+| GET /coms/emails/recipients | dropped — no consumer (verified: no Coms UI service exists); recipient statuses ride in GET /emails/{id} |
+| GET /coms/emails/recipients/{id} | dropped — folded into email detail |
 | POST /coms/emails/recipients/{id}/resend | POST /api/v1/emails/{id}/recipients/{rid}/resend |
 | POST /coms/send/sms | dropped until SMS is real |
 | POST /coms/webhooks/{provider} | POST /api/v1/webhooks/{provider} (anonymous; HMAC is the credential — unchanged) |
@@ -113,13 +113,18 @@ effects on GET; camelCase JSON; `page`/`pageSize`.
 | Old | New |
 |---|---|
 | GET /docs | GET /documents (paged) |
-| POST /docs/upload (+ /docs/create — planner verifies the old split) | POST /documents (multipart upload) |
-| POST /docs/generate | POST /documents/generated → 202 `{id, jobId}` |
+| POST /docs/upload | POST /documents (multipart upload) |
+| POST /docs/create | dropped — verified frozen no-op stub (returned 201, did nothing) |
+| POST /docs/generate | POST /documents/generated → 202 `{id, jobId}` (create from template) |
 | GET /docs/{id} | GET /documents/{id} |
 | DELETE /docs/{id} | DELETE /documents/{id} |
 | DELETE /docs (bulk, body ids) | DELETE /documents?ids=... |
 | POST /docs/url (batch presign) | POST /documents/urls |
 | GET /docs/{id}/url | GET /documents/{id}/url |
+
+PATCH rule (user 2026-08-03, for when patch operations are added — none exist today):
+metadata-only patches live at the root resource (`PATCH /documents/{id}`); content
+changes split per-kind like the POSTs (upload-content vs regenerate).
 
 ### Templates (`/v1/templates` → `/api/v1/templates`)
 
@@ -227,7 +232,6 @@ making deploy.yml real.
 
 ## Open items for the planner
 
-- Old `POST /docs/create` vs `/docs/upload` split — verify what create did; unify under
-  `POST /documents` or keep a second route if genuinely different.
-- Standalone email-recipient GET — keep only if a Blazor screen needs the flat list.
 - Shell contract-test factory topology after `Hsm.Api.Tests` replaces `Hsm.Contract.Tests`.
+- (Resolved 2026-08-03: `/docs/create` was a frozen no-op stub — dropped; flat
+  email-recipient routes dropped — no consumer; PATCH rule recorded above.)
