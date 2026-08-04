@@ -29,7 +29,11 @@ RUN dotnet publish src/Hsm.Worker/Hsm.Worker.csproj \
     -o /app/publish \
     --no-restore
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0-noble AS runtime
+# aspnet, not runtime: Hsm.Infrastructure takes the Microsoft.AspNetCore.App
+# framework reference for ASP.NET Core Identity (see Hsm.Infrastructure.csproj),
+# so every host that composes it needs that shared framework present — this one
+# included, even though it opens no HTTP surface of its own.
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS runtime
 WORKDIR /app
 
 # runtime:10.0-noble (Ubuntu, not the -chiseled variant) ships no unprivileged

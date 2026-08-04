@@ -5,7 +5,7 @@ namespace Hsm.Application.Users.Commands.ChangeUserRole;
 
 /// <summary>
 /// Admin-only role change (frozen changeUserRole): replaces the target's role
-/// rows via delete-then-insert inside ONE transaction.
+/// assignments via remove-then-add inside ONE transaction.
 ///
 /// Role change vs. live sessions — PINNED FROZEN BEHAVIOR: authorization is
 /// decided from the JWT's own roles claim (frozen RolesGuard), and neither
@@ -20,4 +20,4 @@ namespace Hsm.Application.Users.Commands.ChangeUserRole;
 ///     and roles are re-read from the database.
 /// </summary>
 [RequireRole(Roles.Admin)]
-public sealed record ChangeUserRoleCommand(Guid UserId, string Role) : ICommand<User>;
+public sealed record ChangeUserRoleCommand(Guid UserId, string Role) : ICommand<UserWithRoles>;

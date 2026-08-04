@@ -2,24 +2,37 @@ using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
 using Hsm.Application.Errors;
 using Hsm.Domain.Identity;
+using Microsoft.AspNetCore.Identity;
 
 namespace Hsm.Application.Users.Commands.ChangeUserRole;
 
-public sealed class ChangeUserRoleHandler(IUserStore users, IAuthUnitOfWork unitOfWork)
-    : IRequestHandler<ChangeUserRoleCommand, User>
+public sealed class ChangeUserRoleHandler(UserManager<HsmUser> users)
+    : IRequestHandler<ChangeUserRoleCommand, UserWithRoles>
 {
-    public async Task<User> HandleAsync(ChangeUserRoleCommand request, CancellationToken ct)
+    public async Task<UserWithRoles> HandleAsync(ChangeUserRoleCommand request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var user = await users.FindByIdAsync(request.UserId, ct)
-            ?? throw new NotFoundException("User", request.UserId);
+        var user = await users.FindByIdAsync(request.UserId.ToString());
+        if (user is null || user.DeletedAt is not null)
+        {
+            throw new NotFoundException("User", request.UserId);
+        }
 
-        var replaced = await users.ReplaceRolesAsync(request.UserId, [request.Role], ct);
-        await unitOfWork.SaveChangesAsync(ct);
+        // Remove FIRST, then add — the frozen statement order, so re-assigning
+        // a role the user already holds cannot trip the (user, role) primary
+        // key. Both halves run through UserManager's EF store, which shares
+        // this scope's DbContext, so both land inside the single transaction
+        // TransactionBehavior opened around this command: an exception between
+        // them rolls the removal back rather than leaving the account with no
+        // roles at all (proved by RoleReplacementTransactionTests).
+        var held = await users.GetRolesAsync(user);
+        if (held.Count > 0)
+        {
+            (await users.RemoveFromRolesAsync(user, held)).ThrowIfFailed("role");
+        }
 
-        // Return the user with the freshly persisted role rows — no re-read.
-        user.Roles = [.. replaced];
-        return user;
+        (await users.AddToRoleAsync(user, request.Role)).ThrowIfFailed("role");
+        return new UserWithRoles(user, [request.Role]);
     }
 }

@@ -74,7 +74,7 @@ public static class UserEndpoints
                 request.Role,
                 request.TempPassword),
             ct);
-        return Results.Created($"/api/v1/users/{created.Id}", UserResource.From(created));
+        return Results.Created($"/api/v1/users/{created.User.Id}", UserResource.From(created));
     }
 
     private static async Task<IResult> GetUser(Guid id, IDispatcher dispatcher, CancellationToken ct) =>

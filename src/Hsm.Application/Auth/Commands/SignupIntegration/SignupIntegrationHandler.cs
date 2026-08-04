@@ -6,7 +6,6 @@ namespace Hsm.Application.Auth.Commands.SignupIntegration;
 public sealed class SignupIntegrationHandler(
     IIntegrationAccountStore accounts,
     IIntegrationRefreshTokenStore integrationTokens,
-    IPasswordHasher hasher,
     TokenIssuer issuer,
     IAuthUnitOfWork unitOfWork)
     : IRequestHandler<SignupIntegrationCommand, TokenPair>
@@ -29,8 +28,7 @@ public sealed class SignupIntegrationHandler(
             Roles = [Roles.Integration],
         };
         var tokens = issuer.GenerateTokens(principal);
-        // Pre-digest before bcrypt — see TokenDigests.
-        var refreshHash = hasher.Hash(TokenDigests.Sha256Hex(tokens.RefreshToken));
+        var refreshHash = TokenIssuer.HashRefreshToken(tokens.RefreshToken);
 
         // TransactionBehavior owns the boundary the frozen handler opened here.
         await accounts.AddAsync(account, ct);

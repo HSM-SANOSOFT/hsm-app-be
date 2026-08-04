@@ -3,11 +3,11 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Hsm.Api.Auth;
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
 using Hsm.Domain.Identity;
 using Hsm.Infrastructure.Persistence;
 using Hsm.Worker;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -144,14 +144,11 @@ public abstract class ApiHostFactory<TEntryPoint> : WebApplicationFactory<TEntry
         bool isActive = true)
     {
         using var scope = Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<HsmDbContext>();
-        var hasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
-        var user = new User
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<HsmUser>>();
+        var user = new HsmUser
         {
-            Id = Guid.NewGuid(),
-            Username = username,
+            UserName = username,
             Email = email ?? $"{username}@api.test",
-            PasswordHash = hasher.Hash(password),
             FirstName = "Api",
             FirstLastName = "Test",
             OnboardingCompletedAt = onboardingCompletedAt,
@@ -159,16 +156,10 @@ public abstract class ApiHostFactory<TEntryPoint> : WebApplicationFactory<TEntry
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow,
         };
-        user.Roles.Add(new UserRole
-        {
-            Id = Guid.NewGuid(),
-            UserId = user.Id,
-            Role = role,
-            Domain = RoleCatalog.DomainOf(role) ?? "System",
-            CreatedAt = DateTimeOffset.UtcNow,
-        });
-        db.Users.Add(user);
-        await db.SaveChangesAsync();
+        var created = await users.CreateAsync(user, password);
+        Assert.True(created.Succeeded, string.Join("; ", created.Errors.Select(e => e.Description)));
+        var assigned = await users.AddToRoleAsync(user, role);
+        Assert.True(assigned.Succeeded, string.Join("; ", assigned.Errors.Select(e => e.Description)));
         return user.Id;
     }
 

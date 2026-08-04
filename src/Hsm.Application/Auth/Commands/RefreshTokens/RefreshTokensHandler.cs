@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Errors;
 
@@ -6,7 +8,6 @@ namespace Hsm.Application.Auth.Commands.RefreshTokens;
 public sealed class RefreshTokensHandler(
     IUserRefreshTokenStore userTokens,
     IIntegrationRefreshTokenStore integrationTokens,
-    IPasswordHasher hasher,
     TokenIssuer issuer)
     : IRequestHandler<RefreshTokensCommand, TokenPair>
 {
@@ -25,10 +26,11 @@ public sealed class RefreshTokensHandler(
             throw new UnauthorizedException("Active Refresh token not found");
         }
 
-        // Pre-digest before bcrypt — see TokenDigests. Without it bcrypt would
-        // compare only the first 72 bytes, which two JWTs for the same subject
-        // share, and every prior token would still verify.
-        if (!hasher.Verify(TokenDigests.Sha256Hex(request.RawRefreshToken), activeHash))
+        // Fixed-time comparison of two SHA-256 hex digests — see
+        // TokenIssuer.HashRefreshToken for why there is no work factor here.
+        if (!CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(activeHash),
+                Encoding.UTF8.GetBytes(TokenIssuer.HashRefreshToken(request.RawRefreshToken))))
         {
             throw new UnauthorizedException("Refresh token is not valid");
         }

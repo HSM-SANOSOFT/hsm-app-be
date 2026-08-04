@@ -1,14 +1,14 @@
 using FluentValidation;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Errors;
+using Hsm.Domain.Identity;
+using Microsoft.AspNetCore.Identity;
 
 namespace Hsm.Application.Auth.Commands.CompleteOnboarding;
 
 public sealed class CompleteOnboardingHandler(
-    IUserStore users,
-    IPasswordHasher hasher,
+    UserManager<HsmUser> users,
     TokenIssuer issuer,
-    IAuthUnitOfWork unitOfWork,
     ICurrentPrincipal principal)
     : IRequestHandler<CompleteOnboardingCommand, TokenPair>
 {
@@ -19,10 +19,12 @@ public sealed class CompleteOnboardingHandler(
         // AuthorizationBehavior has already refused an actor-less dispatch;
         // the throw keeps the same 401 if this ever runs outside the pipeline.
         var actor = principal.Actor ?? throw new UnauthorizedException();
-        var userId = Guid.Parse(actor.Id);
 
-        var user = await users.FindByIdAsync(userId, ct)
-            ?? throw new NotFoundException("User", actor.Id);
+        var user = await users.FindByIdAsync(actor.Id);
+        if (user is null || user.DeletedAt is not null)
+        {
+            throw new NotFoundException("User", actor.Id);
+        }
 
         if (!string.Equals(request.ConfirmEmail, user.Email, StringComparison.OrdinalIgnoreCase))
         {
@@ -38,12 +40,18 @@ public sealed class CompleteOnboardingHandler(
             throw new ConflictException("Onboarding is already complete.");
         }
 
-        user.PasswordHash = hasher.Hash(request.NewPassword);
-        user.PhoneNumber = request.PhoneNumber;
-        user.EmailVerified = true;
-        user.OnboardingCompletedAt = DateTimeOffset.UtcNow;
-        await unitOfWork.SaveChangesAsync(ct);
+        // Remove-then-add rather than a token round trip: the actor IS the
+        // account, already authenticated, so there is nothing to prove.
+        (await users.RemovePasswordAsync(user)).ThrowIfFailed("newPassword");
+        (await users.AddPasswordAsync(user, request.NewPassword)).ThrowIfFailed("newPassword");
 
-        return await issuer.IssueAsync(TokenIssuer.PrincipalFor(user), ct);
+        user.PhoneNumber = request.PhoneNumber;
+        user.EmailConfirmed = true;
+        user.OnboardingCompletedAt = DateTimeOffset.UtcNow;
+        user.UpdatedAt = DateTimeOffset.UtcNow;
+        (await users.UpdateAsync(user)).ThrowIfFailed("phoneNumber");
+
+        return await issuer.IssueAsync(
+            TokenIssuer.PrincipalFor(user, [.. await users.GetRolesAsync(user)]), ct);
     }
 }

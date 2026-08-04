@@ -126,4 +126,14 @@ public static class RoleCatalog
     /// <summary>The domain branch for a role, or null when unknown.</summary>
     public static string? DomainOf(string role) =>
         DomainByRole.TryGetValue(role, out var domain) ? domain : null;
+
+    /// <summary>
+    /// The Identity role row's id for a role name, derived from the name so it
+    /// is the same in every database that ever gets seeded. That determinism is
+    /// what lets the seed live in the migration (HasData) instead of in a
+    /// startup task two hosts could race.
+    /// </summary>
+    public static Guid IdFor(string role) =>
+        new(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(role)).AsSpan(0, 16));
 }

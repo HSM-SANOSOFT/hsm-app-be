@@ -1,5 +1,4 @@
 using Hsm.Application.Abstractions;
-using Hsm.Domain.Identity;
 
 namespace Hsm.Application.Users.Commands.UpdateOwnProfile;
 
@@ -13,4 +12,4 @@ namespace Hsm.Application.Users.Commands.UpdateOwnProfile;
 /// <see cref="ICurrentPrincipal"/>. "Can I edit someone else by passing their
 /// id" is not a question this shape can ask.
 /// </summary>
-public sealed record UpdateOwnProfileCommand(string? FirstName, string? Email) : ICommand<User>;
+public sealed record UpdateOwnProfileCommand(string? FirstName, string? Email) : ICommand<UserWithRoles>;

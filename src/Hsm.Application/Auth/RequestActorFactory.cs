@@ -29,12 +29,12 @@ namespace Hsm.Application.Auth;
 /// (<c>Hsm.Api.Auth.RequestAuth</c>), the shell's claims path
 /// (<c>Hsm.Web.Auth.ShellActor</c>), and the worker's job envelope next. It
 /// touches no transport type: its inputs are an id, a role list and a claim
-/// string, and its only dependency is <see cref="IUserStore"/>. A copy per
+/// string, and its only dependency is <see cref="IUserDirectory"/>. A copy per
 /// host would mean maintaining the frozen onboarding rule in three places,
 /// and a copy that drifts is a silent authorization divergence between doors
 /// — the exact failure Task 15 spent itself removing.</para>
 /// </summary>
-public sealed class RequestActorFactory(IUserStore users)
+public sealed class RequestActorFactory(IUserDirectory users)
 {
     /// <param name="onboardingCompletedAt">
     /// The principal's onboardingCompletedAt claim, or <see langword="null"/>

@@ -1,4 +1,4 @@
-using Hsm.Domain.Identity;
+using Hsm.Application.Users;
 
 namespace Hsm.Api.Users;
 
@@ -28,25 +28,27 @@ public sealed record UserResource(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt)
 {
-    public static UserResource From(User user)
+    public static UserResource From(UserWithRoles projection)
     {
-        ArgumentNullException.ThrowIfNull(user);
+        ArgumentNullException.ThrowIfNull(projection);
+        var user = projection.User;
         return new UserResource(
             user.Id,
-            user.Username,
-            user.Email,
+            user.UserName ?? string.Empty,
+            user.Email ?? string.Empty,
             user.FirstName,
             user.SecondName,
             user.FirstLastName,
             user.SecondLastName,
             user.PhoneNumber,
             user.Gender,
-            [.. user.Roles.Select(r => r.Role)],
+            projection.Roles,
             user.LastLoginAt,
             user.OnboardingCompletedAt,
             user.IsActive,
-            user.EmailVerified,
-            user.PhoneVerified,
+            // Identity's own confirmation flags under the frozen wire names.
+            user.EmailConfirmed,
+            user.PhoneNumberConfirmed,
             user.CreatedAt,
             user.UpdatedAt);
     }

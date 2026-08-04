@@ -1,5 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <ItemGroup>
+    <!-- Hsm.Domain's ONE framework package, and its first package reference of
+         any kind. The rule it keeps is "entities only, no Hsm.* PROJECT
+         reference", and that is unchanged: nothing here points at another
+         assembly of ours. It buys HsmUser being the entity rather than a mapped
+         copy of one — the alternative is a domain User, an infrastructure
+         HsmUser, and a mapper that has to be right in both directions on every
+         write. Microsoft.AspNetCore.Identity.IdentityUser<TKey> lives here. -->
+    <PackageReference Include="Microsoft.Extensions.Identity.Stores" />
+  </ItemGroup>
+
   <PropertyGroup>
   </PropertyGroup>
 

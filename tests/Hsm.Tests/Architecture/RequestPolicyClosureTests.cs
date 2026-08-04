@@ -1,5 +1,6 @@
 using System.Reflection;
 using Hsm.Application.Abstractions;
+using Hsm.Application.Auth.Commands.Login;
 using Hsm.Application.Coms.Commands.DispatchEmailBatch;
 using Hsm.Application.Docs.Commands.RenderDocument;
 
@@ -32,16 +33,23 @@ public class RequestPolicyClosureTests
     }
 
     [Fact]
-    public void The_NoAmbientTransaction_carrier_set_is_exactly_the_two_known_job_commands()
+    public void The_NoAmbientTransaction_carrier_set_is_exactly_the_three_known_commands()
     {
         var carriers = RequestTypes()
             .Where(t => t.GetCustomAttribute<NoAmbientTransactionAttribute>() is not null)
             .Select(t => t.Name)
             .OrderBy(n => n, StringComparer.Ordinal);
 
+        // Two queued jobs whose contract is to persist what went wrong and then
+        // throw — and, since Task 11, LoginCommand, for the same reason: the
+        // lockout counter must survive the refusal that incremented it.
         Assert.Equal(
-            new[] { nameof(DispatchEmailBatchCommand), nameof(RenderDocumentCommand) }
-                .OrderBy(n => n, StringComparer.Ordinal),
+            new[]
+            {
+                nameof(DispatchEmailBatchCommand),
+                nameof(LoginCommand),
+                nameof(RenderDocumentCommand),
+            }.OrderBy(n => n, StringComparer.Ordinal),
             carriers);
     }
 

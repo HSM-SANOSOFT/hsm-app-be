@@ -1,11 +1,11 @@
 using Hsm.Application.Abstractions;
 using Hsm.Domain.Identity;
+using Microsoft.AspNetCore.Identity;
 
 namespace Hsm.Application.Auth.Commands.Signup;
 
 public sealed class SignupHandler(
-    IUserStore users,
-    IPasswordHasher hasher,
+    UserManager<HsmUser> users,
     TokenIssuer issuer,
     IUserRefreshTokenStore userTokens,
     IAuthUnitOfWork unitOfWork)
@@ -15,28 +15,33 @@ public sealed class SignupHandler(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var user = new User
+        var now = DateTimeOffset.UtcNow;
+        var user = new HsmUser
         {
             Id = Guid.NewGuid(),
-            Username = request.Username,
+            UserName = request.Username,
             Email = request.Email,
-            PasswordHash = hasher.Hash(request.Password),
             FirstName = request.FirstName,
             FirstLastName = request.FirstLastName,
             SecondName = request.SecondName,
             SecondLastName = request.SecondLastName,
             PhoneNumber = request.PhoneNumber,
             Gender = request.Gender,
-            OnboardingCompletedAt = DateTimeOffset.UtcNow,
+            // Patients never do the staff first-login flow.
+            OnboardingCompletedAt = now,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
-        var principal = TokenIssuer.PrincipalFor(user) with { Roles = [Roles.Patient] };
-        var tokens = issuer.GenerateTokens(principal);
-        // Pre-digest before bcrypt — see TokenDigests.
-        var refreshHash = hasher.Hash(TokenDigests.Sha256Hex(tokens.RefreshToken));
 
-        // TransactionBehavior owns the boundary the frozen handler opened here.
-        await users.AddAsync(user, [Roles.Patient], ct);
-        await userTokens.AddAsync(user.Id, refreshHash, ct);
+        // TransactionBehavior owns the boundary the frozen handler opened here,
+        // and UserManager's store shares this scope's DbContext — so the user
+        // row, its role row and the refresh-token row commit or roll back as one.
+        (await users.CreateAsync(user, request.Password)).ThrowIfFailed("password");
+        (await users.AddToRoleAsync(user, Roles.Patient)).ThrowIfFailed("role");
+
+        var principal = TokenIssuer.PrincipalFor(user, [Roles.Patient]);
+        var tokens = issuer.GenerateTokens(principal);
+        await userTokens.AddAsync(user.Id, TokenIssuer.HashRefreshToken(tokens.RefreshToken), ct);
         await unitOfWork.SaveChangesAsync(ct);
         return tokens;
     }

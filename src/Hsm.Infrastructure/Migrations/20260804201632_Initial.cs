@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
+
+#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
 
 namespace Hsm.Infrastructure.Migrations
 {
@@ -125,6 +128,20 @@ namespace Hsm.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "roles",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    NormalizedName = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    ConcurrencyStamp = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_roles", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "templates",
                 columns: table => new
                 {
@@ -153,23 +170,31 @@ namespace Hsm.Infrastructure.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Username = table.Column<string>(type: "citext", nullable: false),
-                    Email = table.Column<string>(type: "citext", nullable: false),
-                    PasswordHash = table.Column<string>(type: "text", nullable: false),
                     FirstName = table.Column<string>(type: "text", nullable: false),
                     SecondName = table.Column<string>(type: "text", nullable: true),
                     FirstLastName = table.Column<string>(type: "text", nullable: false),
                     SecondLastName = table.Column<string>(type: "text", nullable: true),
-                    PhoneNumber = table.Column<string>(type: "text", nullable: true),
                     Gender = table.Column<string>(type: "text", nullable: true),
                     LastLoginAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     OnboardingCompletedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    EmailVerified = table.Column<bool>(type: "boolean", nullable: false),
-                    PhoneVerified = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    DeletedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
+                    DeletedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    UserName = table.Column<string>(type: "citext", maxLength: 256, nullable: true),
+                    NormalizedUserName = table.Column<string>(type: "citext", maxLength: 256, nullable: true),
+                    Email = table.Column<string>(type: "citext", maxLength: 256, nullable: true),
+                    NormalizedEmail = table.Column<string>(type: "citext", maxLength: 256, nullable: true),
+                    EmailConfirmed = table.Column<bool>(type: "boolean", nullable: false),
+                    PasswordHash = table.Column<string>(type: "text", nullable: true),
+                    SecurityStamp = table.Column<string>(type: "text", nullable: true),
+                    ConcurrencyStamp = table.Column<string>(type: "text", nullable: true),
+                    PhoneNumber = table.Column<string>(type: "text", nullable: true),
+                    PhoneNumberConfirmed = table.Column<bool>(type: "boolean", nullable: false),
+                    TwoFactorEnabled = table.Column<bool>(type: "boolean", nullable: false),
+                    LockoutEnd = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
+                    LockoutEnabled = table.Column<bool>(type: "boolean", nullable: false),
+                    AccessFailedCount = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -321,6 +346,27 @@ namespace Hsm.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "role_claims",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    RoleId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ClaimType = table.Column<string>(type: "text", nullable: true),
+                    ClaimValue = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_role_claims", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_role_claims_roles_RoleId",
+                        column: x => x.RoleId,
+                        principalTable: "roles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "template_coms_email",
                 columns: table => new
                 {
@@ -413,28 +459,6 @@ namespace Hsm.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "password_reset_tokens",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
-                    TokenHash = table.Column<string>(type: "text", nullable: false),
-                    ExpiresAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
-                    UsedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_password_reset_tokens", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_password_reset_tokens_users_UserId",
-                        column: x => x.UserId,
-                        principalTable: "users",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "refresh_token_users",
                 columns: table => new
                 {
@@ -457,20 +481,84 @@ namespace Hsm.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "user_roles",
+                name: "user_claims",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     UserId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Domain = table.Column<string>(type: "text", nullable: false),
-                    Role = table.Column<string>(type: "text", nullable: false),
-                    CreatedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    ClaimType = table.Column<string>(type: "text", nullable: true),
+                    ClaimValue = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_user_roles", x => x.Id);
+                    table.PrimaryKey("PK_user_claims", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_user_claims_users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "user_logins",
+                columns: table => new
+                {
+                    LoginProvider = table.Column<string>(type: "text", nullable: false),
+                    ProviderKey = table.Column<string>(type: "text", nullable: false),
+                    ProviderDisplayName = table.Column<string>(type: "text", nullable: true),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_user_logins", x => new { x.LoginProvider, x.ProviderKey });
+                    table.ForeignKey(
+                        name: "FK_user_logins_users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "user_roles",
+                columns: table => new
+                {
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    RoleId = table.Column<Guid>(type: "uuid", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_user_roles", x => new { x.UserId, x.RoleId });
+                    table.ForeignKey(
+                        name: "FK_user_roles_roles_RoleId",
+                        column: x => x.RoleId,
+                        principalTable: "roles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
                         name: "FK_user_roles_users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "user_tokens",
+                columns: table => new
+                {
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
+                    LoginProvider = table.Column<string>(type: "text", nullable: false),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    Value = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_user_tokens", x => new { x.UserId, x.LoginProvider, x.Name });
+                    table.ForeignKey(
+                        name: "FK_user_tokens_users_UserId",
                         column: x => x.UserId,
                         principalTable: "users",
                         principalColumn: "Id",
@@ -590,6 +678,52 @@ namespace Hsm.Infrastructure.Migrations
                         onDelete: ReferentialAction.SetNull);
                 });
 
+            migrationBuilder.InsertData(
+                table: "roles",
+                columns: new[] { "Id", "ConcurrencyStamp", "Name", "NormalizedName" },
+                values: new object[,]
+                {
+                    { new Guid("02a76b6a-0a49-4737-9175-18200e696dea"), "02a76b6a-0a49-4737-9175-18200e696dea", "admission", "ADMISSION" },
+                    { new Guid("04a7d82a-7c9d-1155-ac25-4f5f51fe70a0"), "04a7d82a-7c9d-1155-ac25-4f5f51fe70a0", "it", "IT" },
+                    { new Guid("12d272e5-ebbb-e8d1-8d8e-ea0217919612"), "12d272e5-ebbb-e8d1-8d8e-ea0217919612", "clinical_researcher", "CLINICAL_RESEARCHER" },
+                    { new Guid("13348d76-a955-2a4e-5a21-851b06398242"), "13348d76-a955-2a4e-5a21-851b06398242", "insurance_specialist", "INSURANCE_SPECIALIST" },
+                    { new Guid("16511e78-e1a1-344a-eada-50159d589e69"), "16511e78-e1a1-344a-eada-50159d589e69", "nurse", "NURSE" },
+                    { new Guid("272d36f0-554e-7795-cf46-1285e54f8650"), "272d36f0-554e-7795-cf46-1285e54f8650", "legal_counsel", "LEGAL_COUNSEL" },
+                    { new Guid("28aa9971-2304-1f3d-0b9f-8a2c7ff18ec2"), "28aa9971-2304-1f3d-0b9f-8a2c7ff18ec2", "case_manager", "CASE_MANAGER" },
+                    { new Guid("323d9907-6536-c3d0-1b9c-255d3530ff68"), "323d9907-6536-c3d0-1b9c-255d3530ff68", "quality_officer", "QUALITY_OFFICER" },
+                    { new Guid("3637499d-6472-3e8e-a0c7-692eebf67f54"), "3637499d-6472-3e8e-a0c7-692eebf67f54", "crm_specialist", "CRM_SPECIALIST" },
+                    { new Guid("3ae58ff7-103f-847b-4ec9-b58963a6d6cd"), "3ae58ff7-103f-847b-4ec9-b58963a6d6cd", "therapist", "THERAPIST" },
+                    { new Guid("3bc68985-4309-2ba6-fda9-b35dccc71a30"), "3bc68985-4309-2ba6-fda9-b35dccc71a30", "maintenance", "MAINTENANCE" },
+                    { new Guid("47872314-ed33-62cf-404a-a8f08ad669d2"), "47872314-ed33-62cf-404a-a8f08ad669d2", "patient_services", "PATIENT_SERVICES" },
+                    { new Guid("4b59596a-5fa4-34ef-6b39-87ac3ee2c5c3"), "4b59596a-5fa4-34ef-6b39-87ac3ee2c5c3", "compliance_officer", "COMPLIANCE_OFFICER" },
+                    { new Guid("52cc92eb-66a7-00c5-e001-d02f1eaa7878"), "52cc92eb-66a7-00c5-e001-d02f1eaa7878", "integration", "INTEGRATION" },
+                    { new Guid("741af960-5824-60ae-6572-f40dd7df0a12"), "741af960-5824-60ae-6572-f40dd7df0a12", "payroll", "PAYROLL" },
+                    { new Guid("750dfa88-849f-475b-c044-c2cd44e29082"), "750dfa88-849f-475b-c044-c2cd44e29082", "developer", "DEVELOPER" },
+                    { new Guid("7aff9522-d88b-f2b3-884c-6482146e3ded"), "7aff9522-d88b-f2b3-884c-6482146e3ded", "patient", "PATIENT" },
+                    { new Guid("856e9b9c-304f-8b9d-7e71-c662284daf92"), "856e9b9c-304f-8b9d-7e71-c662284daf92", "financial_analyst", "FINANCIAL_ANALYST" },
+                    { new Guid("89593dc5-9dc5-c2e3-5d71-6daf9f544c0f"), "89593dc5-9dc5-c2e3-5d71-6daf9f544c0f", "paralegal", "PARALEGAL" },
+                    { new Guid("89bef472-ebd6-14ab-96e2-1e38bcd7c8ca"), "89bef472-ebd6-14ab-96e2-1e38bcd7c8ca", "doctor", "DOCTOR" },
+                    { new Guid("91a2fd40-32f4-5b9e-9a5e-41bc372236f4"), "91a2fd40-32f4-5b9e-9a5e-41bc372236f4", "research_coordinator", "RESEARCH_COORDINATOR" },
+                    { new Guid("96be82bd-3c4f-027c-926b-49ba8bd13a5e"), "96be82bd-3c4f-027c-926b-49ba8bd13a5e", "patient_advocate", "PATIENT_ADVOCATE" },
+                    { new Guid("9a564ad3-aab7-4da5-acd7-15ae64953455"), "9a564ad3-aab7-4da5-acd7-15ae64953455", "family", "FAMILY" },
+                    { new Guid("9c9dba29-5aef-4666-1116-a24938bb9307"), "9c9dba29-5aef-4666-1116-a24938bb9307", "technician", "TECHNICIAN" },
+                    { new Guid("9ec9d829-5bc2-1027-07f0-5eace87ec009"), "9ec9d829-5bc2-1027-07f0-5eace87ec009", "accountant", "ACCOUNTANT" },
+                    { new Guid("a5ff8f63-f338-9108-158f-5ffdf658cde4"), "a5ff8f63-f338-9108-158f-5ffdf658cde4", "social_worker", "SOCIAL_WORKER" },
+                    { new Guid("a6b419a9-d9cd-a925-7e96-9ae31b2c092b"), "a6b419a9-d9cd-a925-7e96-9ae31b2c092b", "scheduling", "SCHEDULING" },
+                    { new Guid("a8f3f682-2809-3cc7-7b78-36dc63ffd8d6"), "a8f3f682-2809-3cc7-7b78-36dc63ffd8d6", "guest_relations", "GUEST_RELATIONS" },
+                    { new Guid("a9524f1e-f059-4605-bff6-e2f2adf6bbea"), "a9524f1e-f059-4605-bff6-e2f2adf6bbea", "designer", "DESIGNER" },
+                    { new Guid("ca26992e-a3f5-364b-25f9-f73567680a47"), "ca26992e-a3f5-364b-25f9-f73567680a47", "pharmacist", "PHARMACIST" },
+                    { new Guid("d3a0d038-5f64-91da-31b7-04c5390de794"), "d3a0d038-5f64-91da-31b7-04c5390de794", "data_analyst", "DATA_ANALYST" },
+                    { new Guid("db5968ba-517f-9dd9-278b-e471b4ecbcf1"), "db5968ba-517f-9dd9-278b-e471b4ecbcf1", "process_analyst", "PROCESS_ANALYST" },
+                    { new Guid("e32ca6c5-7ffa-866d-af00-09389ccd8152"), "e32ca6c5-7ffa-866d-af00-09389ccd8152", "auditor", "AUDITOR" },
+                    { new Guid("e478c788-c4d1-6686-923e-11677d00849c"), "e478c788-c4d1-6686-923e-11677d00849c", "community_manager", "COMMUNITY_MANAGER" },
+                    { new Guid("e576698c-41b5-1504-bde9-08bd4dee15df"), "e576698c-41b5-1504-bde9-08bd4dee15df", "admin", "ADMIN" },
+                    { new Guid("e6477b63-38ae-42b2-015f-de4b9f03a693"), "e6477b63-38ae-42b2-015f-de4b9f03a693", "human_resources", "HUMAN_RESOURCES" },
+                    { new Guid("eb3c2d5d-be7a-2355-4427-6d47d36a8175"), "eb3c2d5d-be7a-2355-4427-6d47d36a8175", "security", "SECURITY" },
+                    { new Guid("ecc7950c-cee1-971a-5027-5ef1c6d7ad6b"), "ecc7950c-cee1-971a-5027-5ef1c6d7ad6b", "billing", "BILLING" },
+                    { new Guid("f97168c2-6492-488a-0184-8b93f9ccb46f"), "f97168c2-6492-488a-0184-8b93f9ccb46f", "housekeeping", "HOUSEKEEPING" }
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_app_setting_Key",
                 table: "app_setting",
@@ -676,16 +810,6 @@ namespace Hsm.Infrastructure.Migrations
                 column: "RecipientId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_password_reset_tokens_TokenHash",
-                table: "password_reset_tokens",
-                column: "TokenHash");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_password_reset_tokens_UserId",
-                table: "password_reset_tokens",
-                column: "UserId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_patient_identifier_PatientId",
                 table: "patient_identifier",
                 column: "PatientId");
@@ -724,6 +848,17 @@ namespace Hsm.Infrastructure.Migrations
                 columns: new[] { "UserId", "IsActive" });
 
             migrationBuilder.CreateIndex(
+                name: "IX_role_claims_RoleId",
+                table: "role_claims",
+                column: "RoleId");
+
+            migrationBuilder.CreateIndex(
+                name: "RoleNameIndex",
+                table: "roles",
+                column: "NormalizedName",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_template_parse_logs_CreatedAt",
                 table: "template_parse_logs",
                 column: "CreatedAt");
@@ -745,22 +880,31 @@ namespace Hsm.Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_user_roles_UserId_Domain_Role",
-                table: "user_roles",
-                columns: new[] { "UserId", "Domain", "Role" },
-                unique: true);
+                name: "IX_user_claims_UserId",
+                table: "user_claims",
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_users_Email",
+                name: "IX_user_logins_UserId",
+                table: "user_logins",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_user_roles_RoleId",
+                table: "user_roles",
+                column: "RoleId");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_users_normalized_email",
                 table: "users",
-                column: "Email",
+                column: "NormalizedEmail",
                 unique: true,
                 filter: "\"DeletedAt\" IS NULL");
 
             migrationBuilder.CreateIndex(
-                name: "IX_users_Username",
+                name: "ix_users_normalized_user_name",
                 table: "users",
-                column: "Username",
+                column: "NormalizedUserName",
                 unique: true,
                 filter: "\"DeletedAt\" IS NULL");
         }
@@ -790,9 +934,6 @@ namespace Hsm.Infrastructure.Migrations
                 name: "email_suppression");
 
             migrationBuilder.DropTable(
-                name: "password_reset_tokens");
-
-            migrationBuilder.DropTable(
                 name: "patient_identifier");
 
             migrationBuilder.DropTable(
@@ -803,6 +944,9 @@ namespace Hsm.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "refresh_token_users");
+
+            migrationBuilder.DropTable(
+                name: "role_claims");
 
             migrationBuilder.DropTable(
                 name: "template_coms_email");
@@ -817,7 +961,16 @@ namespace Hsm.Infrastructure.Migrations
                 name: "template_parse_logs");
 
             migrationBuilder.DropTable(
+                name: "user_claims");
+
+            migrationBuilder.DropTable(
+                name: "user_logins");
+
+            migrationBuilder.DropTable(
                 name: "user_roles");
+
+            migrationBuilder.DropTable(
+                name: "user_tokens");
 
             migrationBuilder.DropTable(
                 name: "documents-version");
@@ -836,6 +989,9 @@ namespace Hsm.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "templates");
+
+            migrationBuilder.DropTable(
+                name: "roles");
 
             migrationBuilder.DropTable(
                 name: "users");

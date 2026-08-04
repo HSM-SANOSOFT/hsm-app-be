@@ -304,7 +304,7 @@ public class SettingsEndpointTests(SettingsFactory factory) : IClassFixture<Sett
         using var client = await factory.AuthenticatedClientAsync(Roles.Admin, username: username);
         var actingUserId = await factory.WithDbAsync(async db =>
         {
-            var user = await db.Users.SingleAsync(u => u.Username == username);
+            var user = await db.Users.SingleAsync(u => u.UserName == username);
             return user.Id;
         });
 

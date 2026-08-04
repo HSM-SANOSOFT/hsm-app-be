@@ -282,12 +282,13 @@ public static class DependencyInjection
         // Users: command/query slices behind the dispatcher (reference slice).
         // Policy rides on the request type, so there is nothing to register for
         // authorization — only the handler and its validators.
-        services.AddScoped<IRequestHandler<UpdateOwnProfileCommand, User>, UpdateOwnProfileHandler>();
+        services.AddScoped<IRequestHandler<UpdateOwnProfileCommand, UserWithRoles>, UpdateOwnProfileHandler>();
         services.AddScoped<IRequestHandler<ChangeOwnPasswordCommand, Unit>, ChangeOwnPasswordHandler>();
-        services.AddScoped<IRequestHandler<CreateStaffUserCommand, User>, CreateStaffUserHandler>();
-        services.AddScoped<IRequestHandler<ChangeUserRoleCommand, User>, ChangeUserRoleHandler>();
-        services.AddScoped<IRequestHandler<ListUsersQuery, PagedResult<User>>, ListUsersHandler>();
-        services.AddScoped<IRequestHandler<GetUserQuery, User>, GetUserHandler>();
+        services.AddScoped<IRequestHandler<CreateStaffUserCommand, UserWithRoles>, CreateStaffUserHandler>();
+        services.AddScoped<IRequestHandler<ChangeUserRoleCommand, UserWithRoles>, ChangeUserRoleHandler>();
+        services.AddScoped<
+            IRequestHandler<ListUsersQuery, PagedResult<UserWithRoles>>, ListUsersHandler>();
+        services.AddScoped<IRequestHandler<GetUserQuery, UserWithRoles>, GetUserHandler>();
 
         services.AddScoped<IRequestHandler<GetSettingsQuery, SettingsView>, GetSettingsHandler>();
         services.AddScoped<IRequestHandler<UpdateSettingsCommand, SettingsView>, UpdateSettingsHandler>();
@@ -314,13 +315,15 @@ public static class DependencyInjection
     /// </summary>
     private static void AddIdentity(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddScoped<IUserStore, UserStore>();
+        // ASP.NET Core Identity's membership core (UserManager, RoleManager,
+        // the EF stores, the reset-token providers) plus IUserDirectory, the
+        // three reads UserManager cannot do.
+        services.AddHsmIdentity();
+
         services.AddScoped<IUserRefreshTokenStore, UserRefreshTokenStore>();
         services.AddScoped<IIntegrationRefreshTokenStore, IntegrationRefreshTokenStore>();
         services.AddScoped<IIntegrationAccountStore, IntegrationAccountStore>();
-        services.AddScoped<IPasswordResetTokenStore, PasswordResetTokenStore>();
         services.AddScoped<IAuthUnitOfWork, AuthUnitOfWork>();
-        services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         services.AddSingleton<IRecoveryEmailer, LoggingRecoveryEmailer>();
 
         services.AddSingleton(new AuthTokenOptions

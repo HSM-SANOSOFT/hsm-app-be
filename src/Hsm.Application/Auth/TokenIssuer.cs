@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Hsm.Application.Errors;
 using Hsm.Domain.Identity;
 
@@ -10,12 +12,22 @@ namespace Hsm.Application.Auth;
 /// </summary>
 public sealed class TokenIssuer(
     IAuthTokenCodec codec,
-    IPasswordHasher hasher,
     IUserRefreshTokenStore userTokens,
     IIntegrationRefreshTokenStore integrationTokens,
     IAuthUnitOfWork unitOfWork,
     IEnvironmentPolicy environment)
 {
+    /// <summary>
+    /// SHA-256, not bcrypt. bcrypt exists to make a LOW-entropy secret
+    /// expensive to guess; a signed refresh JWT is not guessable, so the work
+    /// factor buys nothing and costs ~100 ms of held connection on every
+    /// issue. The frozen stack's SHA-256 pre-digest existed only because
+    /// bcrypt silently truncates past 72 bytes — with bcrypt gone, the digest
+    /// IS the stored value rather than a step on the way to one.
+    /// </summary>
+    public static string HashRefreshToken(string token) =>
+        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+
     /// <summary>
     /// Signs a fresh access/refresh pair. Developer-role principals are
     /// rejected outside dev (frozen env gate).
@@ -41,13 +53,12 @@ public sealed class TokenIssuer(
 
     /// <summary>
     /// Rotation: deactivate any active row for the principal and persist the
-    /// bcrypt hash of the new refresh token, atomically. Routes to the store
-    /// matching the principal's mode — the stores are never mixed.
+    /// hash of the new refresh token, atomically. Routes to the store matching
+    /// the principal's mode — the stores are never mixed.
     /// </summary>
     private async Task RotateRefreshTokenAsync(AuthPrincipal principal, string refreshToken, CancellationToken ct = default)
     {
-        // Pre-digest before bcrypt — see TokenDigests.
-        var hash = hasher.Hash(TokenDigests.Sha256Hex(refreshToken));
+        var hash = HashRefreshToken(refreshToken);
         var id = Guid.Parse(principal.Id);
         await unitOfWork.ExecuteInTransactionAsync(
             async innerCt =>
@@ -80,16 +91,24 @@ public sealed class TokenIssuer(
     /// <summary>The frozen serializeOnboarding: ISO string or null.</summary>
     public static string? SerializeOnboarding(DateTimeOffset? value) => IsoTimestamp.Of(value);
 
-    /// <summary>Builds the JWT principal for a user row (roles flattened).</summary>
-    public static AuthPrincipal PrincipalFor(User user) => new()
+    /// <summary>
+    /// Builds the JWT principal for a user row. Roles are passed in rather than
+    /// read off the entity: Identity keeps assignments in their own table, so
+    /// the caller is the one that knows whether it already has them.
+    /// </summary>
+    public static AuthPrincipal PrincipalFor(HsmUser user, IReadOnlyList<string> roles)
     {
-        Id = user.Id.ToString(),
-        Username = user.Username,
-        Email = user.Email,
-        FirstName = user.FirstName,
-        FirstLastName = user.FirstLastName,
-        Roles = user.Roles.Select(r => r.Role).ToList(),
-        OnboardingCompletedAt = SerializeOnboarding(user.OnboardingCompletedAt),
-        HasOnboardingClaim = true,
-    };
+        ArgumentNullException.ThrowIfNull(user);
+        return new AuthPrincipal
+        {
+            Id = user.Id.ToString(),
+            Username = user.UserName,
+            Email = user.Email,
+            FirstName = user.FirstName,
+            FirstLastName = user.FirstLastName,
+            Roles = roles,
+            OnboardingCompletedAt = SerializeOnboarding(user.OnboardingCompletedAt),
+            HasOnboardingClaim = true,
+        };
+    }
 }

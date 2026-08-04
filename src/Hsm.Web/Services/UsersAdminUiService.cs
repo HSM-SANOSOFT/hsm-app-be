@@ -1,4 +1,5 @@
 using Hsm.Application.Abstractions;
+using Hsm.Application.Users;
 using Hsm.Application.Users.Commands.ChangeUserRole;
 using Hsm.Application.Users.Commands.CreateStaffUser;
 using Hsm.Application.Users.Queries.ListUsers;
@@ -77,18 +78,19 @@ public sealed class UsersAdminUiService(
         return [.. RoleCatalog.All.Where(RoleCatalog.IsAssignableToStaff)];
     }
 
-    private static UserRowDto ToRow(User user)
+    private static UserRowDto ToRow(UserWithRoles projection)
     {
+        var user = projection.User;
         var fullName = string.Join(
             ' ',
             new[] { user.FirstName, user.SecondName, user.FirstLastName, user.SecondLastName }
                 .Where(part => !string.IsNullOrWhiteSpace(part)));
         return new UserRowDto(
             user.Id.ToString(),
-            user.Username,
-            user.Email,
+            user.UserName ?? string.Empty,
+            user.Email ?? string.Empty,
             fullName,
-            [.. user.Roles.Select(r => r.Role)],
+            projection.Roles,
             user.IsActive,
             OnboardingPending: user.OnboardingCompletedAt is null);
     }

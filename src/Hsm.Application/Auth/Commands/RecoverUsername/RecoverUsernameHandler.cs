@@ -1,23 +1,25 @@
 using Hsm.Application.Abstractions;
+using Hsm.Domain.Identity;
+using Microsoft.AspNetCore.Identity;
 
 namespace Hsm.Application.Auth.Commands.RecoverUsername;
 
-public sealed class RecoverUsernameHandler(IUserStore users, IRecoveryEmailer emailer)
+public sealed class RecoverUsernameHandler(UserManager<HsmUser> users, IRecoveryEmailer emailer)
     : IRequestHandler<RecoverUsernameCommand, Unit>
 {
     public async Task<Unit> HandleAsync(RecoverUsernameCommand request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var user = await users.FindActiveByEmailAsync(request.Email, ct);
-        if (user is null)
+        var user = await users.FindByEmailAsync(request.Email);
+        if (user is null || !user.IsActive || user.DeletedAt is not null)
         {
             return Unit.Value; // Non-enumerating: nothing observable.
         }
 
         try
         {
-            await emailer.SendUsernameReminderAsync(request.Email, user.Username, ct);
+            await emailer.SendUsernameReminderAsync(request.Email, user.UserName!, ct);
         }
         catch (Exception)
         {

@@ -16,10 +16,10 @@ public class UsersEndpointTests(UsersFactory factory) : IClassFixture<UsersFacto
 
     public Task DisposeAsync() => Task.CompletedTask;
 
-    private static object NewUserBody(string username) => new
+    private static object NewUserBody(string username, string? email = null) => new
     {
         username,
-        email = $"{username}@api.test",
+        email = email ?? $"{username}@api.test",
         firstName = "Ada",
         firstLastName = "Lovelace",
         role = Roles.Nurse,
@@ -44,6 +44,43 @@ public class UsersEndpointTests(UsersFactory factory) : IClassFixture<UsersFacto
         // The password hash and the soft-delete marker never reach the wire.
         Assert.False(created.TryGetProperty("passwordHash", out _));
         Assert.False(created.TryGetProperty("deletedAt", out _));
+    }
+
+    [Fact]
+    public async Task A_duplicate_username_is_a_409_not_a_database_error()
+    {
+        using var client = await factory.AuthenticatedClientAsync(Roles.Admin);
+        var username = $"u{Guid.NewGuid():N}"[..20];
+        var first = await client.PostAsJsonAsync(
+            "/api/v1/users", NewUserBody(username), CancellationToken.None);
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+
+        // Identity refuses the second CreateAsync with DuplicateUserName, and
+        // IdentityResultExtensions is what turns that into a conflict instead
+        // of letting a unique-index violation surface as a bare 500.
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/users", NewUserBody(username), CancellationToken.None);
+
+        await ProblemAssert.ProblemAsync(response, 409);
+    }
+
+    [Fact]
+    public async Task A_duplicate_email_is_a_409_too()
+    {
+        using var client = await factory.AuthenticatedClientAsync(Roles.Admin);
+        var shared = $"{Guid.NewGuid():N}@api.test";
+        var first = await client.PostAsJsonAsync(
+            "/api/v1/users",
+            NewUserBody($"u{Guid.NewGuid():N}"[..20], shared),
+            CancellationToken.None);
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/users",
+            NewUserBody($"u{Guid.NewGuid():N}"[..20], shared),
+            CancellationToken.None);
+
+        await ProblemAssert.ProblemAsync(response, 409);
     }
 
     [Fact]
