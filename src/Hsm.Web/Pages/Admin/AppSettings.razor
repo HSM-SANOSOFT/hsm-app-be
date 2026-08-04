@@ -118,7 +118,12 @@ else
             Original = item.IsSecret ? string.Empty : item.Value ?? string.Empty,
             Input = item.IsSecret ? string.Empty : item.Value ?? string.Empty,
         })];
-        var audit = await SettingsAdmin.GetAuditTrailAsync(_category, page: 1, pageSize: 20);
+        // This screen has no pagination UI — pageSize: 50 approximates the old
+        // unpaged read (Task 4 dropped it to the paging default's 20, which
+        // under-showed the trail on a screen with no next-page control; Task 9
+        // is where the audit trail became a real paged route, so this is where
+        // that regression gets fixed).
+        var audit = await SettingsAdmin.GetAuditTrailAsync(_category, page: 1, pageSize: 50);
         _audit = audit.Items;
     }
 
