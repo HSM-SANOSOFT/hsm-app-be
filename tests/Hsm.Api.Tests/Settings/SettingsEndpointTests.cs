@@ -61,6 +61,7 @@ public class SettingsEndpointTests(SettingsFactory factory) : IClassFixture<Sett
     {
         using var client = await factory.AuthenticatedClientAsync(Roles.Admin);
         var value = $"smtp-{Guid.NewGuid():N}.example.test";
+        var before = DateTimeOffset.UtcNow;
 
         var response = await PutAsync(
             client, SettingsCategories.Email, new[] { new { key = "SMTP_ADDRESS", value } });
@@ -72,7 +73,11 @@ public class SettingsEndpointTests(SettingsFactory factory) : IClassFixture<Sett
         // Re-read via a separate GET rather than trusting the PUT's own echo —
         // proves the row actually persisted.
         var fetched = await GetCategoryAsync(client, SettingsCategories.Email);
-        Assert.Equal(value, ItemFor(fetched, "SMTP_ADDRESS").GetProperty("value").GetString());
+        var address = ItemFor(fetched, "SMTP_ADDRESS");
+        Assert.Equal(value, address.GetProperty("value").GetString());
+        // updatedAt genuinely reflects THIS write — not just present, but
+        // stamped no earlier than the moment this test made its change.
+        Assert.True(address.GetProperty("updatedAt").GetDateTimeOffset() >= before);
     }
 
     [Fact]
@@ -315,7 +320,36 @@ public class SettingsEndpointTests(SettingsFactory factory) : IClassFixture<Sett
         var entry = audit.GetProperty("items").EnumerateArray()
             .First(item => item.GetProperty("key").GetString() == "SWAGGER_SITE_TITLE"
                 && item.GetProperty("newValue").GetString() == value);
-        Assert.Equal(actingUserId, entry.GetProperty("changedBy").GetGuid());
+        // changedBy is a bare string (matches AppSettingAudit.ChangedBy's
+        // storage type and the Blazor UI contract's SettingAuditEntryDto),
+        // not a Guid — RequestActor.Id, which the write path stamps it with,
+        // happens to be a GUID's string form for a real user.
+        Assert.Equal(actingUserId.ToString(), entry.GetProperty("changedBy").GetString());
+    }
+
+    [Fact]
+    public async Task Getting_the_audit_trail_for_an_unknown_category_is_a_field_validation_failure()
+    {
+        // Mirrors GetSettingsValidator's own rule for the sibling route: an
+        // unknown/missing category is a caller mistake, not a silent empty page.
+        using var client = await factory.AuthenticatedClientAsync(Roles.Admin);
+
+        var response = await client.GetAsync(
+            "/api/v1/settings/audit?category=NOT_A_CATEGORY", CancellationToken.None);
+
+        var problem = await ProblemAssert.ProblemAsync(response, 400);
+        Assert.True(problem.GetProperty("errors").TryGetProperty("category", out _));
+    }
+
+    [Fact]
+    public async Task Getting_the_audit_trail_with_no_category_is_a_field_validation_failure()
+    {
+        using var client = await factory.AuthenticatedClientAsync(Roles.Admin);
+
+        var response = await client.GetAsync("/api/v1/settings/audit", CancellationToken.None);
+
+        var problem = await ProblemAssert.ProblemAsync(response, 400);
+        Assert.True(problem.GetProperty("errors").TryGetProperty("category", out _));
     }
 
     [Fact]

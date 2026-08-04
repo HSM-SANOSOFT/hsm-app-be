@@ -17,14 +17,16 @@ public sealed class GetSettingsHandler(IAppSettingStore store, ISettingSeedSourc
         var items = definitions
             .Select(def =>
             {
-                var raw = rowByKey.TryGetValue(def.Key, out var row) ? row.Value : seeds.SeedValueFor(def.Key);
+                var hasRow = rowByKey.TryGetValue(def.Key, out var row);
+                var raw = hasRow ? row!.Value : seeds.SeedValueFor(def.Key);
                 var isSet = !string.IsNullOrEmpty(raw);
                 return new SettingItem(
                     def.Key,
                     def.Category,
                     def.IsSecret,
                     isSet,
-                    def.IsSecret ? (isSet ? SettingsPolicy.SecretMask : null) : raw);
+                    def.IsSecret ? (isSet ? SettingsPolicy.SecretMask : null) : raw,
+                    hasRow ? row!.UpdatedAt : null);
             })
             .ToList();
 

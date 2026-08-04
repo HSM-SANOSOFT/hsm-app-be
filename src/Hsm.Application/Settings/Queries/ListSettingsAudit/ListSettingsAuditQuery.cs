@@ -8,8 +8,9 @@ namespace Hsm.Application.Settings.Queries.ListSettingsAudit;
 /// <summary>
 /// Audit-trail read for the settings screen (plan U18): the rows
 /// <see cref="Commands.UpdateSettings.UpdateSettingsCommand"/> writes, newest
-/// first. The frozen REST surface has no such operation — this query exists
-/// for the in-process UI surface only and adds no /v1 route; secrets are
+/// first. The frozen REST surface had no such operation, and for a while this
+/// query only backed the in-process UI surface — <c>GET /api/v1/settings/audit</c>
+/// (the standard-API-surface un-freeze, R1) gave it a real route; secrets are
 /// already masked at write time, so the read is a plain projection.
 /// </summary>
 [RequireRole(Roles.Admin)]

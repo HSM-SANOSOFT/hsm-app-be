@@ -19,24 +19,23 @@ public sealed record SettingsResource(string Category, IReadOnlyList<SettingItem
 /// <see cref="Hsm.Application.Settings.Queries.GetSettings.GetSettingsHandler"/>
 /// (it returns <see cref="SettingsPolicy.SecretMask"/> when set, null when
 /// not) — this resource does no masking of its own, so there is exactly one
-/// place that decision is made.
+/// place that decision is made. <see cref="UpdatedAt"/> is the stored row's
+/// <c>AppSetting.UpdatedAt</c>, sourced the same way, null for a catalog entry
+/// that has never been written.
 ///
-/// <para><see cref="Description"/> and <see cref="UpdatedAt"/> are always
-/// null: the query result this projects from, <see cref="SettingItem"/>,
-/// carries neither — the catalog's <see cref="SettingDefinition"/> has no
-/// description text, and <c>GetSettingsHandler</c> folds the stored row into
-/// a masked value without keeping its <c>AppSetting.UpdatedAt</c>. Populating
-/// them for real means widening that Application-layer query result, which is
-/// out of this endpoint-reshape task's scope; they stay in the wire contract
-/// because the brief specifies them, ready for a future task to source.</para>
+/// <para>No <c>Description</c> field: the brief's draft included one, but no
+/// description text exists anywhere in the domain — <see cref="SettingDefinition"/>
+/// is <c>(Key, Category, IsSecret)</c> only, and authoring prose for the 13
+/// catalog entries is a product decision out of this task's scope. Shipping a
+/// field that can only ever be null would document a lie about what this
+/// endpoint returns, so it is omitted rather than stubbed.</para>
 /// </summary>
-public sealed record SettingItemResource(
-    string Key, string? Value, bool IsSecret, string? Description, DateTimeOffset? UpdatedAt)
+public sealed record SettingItemResource(string Key, string? Value, bool IsSecret, DateTimeOffset? UpdatedAt)
 {
     public static SettingItemResource From(SettingItem item)
     {
         ArgumentNullException.ThrowIfNull(item);
-        return new SettingItemResource(item.Key, item.Value, item.IsSecret, Description: null, UpdatedAt: null);
+        return new SettingItemResource(item.Key, item.Value, item.IsSecret, item.UpdatedAt);
     }
 }
 
@@ -53,20 +52,20 @@ public sealed record SettingUpdateRequest(string Key, string? Value);
 /// <see cref="Hsm.Application.Settings.Commands.UpdateSettings.UpdateSettingsHandler"/>
 /// at write time — this resource does no masking of its own either.
 ///
-/// <para><see cref="ChangedBy"/> is <see cref="Guid"/>? rather than the
-/// brief's plain <see cref="Guid"/>: <see cref="AppSettingAudit.ChangedBy"/>
-/// is stored as <c>string?</c> (it carries <c>RequestActor.Id</c>, a bare
-/// string everywhere else in the pipeline — see
-/// <see cref="Hsm.Application.Abstractions.RequestActor"/>), so a non-nullable
-/// <see cref="Guid"/> here would mean an unguarded parse that turns a
-/// corrupt/legacy row into a 500 on an otherwise-successful read. Every row
-/// this endpoint can currently produce comes from
-/// <c>UpdateSettingsHandler</c>, which always supplies a real actor id before
-/// it writes an audit row, so this parses successfully in practice — the
-/// nullability is defensive, not a sign any row is expected to lack it.</para>
+/// <para><see cref="ChangedBy"/> is <c>string?</c> rather than the brief's
+/// <see cref="Guid"/>: <see cref="AppSettingAudit.ChangedBy"/> is stored as
+/// <c>string?</c> — the same type the existing Blazor UI contract already
+/// uses for this field (<c>Hsm.Contracts.Ui.SettingAuditEntryDto.ChangedBy</c>)
+/// — so this matches storage and the sibling surface exactly instead of
+/// re-typing the field a third way. A parse-to-<see cref="Guid"/> was tried
+/// and rejected: <c>Guid.TryParse(...) ? changedBy : null</c> would silently
+/// turn a non-GUID id into <see langword="null"/>, and on an audit trail a
+/// reader could no longer tell "no actor recorded" from "actor id wasn't
+/// parseable" — the wrong failure mode for a field whose entire purpose is
+/// attribution.</para>
 /// </summary>
 public sealed record SettingAuditResource(
-    Guid Id, string Category, string Key, string? OldValue, string? NewValue, Guid? ChangedBy, DateTimeOffset ChangedAt)
+    Guid Id, string Category, string Key, string? OldValue, string? NewValue, string? ChangedBy, DateTimeOffset ChangedAt)
 {
     public static SettingAuditResource From(AppSettingAudit audit)
     {
@@ -77,7 +76,7 @@ public sealed record SettingAuditResource(
             audit.Key,
             audit.OldValue,
             audit.NewValue,
-            Guid.TryParse(audit.ChangedBy, out var changedBy) ? changedBy : null,
+            audit.ChangedBy,
             audit.ChangedAt);
     }
 }
