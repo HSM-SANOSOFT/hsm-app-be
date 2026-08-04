@@ -23,7 +23,7 @@ namespace Hsm.Application.Coms.Commands.ReceiveWebhook;
 /// this transaction committed it, found nothing, and — because "unknown
 /// event" is a legitimate idempotent no-op here, unlike the send-email job's
 /// "batch not found", which throws and gets a self-healing retry — silently
-/// did nothing forever). <see cref="Hsm.Web.Coms.ComsEndpoints.ReceiveWebhook"/>
+/// did nothing forever). <c>Hsm.Api.Webhooks.WebhookEndpoints.ReceiveWebhook</c>
 /// enqueues each returned id after <c>dispatcher.Send</c> returns, which is a
 /// real post-commit point.
 /// </summary>

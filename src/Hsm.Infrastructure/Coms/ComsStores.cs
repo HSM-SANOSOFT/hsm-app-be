@@ -24,7 +24,11 @@ public sealed class EmailBatchStore(HsmDbContext db) : IEmailBatchStore
     public async Task<PagedResult<EmailBatch>> ListEmailsAsync(
         EmailListFilter filter, int page, int pageSize, CancellationToken ct = default)
     {
-        IQueryable<EmailBatch> query = db.EmailBatches.AsNoTracking();
+        // Included even for the list view: Hsm.Api.Emails.EmailResource
+        // reports TotalRecipients/SentCount/FailedCount per row, and those
+        // are computed off the loaded Recipients collection — without this,
+        // every row in the list would silently report zero for all three.
+        IQueryable<EmailBatch> query = db.EmailBatches.AsNoTracking().Include(b => b.Recipients);
         if (filter.TemplateId is not null)
         {
             query = query.Where(b => b.TemplateId == filter.TemplateId);

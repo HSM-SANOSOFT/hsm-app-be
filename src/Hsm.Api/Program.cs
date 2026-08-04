@@ -1,8 +1,8 @@
 using System.Threading.RateLimiting;
 using Hsm.Api;
 using Hsm.Api.Auth;
-using Hsm.Api.Coms;
 using Hsm.Api.Docs;
+using Hsm.Api.Emails;
 using Hsm.Api.Errors;
 using Hsm.Api.Fhir;
 using Hsm.Api.Health;
@@ -10,6 +10,7 @@ using Hsm.Api.Http;
 using Hsm.Api.Settings;
 using Hsm.Api.Templates;
 using Hsm.Api.Users;
+using Hsm.Api.Webhooks;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
 using Hsm.Infrastructure;
@@ -192,7 +193,8 @@ app.MapAuthEndpoints();
 app.MapUserEndpoints();
 app.MapSettingsEndpoints();
 app.MapTemplateEndpoints();
-app.MapComsEndpoints();
+app.MapEmailEndpoints();
+app.MapWebhookEndpoints();
 app.MapDocsEndpoints();
 
 app.Run();
