@@ -1,4 +1,5 @@
 using Hsm.Application.Auth;
+using Hsm.Contracts;
 using Hsm.Domain.Identity;
 using Hsm.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -72,8 +73,8 @@ public sealed class UserStore(HsmDbContext db) : IUserStore
                 ct);
     }
 
-    public async Task<(IReadOnlyList<User> Users, int TotalItems)> ListAsync(
-        int page, int limit, CancellationToken ct = default)
+    public async Task<PagedResult<User>> ListAsync(
+        int page, int pageSize, CancellationToken ct = default)
     {
         var live = db.Users.Where(u => u.DeletedAt == null);
         var totalItems = await live.CountAsync(ct);
@@ -81,10 +82,10 @@ public sealed class UserStore(HsmDbContext db) : IUserStore
             .AsNoTracking()
             .Include(u => u.Roles)
             .OrderByDescending(u => u.CreatedAt)
-            .Skip((page - 1) * limit)
-            .Take(limit)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(ct);
-        return (users, totalItems);
+        return new PagedResult<User>(users, page, pageSize, totalItems);
     }
 
     public async Task<IReadOnlyList<UserRole>> ReplaceRolesAsync(

@@ -57,7 +57,7 @@ public sealed class PipelineAuthorizationTests(PipelineAuthorizationFactory fact
 
         var page = await dispatcher.Send(new ListUsersQuery(1, 10), CancellationToken.None);
 
-        Assert.Contains(page.Users, user => user.Id == adminId);
+        Assert.Contains(page.Items, user => user.Id == adminId);
     }
 
     [Fact]

@@ -15,9 +15,9 @@ public interface ISettingsAdminUiService
     Task<SettingsCategoryDto> UpdateSettingsAsync(
         string category, IReadOnlyList<SettingChangeDto> changes, CancellationToken cancellationToken = default);
 
-    /// <summary>Audit entries for the category, newest first.</summary>
-    Task<IReadOnlyList<SettingAuditEntryDto>> GetAuditTrailAsync(
-        string category, CancellationToken cancellationToken = default);
+    /// <summary>Audit entries for the category, newest first, paged.</summary>
+    Task<PagedResult<SettingAuditEntryDto>> GetAuditTrailAsync(
+        string category, int page, int pageSize, CancellationToken cancellationToken = default);
 }
 
 /// <summary>A category read-back as the screen renders it.</summary>

@@ -9,6 +9,6 @@ public sealed class ListUsersValidator : AbstractValidator<ListUsersQuery>
     public ListUsersValidator()
     {
         RuleFor(x => x.Page).ValidPage();
-        RuleFor(x => x.Limit).ValidPageSize();
+        RuleFor(x => x.PageSize).ValidPageSize();
     }
 }

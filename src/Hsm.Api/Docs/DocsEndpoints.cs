@@ -59,14 +59,13 @@ public static class DocsEndpoints
         var page = QueryInt(ctx, "page") ?? 1;
         var limit = QueryInt(ctx, "limit") ?? 20;
 
-        var filter = new DocumentListFilter(
-            Guid.Parse(principal.Id), entityId, entityType, type, status, page, limit);
-        var result = await dispatcher.Send(new ListDocumentsQuery(filter), ctx.RequestAborted);
+        var filter = new DocumentListFilter(Guid.Parse(principal.Id), entityId, entityType, type, status);
+        var result = await dispatcher.Send(new ListDocumentsQuery(filter, page, limit), ctx.RequestAborted);
 
         var data = new JsonArray([.. result.Items.Select(d => (JsonNode?)DocumentJson(d))]);
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status200OK, data,
-            extra: ApiEnvelope.Pagination(filter.Page, filter.Limit, result.Total));
+            extra: ApiEnvelope.Pagination(result.Page, result.PageSize, result.TotalItems));
     }
 
     private static async Task<IResult> GenerateDocument(

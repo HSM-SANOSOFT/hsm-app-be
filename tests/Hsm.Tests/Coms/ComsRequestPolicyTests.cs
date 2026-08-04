@@ -8,8 +8,7 @@ using Hsm.Application.Coms.Commands.ResendEmailRecipient;
 using Hsm.Application.Coms.Commands.SendEmail;
 using Hsm.Application.Coms.Queries.GetEmailBatch;
 using Hsm.Application.Coms.Queries.GetEmailRecipient;
-using Hsm.Application.Coms.Queries.ListEmailBatches;
-using Hsm.Application.Coms.Queries.ListEmailRecipients;
+using Hsm.Application.Coms.Queries.ListEmails;
 
 namespace Hsm.Tests.Coms;
 
@@ -19,8 +18,8 @@ namespace Hsm.Tests.Coms;
 /// The frozen <c>coms.controller.ts</c>/<c>coms-webhook.controller.ts</c>
 /// (confirmed against <c>Hsm.Api.Coms.ComsEndpoints</c>'s own doc
 /// comment and every <c>RequestAuth.GateAsync(ctx)</c> call in that file,
-/// none of which carries a role argument) decorate all eight HTTP-facing
-/// operations with a bare <c>@Roles()</c> — authenticated, onboarded, any
+/// none of which carries a role argument) decorate all seven surviving
+/// HTTP-facing operations with a bare <c>@Roles()</c> — authenticated, onboarded, any
 /// role — except the provider webhook, which is <c>@Public</c>: the HMAC
 /// signature is the credential, so <see cref="ReceiveWebhookCommand"/> is
 /// <see cref="AllowAnonymousRequestAttribute"/> with no role attribute.
@@ -39,10 +38,9 @@ public class ComsRequestPolicyTests
 {
     public static TheoryData<Type> AuthenticatedRequests => new(
         typeof(SendEmailCommand),
-        typeof(ListEmailBatchesQuery),
+        typeof(ListEmailsQuery),
         typeof(GetEmailBatchQuery),
         typeof(ResendEmailBatchCommand),
-        typeof(ListEmailRecipientsQuery),
         typeof(GetEmailRecipientQuery),
         typeof(ResendEmailRecipientCommand));
 

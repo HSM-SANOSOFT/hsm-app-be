@@ -118,7 +118,8 @@ else
             Original = item.IsSecret ? string.Empty : item.Value ?? string.Empty,
             Input = item.IsSecret ? string.Empty : item.Value ?? string.Empty,
         })];
-        _audit = await SettingsAdmin.GetAuditTrailAsync(_category);
+        var audit = await SettingsAdmin.GetAuditTrailAsync(_category, page: 1, pageSize: 20);
+        _audit = audit.Items;
     }
 
     private async Task SaveAsync()

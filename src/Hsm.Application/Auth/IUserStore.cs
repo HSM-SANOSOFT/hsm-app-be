@@ -1,3 +1,4 @@
+using Hsm.Contracts;
 using Hsm.Domain.Identity;
 
 namespace Hsm.Application.Auth;
@@ -27,7 +28,7 @@ public interface IUserStore
     Task UpdatePasswordAsync(Guid userId, string passwordHash, CancellationToken ct = default);
 
     /// <summary>Paged listing, newest first, roles attached (frozen findAll).</summary>
-    Task<(IReadOnlyList<User> Users, int TotalItems)> ListAsync(int page, int limit, CancellationToken ct = default);
+    Task<PagedResult<User>> ListAsync(int page, int pageSize, CancellationToken ct = default);
 
     /// <summary>
     /// Replaces the user's role rows: deletes the existing rows IMMEDIATELY

@@ -2,6 +2,7 @@ using Hsm.Application.Abstractions;
 using Hsm.Application.Users.Commands.ChangeUserRole;
 using Hsm.Application.Users.Commands.CreateStaffUser;
 using Hsm.Application.Users.Queries.ListUsers;
+using Hsm.Contracts;
 using Hsm.Contracts.Ui;
 using Hsm.Domain.Identity;
 using Hsm.Web.Auth;
@@ -21,13 +22,12 @@ public sealed class UsersAdminUiService(
     ShellActor shellActor,
     IDispatcher dispatcher) : IUsersAdminUiService
 {
-    public async Task<UserListPageDto> ListUsersAsync(
+    public async Task<PagedResult<UserRowDto>> ListUsersAsync(
         int page, int pageSize, CancellationToken cancellationToken = default)
     {
         await shellActor.InstallAsync(cancellationToken);
         var result = await dispatcher.Send(new ListUsersQuery(page, pageSize), cancellationToken);
-        return new UserListPageDto(
-            [.. result.Users.Select(ToRow)], result.Page, result.PageSize, result.TotalItems);
+        return result.Map(ToRow);
     }
 
     public async Task<UserRowDto> CreateStaffAsync(

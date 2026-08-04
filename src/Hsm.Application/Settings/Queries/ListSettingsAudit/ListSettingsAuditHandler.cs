@@ -1,15 +1,16 @@
 using Hsm.Application.Abstractions;
+using Hsm.Contracts;
 using Hsm.Domain.Settings;
 
 namespace Hsm.Application.Settings.Queries.ListSettingsAudit;
 
 public sealed class ListSettingsAuditHandler(IAppSettingStore store)
-    : IRequestHandler<ListSettingsAuditQuery, IReadOnlyList<AppSettingAudit>>
+    : IRequestHandler<ListSettingsAuditQuery, PagedResult<AppSettingAudit>>
 {
-    public Task<IReadOnlyList<AppSettingAudit>> HandleAsync(ListSettingsAuditQuery request, CancellationToken ct)
+    public Task<PagedResult<AppSettingAudit>> HandleAsync(ListSettingsAuditQuery request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        return store.ListAuditAsync(request.Category, request.Limit, ct);
+        return store.ListAuditAsync(request.Category, request.Page, request.PageSize, ct);
     }
 }

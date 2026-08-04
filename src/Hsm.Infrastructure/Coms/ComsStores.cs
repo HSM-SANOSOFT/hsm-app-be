@@ -1,4 +1,5 @@
 using Hsm.Application.Coms;
+using Hsm.Contracts;
 using Hsm.Domain.Coms;
 using Hsm.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -20,8 +21,8 @@ public sealed class EmailBatchStore(HsmDbContext db) : IEmailBatchStore
         return await query.FirstOrDefaultAsync(b => b.Id == id, ct);
     }
 
-    public async Task<IReadOnlyList<EmailBatch>> ListAsync(
-        BatchListFilter filter, CancellationToken ct = default)
+    public async Task<PagedResult<EmailBatch>> ListEmailsAsync(
+        EmailListFilter filter, int page, int pageSize, CancellationToken ct = default)
     {
         IQueryable<EmailBatch> query = db.EmailBatches.AsNoTracking();
         if (filter.TemplateId is not null)
@@ -45,11 +46,13 @@ public sealed class EmailBatchStore(HsmDbContext db) : IEmailBatchStore
             query = query.Where(b => b.CreatedAt >= filter.FromDate && b.CreatedAt <= filter.ToDate);
         }
 
-        return await query
+        var totalItems = await query.CountAsync(ct);
+        var items = await query
             .OrderByDescending(b => b.CreatedAt)
-            .Skip((filter.Page - 1) * filter.Limit)
-            .Take(filter.Limit)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(ct);
+        return new PagedResult<EmailBatch>(items, page, pageSize, totalItems);
     }
 
     public async Task AddAsync(EmailBatch batch, CancellationToken ct = default) =>
@@ -57,32 +60,6 @@ public sealed class EmailBatchStore(HsmDbContext db) : IEmailBatchStore
 
     public async Task<EmailRecipient?> FindRecipientAsync(Guid id, CancellationToken ct = default) =>
         await db.EmailRecipients.FirstOrDefaultAsync(r => r.Id == id, ct);
-
-    public async Task<IReadOnlyList<EmailRecipient>> ListRecipientsAsync(
-        RecipientListFilter filter, CancellationToken ct = default)
-    {
-        IQueryable<EmailRecipient> query = db.EmailRecipients.AsNoTracking();
-        if (filter.BatchId is not null)
-        {
-            query = query.Where(r => r.BatchId == filter.BatchId);
-        }
-
-        if (filter.ToEmail is not null)
-        {
-            query = query.Where(r => r.ToEmail == filter.ToEmail);
-        }
-
-        if (filter.Status is not null)
-        {
-            query = query.Where(r => r.Status == filter.Status);
-        }
-
-        return await query
-            .OrderBy(r => r.Id)
-            .Skip((filter.Page - 1) * filter.Limit)
-            .Take(filter.Limit)
-            .ToListAsync(ct);
-    }
 
     public async Task<EmailRecipient?> FindLatestRecipientByEmailAsync(
         string email, CancellationToken ct = default) =>

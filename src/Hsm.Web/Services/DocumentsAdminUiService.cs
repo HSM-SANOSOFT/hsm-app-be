@@ -5,6 +5,7 @@ using Hsm.Application.Docs.Commands.UploadDocuments;
 using Hsm.Application.Docs.Queries.GetDocumentUrl;
 using Hsm.Application.Docs.Queries.ListDocuments;
 using Hsm.Application.Errors;
+using Hsm.Contracts;
 using Hsm.Contracts.Ui;
 using Hsm.Web.Auth;
 
@@ -25,7 +26,7 @@ public sealed class DocumentsAdminUiService(
     /// <summary>Where screen uploads land inside the docs bucket.</summary>
     public const string UploadFolder = "admin-uploads";
 
-    public async Task<DocumentListPageDto> ListDocumentsAsync(
+    public async Task<PagedResult<DocumentRowDto>> ListDocumentsAsync(
         int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var actor = await shellActor.InstallAsync(cancellationToken)
@@ -35,14 +36,9 @@ public sealed class DocumentsAdminUiService(
         // ListDocumentsQuery's policy, decided in the pipeline a line later.
         var adminId = Guid.Parse(actor.Id);
         var filter = new DocumentListFilter(
-            adminId, EntityId: null, EntityType: null, Type: null, Status: null, page, pageSize);
-        var result = await dispatcher.Send(new ListDocumentsQuery(filter), cancellationToken);
-        return new DocumentListPageDto(
-            [.. result.Items.Select(d => new DocumentRowDto(
-                d.Id.ToString(), d.Title, d.Type, d.Status, d.CreatedAt))],
-            page,
-            pageSize,
-            result.Total);
+            adminId, EntityId: null, EntityType: null, Type: null, Status: null);
+        var result = await dispatcher.Send(new ListDocumentsQuery(filter, page, pageSize), cancellationToken);
+        return result.Map(d => new DocumentRowDto(d.Id.ToString(), d.Title, d.Type, d.Status, d.CreatedAt));
     }
 
     public async Task<IReadOnlyList<string>> UploadAsync(

@@ -1,4 +1,5 @@
 using Hsm.Application.Docs;
+using Hsm.Contracts;
 using Hsm.Domain.Docs;
 using Hsm.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -18,8 +19,8 @@ public sealed class DocumentStore(HsmDbContext db) : IDocumentStore
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task<(IReadOnlyList<Document> Items, int Total)> ListAsync(
-        DocumentListFilter filter, CancellationToken ct = default)
+    public async Task<PagedResult<Document>> ListAsync(
+        DocumentListFilter filter, int page, int pageSize, CancellationToken ct = default)
     {
         var query = db.Documents.AsNoTracking()
             .Where(d => d.CreatedBy == filter.CreatedBy && d.DeletedAt == null);
@@ -43,10 +44,10 @@ public sealed class DocumentStore(HsmDbContext db) : IDocumentStore
         var total = await query.CountAsync(ct);
         var items = await query
             .OrderByDescending(d => d.CreatedAt)
-            .Skip((filter.Page - 1) * filter.Limit)
-            .Take(filter.Limit)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(ct);
-        return (items, total);
+        return new PagedResult<Document>(items, page, pageSize, total);
     }
 
     public async Task<Document?> FindWithVersionsAsync(Guid id, Guid createdBy, CancellationToken ct = default)

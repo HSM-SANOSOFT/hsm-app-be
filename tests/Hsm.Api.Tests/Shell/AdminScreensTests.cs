@@ -235,8 +235,8 @@ public sealed class AdminScreensTests(AdminScreensFactory factory)
             newAddress,
             view.Settings.Single(s => s.Key == "SMTP_ADDRESS").Value);
 
-        var audit = await settings.GetAuditTrailAsync(UiSettingCategories.Email);
-        var entry = audit.First(a => a.Key == "SMTP_ADDRESS");
+        var audit = await settings.GetAuditTrailAsync(UiSettingCategories.Email, page: 1, pageSize: 20);
+        var entry = audit.Items.First(a => a.Key == "SMTP_ADDRESS");
         Assert.Equal(adminId.ToString(), entry.ChangedBy);
         Assert.Equal(newAddress, entry.NewValue);
     }
@@ -256,7 +256,7 @@ public sealed class AdminScreensTests(AdminScreensFactory factory)
         var documentId = Assert.Single(ids);
 
         var page = await docs.ListDocumentsAsync(1, 20);
-        Assert.Contains(page.Documents, d => d.Id == documentId && d.Title == "informe.txt");
+        Assert.Contains(page.Items, d => d.Id == documentId && d.Title == "informe.txt");
 
         // Retrieve: the presigned URL serves the uploaded bytes from RustFS.
         var url = await docs.GetDownloadUrlAsync(documentId);
@@ -266,7 +266,7 @@ public sealed class AdminScreensTests(AdminScreensFactory factory)
 
         await docs.DeleteAsync(documentId);
         var afterDelete = await docs.ListDocumentsAsync(1, 20);
-        Assert.DoesNotContain(afterDelete.Documents, d => d.Id == documentId);
+        Assert.DoesNotContain(afterDelete.Items, d => d.Id == documentId);
     }
 
     [Fact]

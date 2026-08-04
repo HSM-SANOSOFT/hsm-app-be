@@ -13,20 +13,21 @@ using Hsm.Application.Coms.Commands.ResendEmailRecipient;
 using Hsm.Application.Coms.Commands.SendEmail;
 using Hsm.Application.Coms.Queries.GetEmailBatch;
 using Hsm.Application.Coms.Queries.GetEmailRecipient;
-using Hsm.Application.Coms.Queries.ListEmailBatches;
-using Hsm.Application.Coms.Queries.ListEmailRecipients;
+using Hsm.Application.Coms.Queries.ListEmails;
 using Hsm.Application.Ports;
 using Hsm.Domain.Coms;
 
 namespace Hsm.Api.Coms;
 
 /// <summary>
-/// The nine frozen /v1/coms operations (coms.controller.ts +
-/// coms-webhook.controller.ts). All authenticated (any role, onboarded)
-/// except the provider webhook, which is @Public. POST routes return 201.
-/// The frozen list envelope quirk is preserved: the service's total/page/limit
-/// were dropped by the response interceptor, which synthesized pagination from
-/// the returned array length.
+/// The frozen /v1/coms operations (coms.controller.ts +
+/// coms-webhook.controller.ts), minus GET /emails/recipients (Task 4 dropped
+/// it: no consumer, and recipient statuses ride inside the batch/recipient
+/// responses already returned by GetBatch/GetRecipient). All authenticated
+/// (any role, onboarded) except the provider webhook, which is @Public. POST
+/// routes return 201. ListBatches now renders real pagination — the frozen
+/// single-page-synthesis quirk is gone now that ListEmailsQuery returns a
+/// true count via PagedResult.
 /// </summary>
 public static class ComsEndpoints
 {
@@ -38,7 +39,6 @@ public static class ComsEndpoints
         coms.MapGet("/emails/batches", (Delegate)ListBatches);
         coms.MapGet("/emails/batches/{id}", (Delegate)GetBatch);
         coms.MapPost("/emails/batches/{id}/resend", (Delegate)ResendBatch);
-        coms.MapGet("/emails/recipients", (Delegate)ListRecipients);
         coms.MapGet("/emails/recipients/{id}", (Delegate)GetRecipient);
         coms.MapPost("/emails/recipients/{id}/resend", (Delegate)ResendRecipient);
         coms.MapPost("/webhooks/{provider}", (Delegate)ReceiveWebhook);
@@ -87,13 +87,14 @@ public static class ComsEndpoints
         var page = QueryInt(ctx, "page") ?? 1;
         var limit = QueryInt(ctx, "limit") ?? 20;
 
-        var batches = await dispatcher.Send(
-            new ListEmailBatchesQuery(
-                new BatchListFilter(templateId, overallStatus, createdBy, fromDate, toDate, page, limit)),
+        var result = await dispatcher.Send(
+            new ListEmailsQuery(
+                new EmailListFilter(templateId, overallStatus, createdBy, fromDate, toDate), page, limit),
             ctx.RequestAborted);
-        var data = new JsonArray([.. batches.Select(b => (JsonNode?)BatchJson(b, includeRecipients: false))]);
+        var data = new JsonArray([.. result.Items.Select(b => (JsonNode?)BatchJson(b, includeRecipients: false))]);
         return ApiEnvelope.Success(
-            ctx, StatusCodes.Status200OK, data, extra: ApiEnvelope.SinglePagePagination(batches.Count));
+            ctx, StatusCodes.Status200OK, data,
+            extra: ApiEnvelope.Pagination(result.Page, result.PageSize, result.TotalItems));
     }
 
     private static async Task<IResult> GetBatch(HttpContext ctx, string id, IDispatcher dispatcher)
@@ -116,24 +117,6 @@ public static class ComsEndpoints
             new DispatchEmailBatchCommand(batchId, RecipientId: null), CancellationToken.None);
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status201Created, new JsonObject { ["jobId"] = jobId });
-    }
-
-    private static async Task<IResult> ListRecipients(HttpContext ctx, IDispatcher dispatcher)
-    {
-        await RequestAuth.GateAsync(ctx);
-
-        var batchId = QueryUuid(ctx, "batchId");
-        var toEmail = QueryString(ctx, "toEmail");
-        var status = QueryString(ctx, "status");
-        var page = QueryInt(ctx, "page") ?? 1;
-        var limit = QueryInt(ctx, "limit") ?? 20;
-
-        var recipients = await dispatcher.Send(
-            new ListEmailRecipientsQuery(new RecipientListFilter(batchId, toEmail, status, page, limit)),
-            ctx.RequestAborted);
-        var data = new JsonArray([.. recipients.Select(r => (JsonNode?)RecipientJson(r))]);
-        return ApiEnvelope.Success(
-            ctx, StatusCodes.Status200OK, data, extra: ApiEnvelope.SinglePagePagination(recipients.Count));
     }
 
     private static async Task<IResult> GetRecipient(

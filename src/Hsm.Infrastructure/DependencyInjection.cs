@@ -2,6 +2,7 @@ using Amazon.Runtime;
 using Amazon.S3;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
+using Hsm.Contracts;
 using Hsm.Application.Auth.Commands.CompleteOnboarding;
 using Hsm.Application.Auth.Commands.ForgotPassword;
 using Hsm.Application.Auth.Commands.GeneratePin;
@@ -30,8 +31,7 @@ using Hsm.Application.Coms.Commands.ResendEmailRecipient;
 using Hsm.Application.Coms.Commands.SendEmail;
 using Hsm.Application.Coms.Queries.GetEmailBatch;
 using Hsm.Application.Coms.Queries.GetEmailRecipient;
-using Hsm.Application.Coms.Queries.ListEmailBatches;
-using Hsm.Application.Coms.Queries.ListEmailRecipients;
+using Hsm.Application.Coms.Queries.ListEmails;
 using Hsm.Application.Docs;
 using Hsm.Application.Docs.Commands.DeleteDocument;
 using Hsm.Application.Docs.Commands.GenerateDocument;
@@ -187,7 +187,7 @@ public static class DependencyInjection
         // including RenderDocumentCommand, which the queue consumer dispatches
         // through the same pipeline as everything else.
         services.AddScoped<
-            IRequestHandler<ListDocumentsQuery, ListDocumentsResult>, ListDocumentsHandler>();
+            IRequestHandler<ListDocumentsQuery, PagedResult<Document>>, ListDocumentsHandler>();
         services.AddScoped<
             IRequestHandler<GenerateDocumentCommand, GenerateDocumentResult>, GenerateDocumentHandler>();
         services.AddScoped<IRequestHandler<GetDocumentQuery, Document>, GetDocumentHandler>();
@@ -235,11 +235,9 @@ public static class DependencyInjection
         // through the same pipeline as everything else.
         services.AddScoped<IRequestHandler<SendEmailCommand, SendEmailResult>, SendEmailHandler>();
         services.AddScoped<
-            IRequestHandler<ListEmailBatchesQuery, IReadOnlyList<EmailBatch>>, ListEmailBatchesHandler>();
+            IRequestHandler<ListEmailsQuery, PagedResult<EmailBatch>>, ListEmailsHandler>();
         services.AddScoped<IRequestHandler<GetEmailBatchQuery, EmailBatch>, GetEmailBatchHandler>();
         services.AddScoped<IRequestHandler<ResendEmailBatchCommand, string>, ResendEmailBatchHandler>();
-        services.AddScoped<
-            IRequestHandler<ListEmailRecipientsQuery, IReadOnlyList<EmailRecipient>>, ListEmailRecipientsHandler>();
         services.AddScoped<IRequestHandler<GetEmailRecipientQuery, EmailRecipient>, GetEmailRecipientHandler>();
         services.AddScoped<
             IRequestHandler<ResendEmailRecipientCommand, string>, ResendEmailRecipientHandler>();
@@ -281,13 +279,13 @@ public static class DependencyInjection
         services.AddScoped<IRequestHandler<ChangeOwnPasswordCommand, Unit>, ChangeOwnPasswordHandler>();
         services.AddScoped<IRequestHandler<CreateStaffUserCommand, User>, CreateStaffUserHandler>();
         services.AddScoped<IRequestHandler<ChangeUserRoleCommand, User>, ChangeUserRoleHandler>();
-        services.AddScoped<IRequestHandler<ListUsersQuery, ListUsersResult>, ListUsersHandler>();
+        services.AddScoped<IRequestHandler<ListUsersQuery, PagedResult<User>>, ListUsersHandler>();
         services.AddScoped<IRequestHandler<GetUserQuery, User>, GetUserHandler>();
 
         services.AddScoped<IRequestHandler<GetSettingsQuery, SettingsView>, GetSettingsHandler>();
         services.AddScoped<IRequestHandler<UpdateSettingsCommand, SettingsView>, UpdateSettingsHandler>();
         services.AddScoped<
-            IRequestHandler<ListSettingsAuditQuery, IReadOnlyList<AppSettingAudit>>, ListSettingsAuditHandler>();
+            IRequestHandler<ListSettingsAuditQuery, PagedResult<AppSettingAudit>>, ListSettingsAuditHandler>();
     }
 
     /// <summary>

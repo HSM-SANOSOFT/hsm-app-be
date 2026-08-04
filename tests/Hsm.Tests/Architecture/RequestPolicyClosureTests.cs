@@ -13,7 +13,7 @@ namespace Hsm.Tests.Architecture;
 /// loudly, as a diff against <see cref="ExpectedPolicies"/> — rather than
 /// silently leaving a request unaccounted for. "Authenticated" (no attribute)
 /// is a valid, deliberate policy, not a gap: the point is that every one of the
-/// 53 current types is consciously listed, not that all must carry an
+/// 52 current types is consciously listed, not that all must carry an
 /// attribute. It also pins the <see cref="NoAmbientTransactionAttribute"/>
 /// carrier set, closing the Task 19 gap where that set was asserted per-module
 /// but never as a whole.
@@ -101,8 +101,7 @@ public class RequestPolicyClosureTests
         "GetUserQuery: RequireRole(admin)",
         "IssueIntegrationTokensCommand: RequireRole(admin)",
         "ListDocumentsQuery: Authenticated",
-        "ListEmailBatchesQuery: Authenticated",
-        "ListEmailRecipientsQuery: Authenticated",
+        "ListEmailsQuery: Authenticated",
         "ListIntegrationAccountsQuery: RequireRole(admin)",
         "ListSettingsAuditQuery: RequireRole(admin)",
         "ListTemplatesQuery: Authenticated",

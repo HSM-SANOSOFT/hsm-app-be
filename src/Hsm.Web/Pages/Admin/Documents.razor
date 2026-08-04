@@ -1,5 +1,6 @@
 @page "/documentos"
 @attribute [Authorize(Roles = UiRoles.Admin)]
+@using Hsm.Contracts
 @inject IDocumentsAdminUiService Docs
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
@@ -37,7 +38,7 @@
 {
     <MudProgressLinear Indeterminate="true" data-testid="documents-loading" />
 }
-else if (_page.Documents.Count == 0)
+else if (_page.Items.Count == 0)
 {
     <MudText Typo="Typo.body2" Class="mud-text-secondary" data-testid="documents-empty">
         No hay documentos.
@@ -45,7 +46,7 @@ else if (_page.Documents.Count == 0)
 }
 else
 {
-    <MudTable T="DocumentRowDto" Items="_page.Documents" Hover="true" Dense="true"
+    <MudTable T="DocumentRowDto" Items="_page.Items" Hover="true" Dense="true"
               data-testid="documents-table">
         <HeaderContent>
             <MudTh>Título</MudTh>
@@ -82,14 +83,12 @@ else
     private const int PageSize = 10;
     private const long MaxUploadBytes = 50 * 1024 * 1024;
 
-    private DocumentListPageDto? _page;
+    private PagedResult<DocumentRowDto>? _page;
     private IBrowserFile? _selectedFile;
     private bool _uploading;
     private int _pageNumber = 1;
 
-    private int TotalPages => _page is null || _page.TotalItems == 0
-        ? 1
-        : (_page.TotalItems + PageSize - 1) / PageSize;
+    private int TotalPages => _page is null || _page.TotalPages == 0 ? 1 : _page.TotalPages;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 

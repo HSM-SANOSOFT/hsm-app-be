@@ -75,7 +75,7 @@ public static class UserEndpoints
         var limit = QueryInt(ctx, "limit") ?? 20;
 
         var result = await dispatcher.Send(new ListUsersQuery(page, limit), ctx.RequestAborted);
-        var data = new JsonArray([.. result.Users.Select(u => (JsonNode?)UserJson(u, includeRoles: true))]);
+        var data = new JsonArray([.. result.Items.Select(u => (JsonNode?)UserJson(u, includeRoles: true))]);
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status200OK, data,
             extra: ApiEnvelope.Pagination(result.Page, result.PageSize, result.TotalItems));

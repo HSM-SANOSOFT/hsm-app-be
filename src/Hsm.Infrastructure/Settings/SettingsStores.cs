@@ -1,4 +1,5 @@
 using Hsm.Application.Settings;
+using Hsm.Contracts;
 using Hsm.Domain.Settings;
 using Hsm.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -21,13 +22,18 @@ public sealed class AppSettingStore(HsmDbContext db) : IAppSettingStore
     public async Task AddAuditAsync(AppSettingAudit audit, CancellationToken ct = default) =>
         await db.AppSettingAudits.AddAsync(audit, ct);
 
-    public async Task<IReadOnlyList<AppSettingAudit>> ListAuditAsync(
-        string category, int limit, CancellationToken ct = default) =>
-        await db.AppSettingAudits
-            .Where(a => a.Category == category)
+    public async Task<PagedResult<AppSettingAudit>> ListAuditAsync(
+        string category, int page, int pageSize, CancellationToken ct = default)
+    {
+        var query = db.AppSettingAudits.Where(a => a.Category == category);
+        var totalItems = await query.CountAsync(ct);
+        var items = await query
             .OrderByDescending(a => a.ChangedAt)
-            .Take(limit)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(ct);
+        return new PagedResult<AppSettingAudit>(items, page, pageSize, totalItems);
+    }
 }
 
 /// <summary>

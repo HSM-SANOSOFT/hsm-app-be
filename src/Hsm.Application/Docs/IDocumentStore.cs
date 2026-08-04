@@ -1,3 +1,4 @@
+using Hsm.Contracts;
 using Hsm.Domain.Docs;
 
 namespace Hsm.Application.Docs;
@@ -8,9 +9,7 @@ public sealed record DocumentListFilter(
     string? EntityId,
     string? EntityType,
     string? Type,
-    string? Status,
-    int Page,
-    int Limit);
+    string? Status);
 
 /// <summary>
 /// Everything one generated version persists in a single transaction (frozen
@@ -52,8 +51,8 @@ public interface IDocumentStore
     Task AddAsync(Document document, CancellationToken ct = default);
 
     /// <summary>Frozen list: createdBy scope, deleted excluded, createdAt DESC.</summary>
-    Task<(IReadOnlyList<Document> Items, int Total)> ListAsync(
-        DocumentListFilter filter, CancellationToken ct = default);
+    Task<PagedResult<Document>> ListAsync(
+        DocumentListFilter filter, int page, int pageSize, CancellationToken ct = default);
 
     /// <summary>
     /// Frozen findOne({ id, createdBy }, relations: versions.storage):
