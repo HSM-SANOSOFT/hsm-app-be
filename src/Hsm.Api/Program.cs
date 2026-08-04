@@ -129,6 +129,21 @@ var app = builder.Build();
 // renders through it.
 app.UseExceptionHandler();
 
+// Transitional: installs the actor for the reshaped /api routes while the old
+// per-endpoint GateAsync still serves the un-reshaped /v1 ones. Task 12
+// replaces this whole block with UseAuthentication() + UseHsmActor().
+app.Use(async (ctx, next) =>
+{
+    if (ctx.Request.Path.StartsWithSegments("/api")
+        && RequestAuth.AccessToken(ctx) is not null)
+    {
+        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
+        await RequestAuth.InstallActorAsync(ctx, principal);
+    }
+
+    await next();
+});
+
 if (!app.Environment.IsDevelopment())
 {
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.

@@ -21,7 +21,7 @@ public class ProblemDetailsTests(ProblemDetailsFactory factory)
     {
         using var client = factory.CreateApiClient();
 
-        var response = await client.GetAsync("/v1/user", CancellationToken.None);
+        var response = await client.GetAsync("/api/v1/users", CancellationToken.None);
 
         await ProblemAssert.ProblemAsync(response, 401);
     }
@@ -31,7 +31,7 @@ public class ProblemDetailsTests(ProblemDetailsFactory factory)
     {
         using var client = await factory.AuthenticatedClientAsync(Roles.Doctor);
 
-        var response = await client.GetAsync("/v1/user", CancellationToken.None);
+        var response = await client.GetAsync("/api/v1/users", CancellationToken.None);
 
         await ProblemAssert.ProblemAsync(response, 403);
     }
@@ -42,7 +42,7 @@ public class ProblemDetailsTests(ProblemDetailsFactory factory)
         using var client = await factory.AuthenticatedClientAsync(Roles.Admin);
 
         var response = await client.GetAsync(
-            $"/v1/user/{Guid.NewGuid()}", CancellationToken.None);
+            $"/api/v1/users/{Guid.NewGuid()}", CancellationToken.None);
 
         var problem = await ProblemAssert.ProblemAsync(response, 404);
         Assert.Contains("User", problem.GetProperty("detail").GetString()!, StringComparison.Ordinal);
@@ -62,20 +62,20 @@ public class ProblemDetailsTests(ProblemDetailsFactory factory)
             role = Roles.Nurse,
             tempPassword = "Temp-Passw0rd",
         };
-        var first = await client.PostAsJsonAsync("/v1/user/staff", body, CancellationToken.None);
+        var first = await client.PostAsJsonAsync("/api/v1/users", body, CancellationToken.None);
         Assert.True(first.IsSuccessStatusCode, await first.Content.ReadAsStringAsync(CancellationToken.None));
 
-        var second = await client.PostAsJsonAsync("/v1/user/staff", body, CancellationToken.None);
+        var second = await client.PostAsJsonAsync("/api/v1/users", body, CancellationToken.None);
 
         await ProblemAssert.ProblemAsync(second, 409);
     }
 
     [Fact]
-    public async Task Patient_facing_role_via_staff_endpoint_is_a_400_problem()
+    public async Task Patient_facing_role_is_a_400_problem()
     {
         // Regression: CreateStaffUserHandler's temporary inline guard (kept
-        // until Task 3's CreateStaffUserValidator exists) — without it, the
-        // staff endpoint would silently provision a patient-facing role.
+        // until Task 3's CreateStaffUserValidator exists) — without it, POST
+        // /api/v1/users would silently provision a patient-facing role.
         using var client = await factory.AuthenticatedClientAsync(Roles.Admin);
         var username = $"pat{Guid.NewGuid():N}"[..20];
         var body = new
@@ -88,7 +88,7 @@ public class ProblemDetailsTests(ProblemDetailsFactory factory)
             tempPassword = "Temp-Passw0rd",
         };
 
-        var response = await client.PostAsJsonAsync("/v1/user/staff", body, CancellationToken.None);
+        var response = await client.PostAsJsonAsync("/api/v1/users", body, CancellationToken.None);
 
         await ProblemAssert.ProblemAsync(response, 400);
     }
@@ -98,9 +98,14 @@ public class ProblemDetailsTests(ProblemDetailsFactory factory)
     {
         using var client = await factory.AuthenticatedClientAsync(Roles.Admin);
 
-        // A non-GUID id reaches Guid.Parse and throws FormatException, which is
-        // outside the closed set and must surface as a bare 500.
-        var response = await client.GetAsync("/v1/user/not-a-guid", CancellationToken.None);
+        // Users' own {id:guid} route constraint now turns a non-GUID id into a
+        // 404 (Task 5) rather than a 500, so this regression borrows a route
+        // that has not been reshaped yet: Docs still binds its id as a bare
+        // string and calls Guid.Parse itself, so a non-GUID id there still
+        // reaches a FormatException outside the closed set and must surface
+        // as a bare 500. Repoint to a reshaped Docs route (with :guid) once
+        // that module's task lands.
+        var response = await client.GetAsync("/v1/docs/not-a-guid", CancellationToken.None);
 
         var problem = await ProblemAssert.ProblemAsync(response, 500);
         Assert.False(problem.TryGetProperty("detail", out var detail) && detail.ValueKind is JsonValueKind.String

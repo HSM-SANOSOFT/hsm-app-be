@@ -29,6 +29,14 @@ namespace Hsm.Api.Errors;
 /// endpoints' <c>ReadFromJsonAsync</c> call site, via
 /// <see cref="Hsm.Api.Http.RequestJsonReader.ReadValidatedJsonAsync{T}"/> —
 /// not what type it is globally.</para>
+///
+/// <para>Task 5's resource endpoints bind their request record straight from
+/// the body instead (minimal API's own inferred-body-parameter binding), so
+/// they have no <c>ReadValidatedJsonAsync</c> call site to catch at. A
+/// malformed body there fails inside the framework's own binding step and
+/// surfaces as <see cref="Microsoft.AspNetCore.Http.BadHttpRequestException"/>,
+/// which — unlike bare <c>JsonException</c> — can only originate from THIS
+/// request's route/query/body binding, so it DOES get its own arm below.</para>
 /// </summary>
 public sealed partial class HsmExceptionHandler(
     IProblemDetailsService problemDetailsService,
@@ -66,6 +74,15 @@ public sealed partial class HsmExceptionHandler(
         ConflictException conflict =>
             Problem(StatusCodes.Status409Conflict, "Conflict", conflict.Message),
         TooManyRequestsException => Problem(StatusCodes.Status429TooManyRequests, "Too Many Requests"),
+        // Unlike the JsonException this type deliberately has no arm here (see
+        // the class doc), BadHttpRequestException can ONLY come from THIS
+        // request's own route/query/body binding — a handler parsing STORED
+        // JSON throws plain JsonException, never this — so reclassifying it
+        // as caller-facing (via its own framework-assigned StatusCode, always
+        // 400 for a malformed body under Task 5's inferred-body-parameter
+        // endpoints) cannot mask a server-side data bug as a 500.
+        Microsoft.AspNetCore.Http.BadHttpRequestException badRequest =>
+            Problem(badRequest.StatusCode, "Bad Request"),
         _ => Problem(StatusCodes.Status500InternalServerError, "Internal Server Error"),
     };
 
