@@ -35,12 +35,10 @@ namespace Hsm.Api.SystemStatus;
 /// for.</description></item>
 /// <item><description><c>CheckedAt</c>: the instant this response is
 /// assembled.</description></item>
-/// <item><description><c>Components</c>: empty. No dependency probing exists
-/// anywhere in the Application layer today — deliberately, for the same
-/// reason <c>/health</c> stays liveness-only — and wiring one is out of this
-/// task's scope; an empty list is the honest answer rather than a fabricated
-/// one.</description></item>
 /// </list>
+///
+/// No <c>Components</c>/dependency-state field — see
+/// <see cref="SystemStatusResource"/>'s doc comment for why.
 /// </summary>
 public static class SystemEndpoints
 {
@@ -68,7 +66,6 @@ public static class SystemEndpoints
         return Results.Ok(new SystemStatusResource(
             version,
             environment.EnvironmentName,
-            DateTimeOffset.UtcNow,
-            []));
+            DateTimeOffset.UtcNow));
     }
 }

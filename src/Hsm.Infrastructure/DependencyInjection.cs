@@ -164,6 +164,7 @@ public static class DependencyInjection
         AddIdentity(services, configuration);
         AddClinical(services);
         AddUsersAndSettings(services);
+        AddSystem(services);
         AddTemplatesAndComs(services, configuration);
         AddDocs(services, configuration);
 
@@ -292,15 +293,19 @@ public static class DependencyInjection
         services.AddScoped<IRequestHandler<UpdateSettingsCommand, SettingsView>, UpdateSettingsHandler>();
         services.AddScoped<
             IRequestHandler<ListSettingsAuditQuery, PagedResult<AppSettingAudit>>, ListSettingsAuditHandler>();
-
-        // System: the U8 boundary-proving query, dispatched from both doors —
-        // Hsm.Web's Blazor UI service in process, and Hsm.Api's
-        // GET /api/v1/system/status over HTTP (Task 10). Previously only
-        // Hsm.Web registered this handler for itself; it moves here so every
-        // host that composes AddHsmInfrastructure can dispatch it, matching
-        // every other handler's registration site.
-        services.AddScoped<IRequestHandler<GetSystemStatusQuery, SystemStatusDto>, GetSystemStatusHandler>();
     }
+
+    /// <summary>
+    /// The U8 boundary-proving query, dispatched from both doors — Hsm.Web's
+    /// Blazor UI service in process, and Hsm.Api's GET /api/v1/system/status
+    /// over HTTP (Task 10). Previously only Hsm.Web registered this handler
+    /// for itself; it moved here so every host that composes
+    /// AddHsmInfrastructure can dispatch it, matching every other handler's
+    /// registration site — its own method rather than folded into
+    /// AddUsersAndSettings, since it has nothing to do with either.
+    /// </summary>
+    private static void AddSystem(IServiceCollection services) =>
+        services.AddScoped<IRequestHandler<GetSystemStatusQuery, SystemStatusDto>, GetSystemStatusHandler>();
 
     /// <summary>
     /// Identity adapters and auth use-case handlers (plan U12). Two refresh
