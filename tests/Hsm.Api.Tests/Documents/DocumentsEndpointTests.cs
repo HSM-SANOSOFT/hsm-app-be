@@ -249,6 +249,21 @@ public class DocumentsEndpointTests(DocumentsFactory factory) : IClassFixture<Do
 
         var fetched = await client.GetAsync($"/api/v1/documents/{survivorId}", CancellationToken.None);
         Assert.Equal(HttpStatusCode.OK, fetched.StatusCode);
+
+        // Regression for the review's Important finding #1: DeleteDocumentHandler
+        // used to delete the S3/RustFS blob synchronously, inside the same
+        // per-id Send that soft-deleted the row — non-transactional, so it was
+        // never undone when the LATER unknown id rolled the DB row back. This
+        // asserts the blob itself, not just the row: the survivor's /url route
+        // still resolves to a working presigned URL that serves the original
+        // bytes, proving the object was never touched by the rolled-back batch
+        // (DeleteDocumentEndpoints now only enqueues the blob-cleanup job AFTER
+        // the whole batch transaction commits, which never happened here).
+        var urlBody = await client.GetFromJsonAsync<JsonElement>(
+            $"/api/v1/documents/{survivorId}/url", CancellationToken.None);
+        using var raw = new HttpClient();
+        var stored = await raw.GetStringAsync(urlBody.GetProperty("url").GetString());
+        Assert.Equal(FileContent, stored);
     }
 
     [Fact]
@@ -304,6 +319,48 @@ public class DocumentsEndpointTests(DocumentsFactory factory) : IClassFixture<Do
 
         var problem = await ProblemAssert.ProblemAsync(response, 400);
         Assert.True(problem.GetProperty("errors").TryGetProperty("files", out _));
+    }
+
+    [Fact]
+    public async Task Uploading_with_a_payload_item_missing_files_is_a_field_validation_failure()
+    {
+        // Regression for the review's Important finding #2: before the fix,
+        // UploadPayloadItem.Files deserialized to null and UploadDocumentsHandler's
+        // own foreach threw a bare NullReferenceException two layers down — a
+        // 500, not the field-keyed 400 this reshape was supposed to deliver.
+        using var client = await factory.AuthenticatedClientAsync(Roles.Nurse);
+        using var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes("x"));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+        content.Add(fileContent, "files", "note.txt");
+        content.Add(
+            new StringContent(JsonSerializer.Serialize(new[] { new { bucket = DocumentsFactory.Bucket } })),
+            "payload");
+
+        var response = await client.PostAsync("/api/v1/documents", content, CancellationToken.None);
+
+        var problem = await ProblemAssert.ProblemAsync(response, 400);
+        Assert.True(problem.GetProperty("errors").TryGetProperty("payload", out _));
+    }
+
+    [Fact]
+    public async Task Uploading_with_a_payload_file_missing_folderName_is_a_field_validation_failure()
+    {
+        using var client = await factory.AuthenticatedClientAsync(Roles.Nurse);
+        using var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes("x"));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+        content.Add(fileContent, "files", "note.txt");
+        var payload = new[]
+        {
+            new { bucket = DocumentsFactory.Bucket, files = new[] { new { fileName = "note.txt" } } },
+        };
+        content.Add(new StringContent(JsonSerializer.Serialize(payload)), "payload");
+
+        var response = await client.PostAsync("/api/v1/documents", content, CancellationToken.None);
+
+        var problem = await ProblemAssert.ProblemAsync(response, 400);
+        Assert.True(problem.GetProperty("errors").TryGetProperty("payload", out _));
     }
 
     [Fact]

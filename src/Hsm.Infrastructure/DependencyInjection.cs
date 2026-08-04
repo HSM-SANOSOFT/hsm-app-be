@@ -34,6 +34,7 @@ using Hsm.Application.Coms.Queries.GetEmailRecipient;
 using Hsm.Application.Coms.Queries.ListEmails;
 using Hsm.Application.Docs;
 using Hsm.Application.Docs.Commands.DeleteDocument;
+using Hsm.Application.Docs.Commands.DeleteDocumentBlobs;
 using Hsm.Application.Docs.Commands.GenerateDocument;
 using Hsm.Application.Docs.Commands.RenderDocument;
 using Hsm.Application.Docs.Commands.UploadDocuments;
@@ -192,7 +193,10 @@ public static class DependencyInjection
             IRequestHandler<GenerateDocumentCommand, GenerateDocumentResult>, GenerateDocumentHandler>();
         services.AddScoped<IRequestHandler<GetDocumentQuery, Document>, GetDocumentHandler>();
         services.AddScoped<IRequestHandler<GetDocumentUrlQuery, string>, GetDocumentUrlHandler>();
-        services.AddScoped<IRequestHandler<DeleteDocumentCommand, Unit>, DeleteDocumentHandler>();
+        services.AddScoped<
+            IRequestHandler<DeleteDocumentCommand, DeleteDocumentResult>, DeleteDocumentHandler>();
+        services.AddScoped<
+            IRequestHandler<DeleteDocumentBlobsCommand, Unit>, DeleteDocumentBlobsHandler>();
         services.AddScoped<
             IRequestHandler<PresignDocumentsQuery, IReadOnlyList<PresignedItem>>, PresignDocumentsHandler>();
         services.AddScoped<

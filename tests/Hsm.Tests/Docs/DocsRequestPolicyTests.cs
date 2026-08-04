@@ -1,6 +1,7 @@
 using System.Reflection;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Docs.Commands.DeleteDocument;
+using Hsm.Application.Docs.Commands.DeleteDocumentBlobs;
 using Hsm.Application.Docs.Commands.GenerateDocument;
 using Hsm.Application.Docs.Commands.RenderDocument;
 using Hsm.Application.Docs.Commands.UploadDocuments;
@@ -72,5 +73,17 @@ public class DocsRequestPolicyTests
         // has no business staying open across a PDF render and an S3 upload.
         Assert.NotNull(
             typeof(RenderDocumentCommand).GetCustomAttribute<NoAmbientTransactionAttribute>());
+    }
+
+    [Fact]
+    public void Deleting_document_blobs_job_carries_its_frozen_queue_name()
+    {
+        // Not an HTTP-facing operation (same reasoning as RenderDocumentCommand
+        // above) — DeleteDocumentHandler no longer deletes blobs itself; this
+        // job is enqueued by DocumentEndpoints/DocumentsAdminUiService strictly
+        // after the deleting transaction has committed.
+        var attribute = typeof(DeleteDocumentBlobsCommand).GetCustomAttribute<JobNameAttribute>();
+        Assert.NotNull(attribute);
+        Assert.Equal("docs.delete-blobs", attribute!.Name);
     }
 }

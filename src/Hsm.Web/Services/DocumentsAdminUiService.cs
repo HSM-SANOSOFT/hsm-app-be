@@ -1,10 +1,12 @@
 using Hsm.Application.Abstractions;
 using Hsm.Application.Docs;
 using Hsm.Application.Docs.Commands.DeleteDocument;
+using Hsm.Application.Docs.Commands.DeleteDocumentBlobs;
 using Hsm.Application.Docs.Commands.UploadDocuments;
 using Hsm.Application.Docs.Queries.GetDocumentUrl;
 using Hsm.Application.Docs.Queries.ListDocuments;
 using Hsm.Application.Errors;
+using Hsm.Application.Ports;
 using Hsm.Contracts;
 using Hsm.Contracts.Ui;
 using Hsm.Web.Auth;
@@ -21,6 +23,7 @@ namespace Hsm.Web.Services;
 public sealed class DocumentsAdminUiService(
     ShellActor shellActor,
     IDispatcher dispatcher,
+    IJobQueue jobQueue,
     DocsOptions docsOptions) : IDocumentsAdminUiService
 {
     /// <summary>Where screen uploads land inside the docs bucket.</summary>
@@ -96,6 +99,17 @@ public sealed class DocumentsAdminUiService(
     public async Task DeleteAsync(string documentId, CancellationToken cancellationToken = default)
     {
         await shellActor.InstallAsync(cancellationToken);
-        await dispatcher.Send(new DeleteDocumentCommand(Guid.Parse(documentId)), cancellationToken);
+        var result = await dispatcher.Send(new DeleteDocumentCommand(Guid.Parse(documentId)), cancellationToken);
+
+        // Same post-commit-enqueue rule as DocumentEndpoints.DeleteDocument:
+        // DeleteDocumentHandler no longer deletes blobs itself (see its own
+        // doc comment) — this door must schedule the cleanup exactly the way
+        // the REST door does, or an admin-screen delete would leak the blob
+        // forever.
+        if (result.Blobs.Count > 0)
+        {
+            await jobQueue.EnqueueAsync(
+                new DeleteDocumentBlobsCommand(result.DocumentId, result.Blobs), CancellationToken.None);
+        }
     }
 }

@@ -83,6 +83,7 @@ public class RequestPolicyClosureTests
         "CreatePatientCommand: RequireRole(doctor,nurse,technician,therapist,pharmacist,admin)",
         "CreateStaffUserCommand: RequireRole(admin)",
         "CreateTemplateCommand: Authenticated",
+        "DeleteDocumentBlobsCommand: Authenticated",
         "DeleteDocumentCommand: Authenticated",
         "DeleteTemplateCommand: Authenticated",
         "DispatchEmailBatchCommand: Authenticated",

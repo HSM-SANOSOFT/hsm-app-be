@@ -1,13 +1,30 @@
 using Hsm.Application.Abstractions;
 using Hsm.Application.Errors;
-using Hsm.Application.Ports;
 
 namespace Hsm.Application.Docs.Commands.DeleteDocument;
 
-public sealed class DeleteDocumentHandler(IDocumentStore store, IObjectStorage storage, ICurrentPrincipal principal)
-    : IRequestHandler<DeleteDocumentCommand, Unit>
+/// <summary>
+/// <b>Does not delete blobs itself</b> — unlike the frozen handler, which
+/// deleted every version's S3 object right after the soft-delete. Object-store
+/// deletes are not transactional and have no rollback: if this handler ran
+/// inside an ambient transaction alongside OTHER <see cref="DeleteDocumentCommand"/>
+/// dispatches (the bulk-delete route wraps a whole batch in one
+/// <c>IUnitOfWork.ExecuteInTransactionAsync</c> call so an unknown id rolls the
+/// batch back — see <c>DocumentEndpoints.DeleteDocumentsBulk</c>), a blob
+/// deleted here would stay deleted even after the DB transaction rolled the row
+/// back, leaving a "restored" document whose file no longer exists. Instead this
+/// handler only captures each version's storage coordinates before the row is
+/// gone; the caller enqueues
+/// <see cref="Hsm.Application.Docs.Commands.DeleteDocumentBlobs.DeleteDocumentBlobsCommand"/>
+/// strictly after the whole transaction (single delete's own, or the bulk
+/// batch's) has committed — the same post-commit-enqueue rule
+/// <c>GenerateDocument</c>/<c>SendEmail</c> already follow for their own queued
+/// work.
+/// </summary>
+public sealed class DeleteDocumentHandler(IDocumentStore store, ICurrentPrincipal principal)
+    : IRequestHandler<DeleteDocumentCommand, DeleteDocumentResult>
 {
-    public async Task<Unit> HandleAsync(DeleteDocumentCommand request, CancellationToken ct)
+    public async Task<DeleteDocumentResult> HandleAsync(DeleteDocumentCommand request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
         var actor = principal.Actor ?? throw new UnauthorizedException();
@@ -18,31 +35,15 @@ public sealed class DeleteDocumentHandler(IDocumentStore store, IObjectStorage s
 
         await store.SoftDeleteAsync(request.Id, ct);
 
-        // Independent blob deletes run concurrently (bounded), each still
-        // best-effort: the frozen deleteFiles swallows per-object failures
-        // (logged only) — the API still answers { deleted: true }.
-        using var throttle = new SemaphoreSlim(4);
-        await Task.WhenAll(document.Versions
+        var blobs = document.Versions
             .Where(version => version.Storage is not null)
-            .Select(async version =>
+            .Select(version =>
             {
-                await throttle.WaitAsync(ct);
-                try
-                {
-                    var (folderName, fileId) = StorageKeys.Split(version.Storage!.Path);
-                    await storage.DeleteAsync(
-                        StorageKeys.MakeKey(folderName, fileId), version.Storage.Bucket, ct);
-                }
-                catch (ObjectStorageException)
-                {
-                    // Swallowed, as in the frozen path.
-                }
-                finally
-                {
-                    throttle.Release();
-                }
-            }));
+                var (folderName, fileId) = StorageKeys.Split(version.Storage!.Path);
+                return new DocumentBlobRef(StorageKeys.MakeKey(folderName, fileId), version.Storage.Bucket);
+            })
+            .ToList();
 
-        return Unit.Value;
+        return new DeleteDocumentResult(request.Id, blobs);
     }
 }

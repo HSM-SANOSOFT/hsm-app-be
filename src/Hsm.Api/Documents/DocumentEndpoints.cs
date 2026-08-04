@@ -3,6 +3,7 @@ using FluentValidation;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Docs;
 using Hsm.Application.Docs.Commands.DeleteDocument;
+using Hsm.Application.Docs.Commands.DeleteDocumentBlobs;
 using Hsm.Application.Docs.Commands.GenerateDocument;
 using Hsm.Application.Docs.Commands.RenderDocument;
 using Hsm.Application.Docs.Commands.UploadDocuments;
@@ -116,14 +117,22 @@ public static class DocumentEndpoints
     private static async Task<IResult> GetDocument(Guid id, IDispatcher dispatcher, CancellationToken ct) =>
         Results.Ok(DocumentDetailResource.From(await dispatcher.Send(new GetDocumentQuery(id), ct)));
 
-    private static async Task<IResult> DeleteDocument(Guid id, IDispatcher dispatcher, CancellationToken ct)
+    private static async Task<IResult> DeleteDocument(
+        Guid id, IDispatcher dispatcher, IJobQueue queue, CancellationToken ct)
     {
-        await dispatcher.Send(new DeleteDocumentCommand(id), ct);
+        var result = await dispatcher.Send(new DeleteDocumentCommand(id), ct);
+
+        // Enqueued HERE, after dispatch returns — TransactionBehavior has
+        // already committed the soft-delete by now. DeleteDocumentHandler
+        // deliberately does not delete the blobs itself (see its own doc
+        // comment): object-store deletes are not transactional, so they must
+        // never run until the row that "owns" them is durably gone.
+        await EnqueueBlobCleanupAsync(queue, result);
         return Results.NoContent();
     }
 
     private static async Task<IResult> DeleteDocumentsBulk(
-        string? ids, IDispatcher dispatcher, IUnitOfWork unitOfWork, CancellationToken ct)
+        string? ids, IDispatcher dispatcher, IUnitOfWork unitOfWork, IJobQueue queue, CancellationToken ct)
     {
         var documentIds = ParseIds(ids);
 
@@ -135,19 +144,41 @@ public static class DocumentEndpoints
         // partway through the batch throws NotFoundException, which unwinds
         // out of this delegate without a commit ever happening, so the whole
         // batch rolls back rather than applying partially.
-        await unitOfWork.ExecuteInTransactionAsync(
+        var results = await unitOfWork.ExecuteInTransactionAsync(
             async token =>
             {
+                var deleted = new List<DeleteDocumentResult>(documentIds.Count);
                 foreach (var id in documentIds)
                 {
-                    await dispatcher.Send(new DeleteDocumentCommand(id), token);
+                    deleted.Add(await dispatcher.Send(new DeleteDocumentCommand(id), token));
                 }
 
-                return Unit.Value;
+                return deleted;
             },
             ct);
+
+        // Enqueued HERE, once the WHOLE batch's transaction has committed —
+        // not per-id inside the loop above. Blob deletes are not
+        // transactional: enqueuing (or running) one before every id in the
+        // batch is confirmed durable would mean an id that survives a
+        // later-id rollback could still lose its blob, exactly the bug this
+        // fix closes.
+        foreach (var result in results)
+        {
+            await EnqueueBlobCleanupAsync(queue, result);
+        }
+
         return Results.NoContent();
     }
+
+    private static Task EnqueueBlobCleanupAsync(IJobQueue queue, DeleteDocumentResult result) =>
+        result.Blobs.Count > 0
+            // CancellationToken.None, deliberately: post-commit cleanup of
+            // objects belonging to a row that is now durably gone — must not
+            // be abandoned just because the client hung up.
+            ? queue.EnqueueAsync(
+                new DeleteDocumentBlobsCommand(result.DocumentId, result.Blobs), CancellationToken.None)
+            : Task.CompletedTask;
 
     private static async Task<IResult> PresignDocuments(
         PresignRequest request, IDispatcher dispatcher, CancellationToken ct)
@@ -260,7 +291,48 @@ public static class DocumentEndpoints
             return [];
         }
 
-        return JsonSerializer.Deserialize<List<UploadPayloadItem>>(payloadValues[^1]!, JsonSerializerOptions.Web)
+        var items = JsonSerializer.Deserialize<List<UploadPayloadItem>>(payloadValues[^1]!, JsonSerializerOptions.Web)
             ?? [];
+        ValidateUploadPayloadShape(items);
+        return items;
     }
+
+    /// <summary>
+    /// A well-formed JSON array with a missing/null required sub-field (no
+    /// "bucket", no "files", or a file entry missing "folderName"/"fileName")
+    /// is a field validation failure on "payload" — not a silent degrade to a
+    /// default value, and not the <see cref="NullReferenceException"/>
+    /// <c>UploadDocumentsHandler</c>'s own matching loop would otherwise throw
+    /// two layers down (a bare 500, outside the closed exception set). This is
+    /// the field-keyed-400 half of the reshape the old DocsEndpoints comment
+    /// deferred to this task; unparseable JSON itself is a separate,
+    /// deliberately-unchanged case — see <see cref="ReadUploadPayload"/>'s doc
+    /// comment.
+    /// </summary>
+    private static void ValidateUploadPayloadShape(List<UploadPayloadItem> items)
+    {
+        foreach (var item in items)
+        {
+            if (item is null || item.Bucket is null || item.Files is null)
+            {
+                throw PayloadShapeFailure();
+            }
+
+            foreach (var file in item.Files)
+            {
+                if (file is null || file.FolderName is null || file.FileName is null)
+                {
+                    throw PayloadShapeFailure();
+                }
+            }
+        }
+    }
+
+    private static ValidationException PayloadShapeFailure() =>
+        new(
+            [
+                new FluentValidation.Results.ValidationFailure(
+                    "payload",
+                    "Each payload item requires 'bucket' and 'files' (each with 'folderName' and 'fileName')."),
+            ]);
 }
