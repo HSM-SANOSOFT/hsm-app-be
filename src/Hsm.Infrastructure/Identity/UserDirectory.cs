@@ -2,6 +2,7 @@ using Hsm.Application.Auth;
 using Hsm.Contracts;
 using Hsm.Domain.Identity;
 using Hsm.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hsm.Infrastructure.Identity;
@@ -10,8 +11,25 @@ namespace Hsm.Infrastructure.Identity;
 /// EF Core adapter for <see cref="IUserDirectory"/> — the three reads
 /// UserManager either cannot do at all or cannot do in one round trip.
 /// </summary>
-public sealed class UserDirectory(HsmDbContext db) : IUserDirectory
+public sealed class UserDirectory(HsmDbContext db, ILookupNormalizer normalizer) : IUserDirectory
 {
+    // Tracked, not AsNoTracking: callers hand the result straight back to
+    // UserManager (AccessFailedAsync, GeneratePasswordResetTokenAsync), which
+    // is what UserManager's own lookups return.
+    public Task<HsmUser?> FindLiveByNameAsync(string username, CancellationToken ct = default)
+    {
+        var normalized = normalizer.NormalizeName(username);
+        return db.Users.FirstOrDefaultAsync(
+            u => u.NormalizedUserName == normalized && u.DeletedAt == null, ct);
+    }
+
+    public Task<HsmUser?> FindLiveByEmailAsync(string email, CancellationToken ct = default)
+    {
+        var normalized = normalizer.NormalizeEmail(email);
+        return db.Users.FirstOrDefaultAsync(
+            u => u.NormalizedEmail == normalized && u.DeletedAt == null, ct);
+    }
+
     public async Task<(bool Found, DateTimeOffset? OnboardingCompletedAt)> OnboardingStateAsync(
         Guid id, CancellationToken ct = default)
     {

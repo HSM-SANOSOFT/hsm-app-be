@@ -4,7 +4,7 @@ using Hsm.Domain.Identity;
 namespace Hsm.Application.Auth;
 
 /// <summary>
-/// The three things UserManager cannot do, and nothing else.
+/// The things UserManager cannot do, and nothing else.
 ///
 /// <para>It is named Directory rather than Store because
 /// <c>Microsoft.AspNetCore.Identity.IUserStore&lt;TUser&gt;</c> is a real type
@@ -13,6 +13,22 @@ namespace Hsm.Application.Auth;
 /// </summary>
 public interface IUserDirectory
 {
+    /// <summary>
+    /// The LIVE account with this login name, or null.
+    ///
+    /// <para>UserManager.FindByNameAsync cannot be used for this.
+    /// It is an unfiltered FirstOrDefault on the normalized column, and the
+    /// unique indexes on <c>users</c> are filtered on DeletedAt precisely so a
+    /// soft-deleted account frees its name for reuse — so a soft-deleted row
+    /// and a live row may legitimately share one, and the unfiltered lookup can
+    /// return either. Anything that goes on to treat the result as "the account"
+    /// has to ask for the live one explicitly.</para>
+    /// </summary>
+    Task<HsmUser?> FindLiveByNameAsync(string username, CancellationToken ct = default);
+
+    /// <summary>The LIVE account with this email, or null — see <see cref="FindLiveByNameAsync"/>.</summary>
+    Task<HsmUser?> FindLiveByEmailAsync(string email, CancellationToken ct = default);
+
     /// <summary>
     /// Scalar onboarding probe for the request actor: whether a LIVE user row
     /// exists and, if so, its onboardingCompletedAt — without loading the

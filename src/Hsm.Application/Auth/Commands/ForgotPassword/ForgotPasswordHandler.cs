@@ -6,15 +6,18 @@ using Microsoft.AspNetCore.Identity;
 
 namespace Hsm.Application.Auth.Commands.ForgotPassword;
 
-public sealed class ForgotPasswordHandler(UserManager<HsmUser> users, IRecoveryEmailer emailer)
+public sealed class ForgotPasswordHandler(
+    UserManager<HsmUser> users,
+    IUserDirectory directory,
+    IRecoveryEmailer emailer)
     : IRequestHandler<ForgotPasswordCommand, Unit>
 {
     public async Task<Unit> HandleAsync(ForgotPasswordCommand request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var user = await users.FindByEmailAsync(request.Email);
-        if (user is null || !user.IsActive || user.DeletedAt is not null)
+        var user = await directory.FindLiveByEmailAsync(request.Email, ct);
+        if (user is null || !user.IsActive)
         {
             return Unit.Value; // Non-enumerating: nothing observable.
         }
@@ -50,11 +53,28 @@ public sealed class ForgotPasswordHandler(UserManager<HsmUser> users, IRecoveryE
         }
 
         window.Add(now);
-        await users.SetAuthenticationTokenAsync(
-            user,
-            RecoveryPolicy.RequestLogProvider,
-            RecoveryPolicy.RequestLogName,
-            string.Join(';', window.Select(at => at.ToString("O", CultureInfo.InvariantCulture))));
+        try
+        {
+            await users.SetAuthenticationTokenAsync(
+                user,
+                RecoveryPolicy.RequestLogProvider,
+                RecoveryPolicy.RequestLogName,
+                string.Join(';', window.Select(at => at.ToString("O", CultureInfo.InvariantCulture))));
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            // The window is ONE row per account, created on the account's first
+            // ever request — so the first two concurrent requests both find no
+            // row and both try to insert the same key, and the loser's
+            // SaveChanges fails. Losing a slot is fail-open by exactly one
+            // request; letting the failure out would be a 500 that happens only
+            // for an account that EXISTS and has never asked for a reset, which
+            // is an enumeration oracle on the one route that must never have
+            // one. The narrower catch this deserves — DbUpdateException — is not
+            // available: Hsm.Application must not reference EF Core, and
+            // PortPurityTests fails the build if it does.
+        }
+
         return Unit.Value;
     }
 

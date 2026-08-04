@@ -5,7 +5,9 @@ using Hsm.Application.Auth.Commands.RecoverUsername;
 using Hsm.Application.Auth.Commands.ResetPassword;
 using Hsm.Application.Errors;
 using Hsm.Domain.Identity;
+using Hsm.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -177,6 +179,62 @@ public sealed class PasswordRecoveryTests : IAsyncLifetime
         Assert.Single(_emailer.ResetLinks);
     }
 
+    [Fact]
+    public async Task Two_simultaneous_reset_requests_for_one_account_both_succeed()
+    {
+        // The rate-limit window lives in ONE row per account, so the first-ever
+        // pair of concurrent requests both find no row and both try to create
+        // it. The loser must not surface — a 500 here is an enumeration oracle:
+        // it happens only for an account that EXISTS and has never requested a
+        // reset, which is the exact state an enumerator probes.
+        var (email, _) = await SeedAsync();
+
+        var first = SendAsync(new ForgotPasswordCommand(email));
+        var second = SendAsync(new ForgotPasswordCommand(email));
+
+        await Task.WhenAll(first, second);
+    }
+
+    [Fact]
+    public async Task Recovery_resolves_the_LIVE_account_when_a_soft_deleted_one_shares_its_email()
+    {
+        // The unique indexes on users are filtered on DeletedAt precisely so a
+        // soft-deleted account frees its email for reuse — which means two rows
+        // CAN hold the same email, and an unfiltered FirstOrDefault may return
+        // either. Recovery must always resolve the live one.
+        var (email, _) = await SeedAsync();
+        await SoftDeleteAsync(email);
+        var username = await SeedWithEmailAsync(email);
+
+        await SendAsync(new RecoverUsernameCommand(email));
+
+        Assert.Equal(username, Assert.Single(_emailer.Usernames));
+    }
+
+    [Fact]
+    public async Task A_soft_deleted_account_gets_no_recovery_email_at_all()
+    {
+        var (email, _) = await SeedAsync();
+        await SoftDeleteAsync(email);
+
+        await SendAsync(new RecoverUsernameCommand(email));
+        await SendAsync(new ForgotPasswordCommand(email));
+
+        Assert.Empty(_emailer.Usernames);
+        Assert.Empty(_emailer.ResetLinks);
+    }
+
+    private async Task SoftDeleteAsync(string email)
+    {
+        using var scope = _provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HsmDbContext>();
+        var normalized = email.ToUpperInvariant();
+        await db.Users.Where(u => u.NormalizedEmail == normalized && u.DeletedAt == null)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(u => u.DeletedAt, DateTimeOffset.UtcNow),
+                CancellationToken.None);
+    }
+
     private async Task<(string Email, string Username)> SeedAsync()
     {
         using var scope = _provider.CreateScope();
@@ -196,6 +254,42 @@ public sealed class PasswordRecoveryTests : IAsyncLifetime
         var created = await users.CreateAsync(user, "Recovery-Passw0rd");
         Assert.True(created.Succeeded, string.Join("; ", created.Errors.Select(e => e.Description)));
         return (email, username);
+    }
+
+    /// <summary>
+    /// Re-provisions the freed email on a NEW live row, written through the
+    /// DbContext rather than UserManager.CreateAsync.
+    ///
+    /// <para>Not a shortcut — CreateAsync cannot do this yet. Identity's
+    /// UserValidator enforces RequireUniqueEmail through the same unfiltered
+    /// FindByEmailAsync this suite is about, so it still sees the soft-deleted
+    /// row and refuses. That is a FOURTH consumer of the unfiltered lookup,
+    /// found by this test and reported as a follow-up; it is a provisioning
+    /// concern, while what is under test here is whether RECOVERY resolves the
+    /// live row when two exist. The database itself allows the pair: the unique
+    /// indexes are filtered on DeletedAt.</para>
+    /// </summary>
+    private async Task<string> SeedWithEmailAsync(string email)
+    {
+        using var scope = _provider.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HsmDbContext>();
+        var username = $"rec_{Guid.NewGuid():N}";
+        db.Users.Add(new HsmUser
+        {
+            Id = Guid.NewGuid(),
+            UserName = username,
+            NormalizedUserName = username.ToUpperInvariant(),
+            Email = email,
+            NormalizedEmail = email.ToUpperInvariant(),
+            SecurityStamp = Guid.NewGuid().ToString(),
+            FirstName = "Live",
+            FirstLastName = "Again",
+            OnboardingCompletedAt = DateTimeOffset.UtcNow,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow,
+        });
+        await db.SaveChangesAsync(CancellationToken.None);
+        return username;
     }
 
     private async Task<Unit> SendAsync(ICommand<Unit> command)

@@ -5,7 +5,10 @@ using Microsoft.AspNetCore.Identity;
 
 namespace Hsm.Application.Auth.Commands.Login;
 
-public sealed class LoginHandler(UserManager<HsmUser> users, TokenIssuer issuer)
+public sealed class LoginHandler(
+    UserManager<HsmUser> users,
+    IUserDirectory directory,
+    TokenIssuer issuer)
     : IRequestHandler<LoginCommand, TokenPair>
 {
     public async Task<TokenPair> HandleAsync(LoginCommand request, CancellationToken ct)
@@ -15,8 +18,11 @@ public sealed class LoginHandler(UserManager<HsmUser> users, TokenIssuer issuer)
         // Unknown username, soft-deleted account, wrong password and lockout all
         // surface the SAME message — the login form must not leak which accounts
         // exist, nor which of them are currently locked out.
-        var user = await users.FindByNameAsync(request.Username);
-        if (user is null || user.DeletedAt is not null)
+        // Through the directory, not UserManager.FindByNameAsync: a soft-deleted
+        // row may share this name with the live account, and the unfiltered
+        // lookup can return either one.
+        var user = await directory.FindLiveByNameAsync(request.Username, ct);
+        if (user is null)
         {
             throw new UnauthorizedException("Invalid username or password.");
         }
