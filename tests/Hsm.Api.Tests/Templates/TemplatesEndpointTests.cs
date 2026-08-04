@@ -130,6 +130,28 @@ public class TemplatesEndpointTests(TemplatesFactory factory) : IClassFixture<Te
     }
 
     [Fact]
+    public async Task Creating_a_template_with_a_base_template_id_round_trips_it_on_get()
+    {
+        // A caller that creates a non-BASE template must be able to learn
+        // which base it wraps back from GET — otherwise a UI can't render the
+        // current value of a field it is expected to submit back on PUT.
+        using var client = await factory.AuthenticatedClientAsync(Roles.Nurse);
+        var baseId = await CreateBaseAsync(client);
+        var name = Unique("email");
+        var (id, created) = await CreateAsync(client, EmailBody(name, baseId));
+
+        Assert.Equal(baseId, created.GetProperty("baseTemplateId").GetGuid());
+
+        var fetched = await client.GetFromJsonAsync<JsonElement>($"/api/v1/templates/{id}", CancellationToken.None);
+        Assert.Equal(baseId, fetched.GetProperty("baseTemplateId").GetGuid());
+
+        // A BASE template has no base of its own.
+        var fetchedBase = await client.GetFromJsonAsync<JsonElement>(
+            $"/api/v1/templates/{baseId}", CancellationToken.None);
+        Assert.Equal(JsonValueKind.Null, fetchedBase.GetProperty("baseTemplateId").ValueKind);
+    }
+
+    [Fact]
     public async Task Creating_a_docs_template_persists_its_metadata()
     {
         using var client = await factory.AuthenticatedClientAsync(Roles.Nurse);

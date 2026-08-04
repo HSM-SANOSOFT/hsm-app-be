@@ -39,11 +39,17 @@ public sealed record TemplateResource(
 /// id. Also adds each category's real metadata shape: at most one of
 /// <see cref="Email"/>/<see cref="Doc"/>/<see cref="Sms"/> is non-null,
 /// matching <see cref="Template"/>'s "one parent + at most one child row"
-/// shape.
+/// shape. <see cref="BaseTemplateId"/> is the same round-trip argument as
+/// <see cref="Sms"/>: create/update accept it
+/// (<see cref="TemplatePayload.BaseTemplateId"/>) and every non-BASE category
+/// requires it, so a caller needs it back to know which base a template
+/// currently wraps —
+/// <see cref="Hsm.Application.Templates.Queries.GetTemplate.GetTemplateHandler"/>
+/// already loads <c>withBase: true</c>, so the join is free to expose.
 /// </summary>
 public sealed record TemplateDetailResource(
     Guid Id, string Identifier, string Name, string Category, string? Description, bool IsActive,
-    JsonNode? Schema, string Content,
+    JsonNode? Schema, string Content, Guid? BaseTemplateId,
     TemplateEmailResource? Email, TemplateDocResource? Doc, TemplateSmsResource? Sms)
 {
     public static TemplateDetailResource From(Template template)
@@ -52,7 +58,7 @@ public sealed record TemplateDetailResource(
         var summary = TemplateResource.From(template);
         return new TemplateDetailResource(
             summary.Id, summary.Identifier, summary.Name, summary.Category, summary.Description, summary.IsActive,
-            JsonNode.Parse(template.SchemaJson), template.Content,
+            JsonNode.Parse(template.SchemaJson), template.Content, template.BaseTemplateId,
             template.Email is null ? null : TemplateEmailResource.From(template.Email),
             template.Doc is null ? null : TemplateDocResource.From(template.Doc),
             template.Sms is null ? null : TemplateSmsResource.FromSms(template.Sms));
