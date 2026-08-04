@@ -2,6 +2,7 @@ using FluentValidation;
 using Hsm.Application.Errors;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using JsonException = System.Text.Json.JsonException;
 
 namespace Hsm.Api.Errors;
 
@@ -15,6 +16,22 @@ namespace Hsm.Api.Errors;
 /// is a bug: it is logged with its full detail and answered with a bare 500,
 /// because an exception message from an unplanned path is exactly the kind of
 /// thing that leaks a connection string or a row's contents.</para>
+///
+/// <para><see cref="JsonException"/> is the one deliberate exception to that
+/// rule (Task 3's fix round): every endpoint that reads its body via
+/// <c>ctx.Request.ReadFromJsonAsync&lt;T&gt;(...)</c> lets a malformed or
+/// empty body propagate a raw <see cref="JsonException"/> — unlike minimal
+/// API's own inferred-body-parameter binding, that call does NOT wrap parse
+/// failures into <c>BadHttpRequestException</c>. A caller-malformed request
+/// body is exactly the caller's mistake to be told about, not a bug to hide,
+/// so it renders the same 400 shape a FluentValidation failure would. A
+/// wrong Content-Type (<c>InvalidOperationException</c> from the same call)
+/// is deliberately NOT given its own arm here: it is rarer in practice than a
+/// malformed body, and this codebase already has a precedent for treating a
+/// stray <c>InvalidOperationException</c> from a body-reading path as our bug
+/// rather than the caller's (see <c>DocsEndpoints.ReadUploadPayload</c>'s
+/// unparseable multipart "payload" field) — so it falls to the same bare 500
+/// as that case, consistently.</para>
 /// </summary>
 public sealed partial class HsmExceptionHandler(
     IProblemDetailsService problemDetailsService,
@@ -45,6 +62,8 @@ public sealed partial class HsmExceptionHandler(
     internal static ProblemDetails Map(Exception exception) => exception switch
     {
         ValidationException validation => ValidationProblem(validation),
+        JsonException => ValidationProblem(new ValidationException(
+            [new FluentValidation.Results.ValidationFailure("body", "Request body is not valid JSON.")])),
         UnauthorizedException => Problem(StatusCodes.Status401Unauthorized, "Unauthorized"),
         ForbiddenException => Problem(StatusCodes.Status403Forbidden, "Forbidden"),
         NotFoundException notFound =>

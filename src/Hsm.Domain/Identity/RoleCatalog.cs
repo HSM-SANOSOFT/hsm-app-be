@@ -104,7 +104,15 @@ public static class RoleCatalog
     /// </summary>
     public static IReadOnlyList<string> All => OrderedRoles;
 
-    public static bool IsKnown(string role) => DomainByRole.ContainsKey(role);
+    /// <summary>
+    /// Null-guarded (mirrors <c>TemplateCatalog.IsKnownCategory</c>): a
+    /// validator's <c>Must</c> rule runs even when an earlier <c>NotEmpty</c>
+    /// rule on the same property failed (FluentValidation's default cascade
+    /// is Continue), and a body-bound command's <c>Role</c> is a real
+    /// <see langword="null"/> — not <see cref="string.Empty"/> — when the
+    /// caller omits the field entirely.
+    /// </summary>
+    public static bool IsKnown(string? role) => role is not null && DomainByRole.ContainsKey(role);
 
     /// <summary>
     /// Whether a role may be handed to a staff account. The frozen

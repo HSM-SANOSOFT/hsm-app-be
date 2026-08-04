@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text;
 using Hsm.Domain.Identity;
 
 namespace Hsm.Api.Tests.Errors;
@@ -63,5 +64,21 @@ public class ValidationProblemTests(ValidationProblemFactory factory)
 
         var problem = await ProblemAssert.ProblemAsync(response, 400);
         Assert.True(problem.GetProperty("errors").EnumerateObject().Count() >= 5);
+    }
+
+    [Fact]
+    public async Task Malformed_json_body_is_a_400_problem_not_a_bare_500()
+    {
+        // Regression: every swept endpoint (Task 3) reads its body via
+        // ctx.Request.ReadFromJsonAsync<T>(...) directly, which — unlike
+        // minimal API's own inferred-body-parameter binding — does NOT wrap a
+        // parse failure into BadHttpRequestException; it propagates a raw
+        // JsonException. HsmExceptionHandler.Map now gives that its own 400 arm.
+        using var client = await factory.AuthenticatedClientAsync(Roles.Admin);
+        using var content = new StringContent("{ not valid json", Encoding.UTF8, "application/json");
+
+        var response = await client.PostAsync(new Uri("/v1/user/staff", UriKind.Relative), content, CancellationToken.None);
+
+        await ProblemAssert.ProblemAsync(response, 400);
     }
 }
