@@ -5,6 +5,7 @@ using Hsm.Application.Coms.Commands.ResendEmailBatch;
 using Hsm.Application.Coms.Commands.ResendEmailRecipient;
 using Hsm.Application.Coms.Commands.SendEmail;
 using Hsm.Application.Coms.Queries.GetEmailBatch;
+using Hsm.Application.Coms.Queries.GetEmailRecipient;
 using Hsm.Application.Coms.Queries.ListEmails;
 using Hsm.Application.Ports;
 using Hsm.Contracts;
@@ -98,13 +99,22 @@ public static class EmailEndpoints
         return Results.Accepted(uri: null, new AcceptedJobResponse(jobId));
     }
 
-    // The route's {id:guid} names the batch only for the URL's nested shape
-    // (POST /emails/{id}/recipients/{recipientId}/resend) — it is not bound
-    // here because ResendEmailRecipientCommand targets the recipient alone,
-    // exactly as the frozen route did.
     private static async Task<IResult> ResendRecipient(
-        Guid recipientId, IDispatcher dispatcher, CancellationToken ct)
+        Guid id, Guid recipientId, IDispatcher dispatcher, CancellationToken ct)
     {
+        // The route's {id} implies recipientId belongs to this batch, but
+        // ResendEmailRecipientCommand targets the recipient alone and never
+        // checks it — verified here, at the HTTP layer, not in the handler
+        // (the handler is correct for direct dispatch; this is a containment
+        // check the URL's shape promises). Same 404 shape as an unknown
+        // recipient, so a caller can't distinguish "no such recipient" from
+        // "exists, but not under this batch".
+        var recipient = await dispatcher.Send(new GetEmailRecipientQuery(recipientId), ct);
+        if (recipient.BatchId != id)
+        {
+            throw ComsErrors.RecipientNotFound(recipientId);
+        }
+
         // No caller-side enqueue here: ResendEmailRecipientHandler enqueues
         // DispatchEmailBatchCommand itself (see its doc comment) — it
         // persists nothing, so there is no antecedent write for an

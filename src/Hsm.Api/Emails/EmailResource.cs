@@ -7,19 +7,19 @@ namespace Hsm.Api.Emails;
 /// "batch" noun dies at the HTTP boundary, so this resource is what
 /// <c>/api/v1/emails</c> serves both from its list and its detail route.
 ///
-/// <para><b>Two fields have no column to read from, and are approximated
-/// rather than invented from nothing:</b> <see cref="EmailTemplate"/> is the
-/// batch's <c>TemplateId</c> rendered as a string — <see cref="EmailBatch"/>
-/// never stored the template's name/identifier, only its id, and every other
-/// foreign key on this resource (<see cref="CreatedBy"/>) is exposed the same
-/// raw way, so this keeps that convention rather than resolving a name no
-/// caller has asked for. <see cref="UpdatedAt"/> has no backing column either
-/// — the entity tracks only <c>CreatedAt</c> — so it is the batch's
-/// <c>CreatedAt</c> repeated, which is honest about "we don't track updates"
-/// rather than fabricating a distinct value.</para>
+/// <para><see cref="TemplateId"/> is named for what it actually is — a raw FK,
+/// exposed the same way <see cref="CreatedBy"/> is — rather than "EmailTemplate",
+/// which would collide in meaning with <c>SendEmailRequest.EmailTemplate</c>
+/// (a human-readable identifier resolved by <c>SendEmailHandler</c> via
+/// <c>ITemplateStore.FindByIdentifierAsync</c>). Resolving that identifier back
+/// out of a bare <c>TemplateId</c> would need a cross-module lookup no consumer
+/// has asked for; this field stays the id until that's real. <see cref="UpdatedAt"/>
+/// has no backing column either — the entity tracks only <c>CreatedAt</c> — so
+/// it is the batch's <c>CreatedAt</c> repeated, which is honest about "we don't
+/// track updates" rather than fabricating a distinct value.</para>
 /// </summary>
 public sealed record EmailResource(
-    Guid Id, string? FromEmail, string? FromName, string EmailTemplate,
+    Guid Id, string? FromEmail, string? FromName, Guid? TemplateId,
     string OverallStatus, int TotalRecipients, int SentCount, int FailedCount,
     Guid? CreatedBy, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt)
 {
@@ -30,10 +30,14 @@ public sealed record EmailResource(
             batch.Id,
             batch.FromEmail,
             batch.FromName,
-            batch.TemplateId?.ToString() ?? string.Empty,
+            batch.TemplateId,
             batch.OverallStatus,
             batch.Recipients.Count,
-            batch.Recipients.Count(r => r.Status == EmailRecipientStatus.Sent),
+            // SENT and DELIVERED both count as sent (DispatchEmailBatchHandler's
+            // own rule — a recipient moves SENT -> DELIVERED when the
+            // provider's webhook lands, and that is not a regression back to
+            // "not sent").
+            batch.Recipients.Count(r => r.Status is EmailRecipientStatus.Sent or EmailRecipientStatus.Delivered),
             batch.Recipients.Count(r => r.Status == EmailRecipientStatus.Failed),
             batch.CreatedBy,
             batch.CreatedAt,
@@ -42,7 +46,7 @@ public sealed record EmailResource(
 }
 
 public sealed record EmailDetailResource(
-    Guid Id, string? FromEmail, string? FromName, string EmailTemplate,
+    Guid Id, string? FromEmail, string? FromName, Guid? TemplateId,
     string OverallStatus, int TotalRecipients, int SentCount, int FailedCount,
     Guid? CreatedBy, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
     IReadOnlyList<EmailRecipientResource> Recipients)
@@ -52,7 +56,7 @@ public sealed record EmailDetailResource(
         ArgumentNullException.ThrowIfNull(batch);
         var summary = EmailResource.From(batch);
         return new EmailDetailResource(
-            summary.Id, summary.FromEmail, summary.FromName, summary.EmailTemplate,
+            summary.Id, summary.FromEmail, summary.FromName, summary.TemplateId,
             summary.OverallStatus, summary.TotalRecipients, summary.SentCount, summary.FailedCount,
             summary.CreatedBy, summary.CreatedAt, summary.UpdatedAt,
             // The frozen recipient ordering (RecipientJson's caller): id ASC.

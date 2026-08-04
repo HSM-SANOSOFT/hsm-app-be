@@ -67,6 +67,36 @@ public class EmailsEndpointTests(EmailsFactory factory) : IClassFixture<EmailsFa
         var recipients = detail.GetProperty("recipients");
         Assert.Equal(1, recipients.GetArrayLength());
         Assert.Equal("detail@api.test", recipients[0].GetProperty("toEmail").GetString());
+        // The resource field is templateId (Guid?), not emailTemplate — that
+        // name is reserved for SendEmailRequest's human-readable identifier;
+        // reusing it here would mean one field means two different things
+        // depending on which direction you're reading it.
+        Assert.True(detail.TryGetProperty("templateId", out _));
+        Assert.False(detail.TryGetProperty("emailTemplate", out _));
+    }
+
+    [Fact]
+    public async Task Sent_count_also_counts_delivered_recipients()
+    {
+        using var client = await factory.AuthenticatedClientAsync(Roles.Nurse);
+        var template = await factory.SeedTemplateAsync();
+        var id = await SendEmailAsync(client, template, "delivered@api.test");
+
+        // DispatchEmailBatchHandler's own rule (ComputeOverallStatus): SENT
+        // and DELIVERED both count as sent — a recipient moves SENT ->
+        // DELIVERED when the provider's webhook lands, which must not look
+        // like a regression back to "not sent" on the very next read.
+        await factory.WithDbAsync(async db =>
+        {
+            var recipient = await db.EmailRecipients.SingleAsync(r => r.BatchId == id);
+            recipient.Status = EmailRecipientStatus.Delivered;
+            await db.SaveChangesAsync();
+            return true;
+        });
+
+        var detail = await client.GetFromJsonAsync<JsonElement>($"/api/v1/emails/{id}", CancellationToken.None);
+
+        Assert.Equal(1, detail.GetProperty("sentCount").GetInt32());
     }
 
     [Fact]
@@ -75,7 +105,7 @@ public class EmailsEndpointTests(EmailsFactory factory) : IClassFixture<EmailsFa
         using var client = await factory.AuthenticatedClientAsync(Roles.Nurse);
         var template = await factory.SeedTemplateAsync();
         await SendEmailAsync(client, template, "one@api.test");
-        await SendEmailAsync(client, template, "two@api.test");
+        var newestId = await SendEmailAsync(client, template, "two@api.test");
 
         var response = await client.GetAsync("/api/v1/emails?page=1&pageSize=1", CancellationToken.None);
 
@@ -84,7 +114,14 @@ public class EmailsEndpointTests(EmailsFactory factory) : IClassFixture<EmailsFa
         Assert.Equal(1, page.GetProperty("page").GetInt32());
         Assert.Equal(1, page.GetProperty("pageSize").GetInt32());
         Assert.True(page.GetProperty("totalItems").GetInt32() >= 2);
-        Assert.Equal(1, page.GetProperty("items").GetArrayLength());
+        var items = page.GetProperty("items");
+        Assert.Equal(1, items.GetArrayLength());
+        // Pins EmailBatchStore.ListEmailsAsync's Include(b => b.Recipients):
+        // without it, every list row's Recipients collection is unloaded and
+        // totalRecipients silently reports 0 for a batch that actually has one.
+        var newest = items[0];
+        Assert.Equal(newestId, newest.GetProperty("id").GetGuid());
+        Assert.Equal(1, newest.GetProperty("totalRecipients").GetInt32());
     }
 
     [Fact]
@@ -178,6 +215,25 @@ public class EmailsEndpointTests(EmailsFactory factory) : IClassFixture<EmailsFa
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
         Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("jobId").GetString()));
+    }
+
+    [Fact]
+    public async Task Resending_a_recipient_under_a_different_batch_id_in_the_url_is_a_404_problem()
+    {
+        using var client = await factory.AuthenticatedClientAsync(Roles.Nurse);
+        var template = await factory.SeedTemplateAsync();
+        var id = await SendEmailAsync(client, template, "containment@api.test");
+        var detail = await client.GetFromJsonAsync<JsonElement>($"/api/v1/emails/{id}", CancellationToken.None);
+        var recipientId = detail.GetProperty("recipients")[0].GetProperty("id").GetGuid();
+
+        // recipientId is real, but the URL claims it belongs to a batch it
+        // does not — the endpoint must verify that containment itself.
+        var response = await client.PostAsync(
+            $"/api/v1/emails/{Guid.NewGuid()}/recipients/{recipientId}/resend",
+            content: null,
+            CancellationToken.None);
+
+        await ProblemAssert.ProblemAsync(response, 404);
     }
 
     [Theory]
