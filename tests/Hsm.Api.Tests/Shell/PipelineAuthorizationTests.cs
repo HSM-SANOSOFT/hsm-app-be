@@ -1,6 +1,8 @@
+using FluentValidation;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
 using Hsm.Application.Errors;
+using Hsm.Application.Users.Commands.ChangeUserRole;
 using Hsm.Application.Users.Queries.ListUsers;
 using Hsm.Web.Auth;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -69,6 +71,27 @@ public sealed class PipelineAuthorizationTests(PipelineAuthorizationFactory fact
 
         await Assert.ThrowsAsync<UnauthorizedException>(
             () => dispatcher.Send(new ListUsersQuery(1, 10), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Unknown_role_in_process_dispatch_is_a_validation_failure()
+    {
+        // Regression: ChangeUserRoleHandler's temporary inline guard (kept
+        // until Task 3's ChangeUserRoleValidator exists). The HTTP door
+        // already restricts the role param to RoleCatalog.All, so this proves
+        // the HANDLER itself refuses an unknown role for callers that dispatch
+        // the command directly — an in-process caller with no edge in front of
+        // it, same posture as this suite's other pipeline-only proofs.
+        var adminId = await Factory.SeedUserAsync(
+            Unique("pipeline_admin_role"), "Contract-Passw0rd", "admin", DateTimeOffset.UtcNow);
+        var targetId = await Factory.SeedUserAsync(
+            Unique("pipeline_target"), "Contract-Passw0rd", "doctor", DateTimeOffset.UtcNow);
+
+        using var scope = await SignedInScopeAsync(adminId, "admin");
+        var dispatcher = scope.ServiceProvider.GetRequiredService<IDispatcher>();
+
+        await Assert.ThrowsAsync<ValidationException>(() => dispatcher.Send(
+            new ChangeUserRoleCommand(targetId, "not-a-real-role"), CancellationToken.None));
     }
 
     /// <summary>

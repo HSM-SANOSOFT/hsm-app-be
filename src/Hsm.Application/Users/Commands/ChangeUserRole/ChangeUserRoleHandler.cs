@@ -1,3 +1,4 @@
+using FluentValidation;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
 using Hsm.Application.Errors;
@@ -11,6 +12,18 @@ public sealed class ChangeUserRoleHandler(IUserStore users, IAuthUnitOfWork unit
     public async Task<User> HandleAsync(ChangeUserRoleCommand request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        // TEMPORARY inline guard: an unknown role is a request-shape problem
+        // and belongs in a validator — Task 3 replaces this block with
+        // ChangeUserRoleValidator. Kept here in the meantime because Task 3's
+        // validator infrastructure does not exist yet; the HTTP door restricts
+        // the role param to RoleCatalog.All, but in-process callers (e.g.
+        // UsersAdminUiService) dispatch this command with no such check.
+        if (RoleCatalog.DomainOf(request.Role) is null)
+        {
+            throw new ValidationException(
+                [new FluentValidation.Results.ValidationFailure("role", $"Unknown role '{request.Role}'.")]);
+        }
 
         var user = await users.FindByIdAsync(request.UserId, ct)
             ?? throw new NotFoundException("User", request.UserId);

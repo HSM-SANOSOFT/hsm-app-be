@@ -1,3 +1,4 @@
+using FluentValidation;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
 using Hsm.Application.Errors;
@@ -15,6 +16,21 @@ public sealed class CreateStaffUserHandler(
     public async Task<User> HandleAsync(CreateStaffUserCommand request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
+
+        // TEMPORARY inline guard: patient-facing roles never come through this
+        // path. This is request-shape validation and belongs in a validator —
+        // Task 3 replaces this block with CreateStaffUserValidator. Kept here
+        // in the meantime because Task 3's validator infrastructure does not
+        // exist yet and this endpoint would otherwise provision a patient/family
+        // role through the staff door with no refusal anywhere in the tree.
+        if (!RoleCatalog.IsAssignableToStaff(request.Role))
+        {
+            throw new ValidationException(
+                [
+                    new FluentValidation.Results.ValidationFailure(
+                        "role", "This endpoint provisions staff accounts only; patient/family roles are not allowed."),
+                ]);
+        }
 
         // A duplicate username is a state conflict, not a shape problem — the
         // request is well-formed, it just collides with an existing row. Checked

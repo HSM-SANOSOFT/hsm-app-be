@@ -71,6 +71,29 @@ public class ProblemDetailsTests(ProblemDetailsFactory factory)
     }
 
     [Fact]
+    public async Task Patient_facing_role_via_staff_endpoint_is_a_400_problem()
+    {
+        // Regression: CreateStaffUserHandler's temporary inline guard (kept
+        // until Task 3's CreateStaffUserValidator exists) — without it, the
+        // staff endpoint would silently provision a patient-facing role.
+        using var client = await factory.AuthenticatedClientAsync(Roles.Admin);
+        var username = $"pat{Guid.NewGuid():N}"[..20];
+        var body = new
+        {
+            username,
+            email = $"{username}@api.test",
+            firstName = "A",
+            firstLastName = "B",
+            role = Roles.Patient,
+            tempPassword = "Temp-Passw0rd",
+        };
+
+        var response = await client.PostAsJsonAsync("/v1/user/staff", body, CancellationToken.None);
+
+        await ProblemAssert.ProblemAsync(response, 400);
+    }
+
+    [Fact]
     public async Task Unexpected_failure_is_a_500_problem_with_no_internal_detail()
     {
         using var client = await factory.AuthenticatedClientAsync(Roles.Admin);
