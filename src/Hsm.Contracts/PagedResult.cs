@@ -13,14 +13,6 @@ public sealed record PagedResult<T>(IReadOnlyList<T> Items, int Page, int PageSi
 {
     public int TotalPages => PageSize > 0 ? (int)Math.Ceiling(TotalItems / (double)PageSize) : 0;
 
-    // CA1000 (no static members on generic types) fires because T cannot be
-    // inferred from (page, pageSize) alone, so every call site names it
-    // explicitly (PagedResult<Foo>.Empty(...)) — exactly the shape the rule
-    // warns about, and exactly the shape a "no rows yet" factory needs.
-#pragma warning disable CA1000
-    public static PagedResult<T> Empty(int page, int pageSize) => new([], page, pageSize, 0);
-#pragma warning restore CA1000
-
     /// <summary>Projects the items, keeping the paging numbers — endpoints use this
     /// to turn a page of entities into a page of resources.</summary>
     public PagedResult<TOut> Map<TOut>(Func<T, TOut> selector)
