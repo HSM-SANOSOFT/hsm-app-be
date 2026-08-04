@@ -93,6 +93,40 @@ public class UsersEndpointTests(UsersFactory factory) : IClassFixture<UsersFacto
     }
 
     [Fact]
+    public async Task Getting_a_user_by_id_returns_the_resource()
+    {
+        using var client = await factory.AuthenticatedClientAsync(Roles.Admin);
+        var username = $"u{Guid.NewGuid():N}"[..20];
+        var created = await client.PostAsJsonAsync(
+            "/api/v1/users", NewUserBody(username), CancellationToken.None);
+        var id = (await created.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None))
+            .GetProperty("id").GetGuid();
+
+        var response = await client.GetAsync($"/api/v1/users/{id}", CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var fetched = await response.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
+        Assert.Equal(id, fetched.GetProperty("id").GetGuid());
+        Assert.Equal(username, fetched.GetProperty("username").GetString());
+    }
+
+    [Fact]
+    public async Task Patching_your_own_profile_returns_the_updated_resource()
+    {
+        using var client = await factory.AuthenticatedClientAsync(Roles.Doctor);
+
+        var response = await client.PatchAsJsonAsync(
+            "/api/v1/users/me",
+            new { firstName = "Grace", email = "grace.hopper@api.test" },
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var updated = await response.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
+        Assert.Equal("Grace", updated.GetProperty("firstName").GetString());
+        Assert.Equal("grace.hopper@api.test", updated.GetProperty("email").GetString());
+    }
+
+    [Fact]
     public async Task Changing_your_own_password_returns_204()
     {
         using var client = await factory.AuthenticatedClientAsync(Roles.Doctor);
@@ -153,6 +187,10 @@ public class UsersEndpointTests(UsersFactory factory) : IClassFixture<UsersFacto
         var response = await client.GetAsync("/api/v1/users/not-a-guid", CancellationToken.None);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        // Distinguishes this from An_unknown_user_id_is_a_404_problem below: an
+        // unmatched route never reaches HsmExceptionHandler, so there is no
+        // problem+json body at all — unlike a handler-produced 404.
+        Assert.NotEqual("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
 
     [Fact]

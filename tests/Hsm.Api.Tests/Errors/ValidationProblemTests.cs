@@ -71,9 +71,12 @@ public class ValidationProblemTests(ValidationProblemFactory factory)
     {
         // Regression: Task 5's resource endpoints bind their request record
         // straight from the body (minimal API's own inferred-body-parameter
-        // binding), which wraps a parse failure into BadHttpRequestException
-        // and short-circuits with a ProblemDetails 400 before the handler
-        // runs — never a raw JsonException reaching HsmExceptionHandler.
+        // binding) instead of going through RequestJsonReader. With
+        // RouteHandlerOptions.ThrowOnBadRequest pinned true (Program.cs), a
+        // malformed body fails inside that binding step and throws
+        // BadHttpRequestException — which HsmExceptionHandler.Map converts to
+        // a problem+json response using the exception's own status — rather
+        // than a raw JsonException reaching the handler's default 500 arm.
         using var client = await factory.AuthenticatedClientAsync(Roles.Admin);
         using var content = new StringContent("{ not valid json", Encoding.UTF8, "application/json");
 

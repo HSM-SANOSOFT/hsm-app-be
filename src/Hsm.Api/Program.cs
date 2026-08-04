@@ -88,6 +88,16 @@ builder.Services.AddProblemDetails(options =>
             System.Diagnostics.Activity.Current?.Id ?? context.HttpContext.TraceIdentifier);
 builder.Services.AddExceptionHandler<HsmExceptionHandler>();
 
+// ThrowOnBadRequest defaults to true only in Development — in every other
+// environment a minimal-API body-binding failure instead logs quietly and
+// short-circuits with an empty, non-ProblemDetails 400, which would silently
+// break the "every failure renders problem+json" invariant outside the
+// environment the test host happens to run in. Pinned true everywhere so
+// HsmExceptionHandler's BadHttpRequestException arm is reachable in every
+// deployment, not just Development.
+builder.Services.Configure<Microsoft.AspNetCore.Routing.RouteHandlerOptions>(
+    options => options.ThrowOnBadRequest = true);
+
 // Frozen per-IP throttle on the account-recovery routes: 10 per 60s per
 // route (auth.controller.ts @Throttle long).
 builder.Services.AddRateLimiter(limiter =>

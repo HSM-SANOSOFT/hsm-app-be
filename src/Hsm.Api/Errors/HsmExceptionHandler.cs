@@ -2,6 +2,7 @@ using FluentValidation;
 using Hsm.Application.Errors;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace Hsm.Api.Errors;
 
@@ -78,11 +79,13 @@ public sealed partial class HsmExceptionHandler(
         // the class doc), BadHttpRequestException can ONLY come from THIS
         // request's own route/query/body binding — a handler parsing STORED
         // JSON throws plain JsonException, never this — so reclassifying it
-        // as caller-facing (via its own framework-assigned StatusCode, always
-        // 400 for a malformed body under Task 5's inferred-body-parameter
-        // endpoints) cannot mask a server-side data bug as a 500.
+        // as caller-facing cannot mask a server-side data bug as a 500. Its
+        // StatusCode is NOT always 400 (415 wrong Content-Type, 413 body too
+        // large, 431 headers too large), so the title is derived from that
+        // status rather than hard-coded, the same way ProblemDetailsDefaults
+        // would fill it for a status this switch does not set Title on.
         Microsoft.AspNetCore.Http.BadHttpRequestException badRequest =>
-            Problem(badRequest.StatusCode, "Bad Request"),
+            Problem(badRequest.StatusCode, ReasonPhrases.GetReasonPhrase(badRequest.StatusCode)),
         _ => Problem(StatusCodes.Status500InternalServerError, "Internal Server Error"),
     };
 
