@@ -53,4 +53,6 @@ public static class SettingCatalog
 
     public static SettingDefinition? ForKey(string key) =>
         Definitions.FirstOrDefault(d => d.Key == key);
+
+    public static bool IsKnown(string category) => SettingsCategories.All.Contains(category, StringComparer.Ordinal);
 }

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 using Hsm.Api.Auth;
 using Hsm.Api.Http;
@@ -15,11 +16,12 @@ namespace Hsm.Api.Users;
 
 /// <summary>
 /// The six frozen /v1/user operations (user.controller.ts). Each endpoint now
-/// does transport work only — authenticate, bind and shape-validate the
-/// request, dispatch, render. Role and onboarding policy rides on the request
-/// types (AuthorizationBehavior); none of the frozen routes carried
-/// @AllowPending, so none of these commands is [AllowPendingOnboarding] and a
-/// pending non-admin actor is refused by the pipeline.
+/// does transport work only — authenticate, bind the request, dispatch,
+/// render; shape and business-rule validation moved into the pipeline
+/// (Task 3's FluentValidation validators). Role and onboarding policy rides on
+/// the request types (AuthorizationBehavior); none of the frozen routes
+/// carried @AllowPending, so none of these commands is [AllowPendingOnboarding]
+/// and a pending non-admin actor is refused by the pipeline.
 /// POST returns 201 and GET/PATCH 200, matching the frozen runtime.
 /// </summary>
 public static class UserEndpoints
@@ -43,18 +45,14 @@ public static class UserEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        // Frozen UpdateOwnProfileDto: ONLY firstName and email. Any role/roles
-        // property is rejected by the whitelist — self-escalation is
-        // structurally impossible on this route, and the command has no user id
-        // to point somewhere else with.
-        var body = await BodyValidator.ReadAsync(ctx);
-        var firstName = body.OptionalString("firstName", notEmpty: true);
-        var email = body.OptionalString("email", notEmpty: true);
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
+        // Frozen UpdateOwnProfileDto: ONLY firstName and email are reachable
+        // through this path — the command has no other field to carry
+        // self-escalation with. Shape rules (non-empty when present) now live
+        // in UpdateOwnProfileValidator.
+        var command = await ctx.Request.ReadFromJsonAsync<UpdateOwnProfileCommand>(ctx.RequestAborted)
+            ?? new UpdateOwnProfileCommand(null, null);
 
-        var user = await dispatcher.Send(
-            new UpdateOwnProfileCommand(firstName, email), ctx.RequestAborted);
+        var user = await dispatcher.Send(command, ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, UserJson(user, includeRoles: true));
     }
 
@@ -62,14 +60,10 @@ public static class UserEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var body = await BodyValidator.ReadAsync(ctx);
-        var currentPassword = body.RequiredString("currentPassword");
-        var newPassword = body.RequiredString("newPassword", minLength: 8);
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
+        var command = await ctx.Request.ReadFromJsonAsync<ChangeOwnPasswordCommand>(ctx.RequestAborted)
+            ?? new ChangeOwnPasswordCommand(string.Empty, string.Empty);
 
-        await dispatcher.Send(
-            new ChangeOwnPasswordCommand(currentPassword, newPassword), ctx.RequestAborted);
+        await dispatcher.Send(command, ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, includeData: false);
     }
 
@@ -77,11 +71,8 @@ public static class UserEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var query = QueryValidator.Read(ctx);
-        var page = query.OptionalInt("page", min: 1) ?? 1;
-        var limit = query.OptionalInt("limit", min: 1, max: 100) ?? 20;
-        query.RejectUnknownParams();
-        query.ThrowIfInvalid();
+        var page = QueryInt(ctx, "page") ?? 1;
+        var limit = QueryInt(ctx, "limit") ?? 20;
 
         var result = await dispatcher.Send(new ListUsersQuery(page, limit), ctx.RequestAborted);
         var data = new JsonArray([.. result.Users.Select(u => (JsonNode?)UserJson(u, includeRoles: true))]);
@@ -94,25 +85,15 @@ public static class UserEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var body = await BodyValidator.ReadAsync(ctx);
-        var username = body.RequiredString("username");
-        var email = body.RequiredString("email", email: true);
-        var firstName = body.RequiredString("firstName");
-        var secondName = body.OptionalString("secondName");
-        var firstLastName = body.RequiredString("firstLastName");
-        var secondLastName = body.OptionalString("secondLastName");
-        var phoneNumber = body.OptionalString("phoneNumber");
-        // Frozen @IsIn(ROLE_VALUES) — constraint key isIn, not isEnum.
-        var role = body.RequiredString("role", oneOf: RoleCatalog.All, oneOfConstraint: "isIn");
-        var tempPassword = body.RequiredString("tempPassword", minLength: 8);
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
+        // Field names line up 1:1 with the frozen JSON body, so the command
+        // record is the wire shape; CreateStaffUserValidator carries every
+        // shape and business rule that used to live at this edge.
+        var command = await ctx.Request.ReadFromJsonAsync<CreateStaffUserCommand>(ctx.RequestAborted)
+            ?? new CreateStaffUserCommand(
+                string.Empty, string.Empty, string.Empty, null, string.Empty, null, null,
+                string.Empty, string.Empty);
 
-        var created = await dispatcher.Send(
-            new CreateStaffUserCommand(
-                username, email, firstName, secondName, firstLastName,
-                secondLastName, phoneNumber, role, tempPassword),
-            ctx.RequestAborted);
+        var created = await dispatcher.Send(command, ctx.RequestAborted);
         // Frozen response: the created row without roles (and of course without
         // any password field).
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, UserJson(created, includeRoles: false));
@@ -133,15 +114,21 @@ public static class UserEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var body = await BodyValidator.ReadAsync(ctx);
-        var role = body.RequiredString("role", oneOf: RoleCatalog.All, oneOfConstraint: "isIn");
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
+        var body = await ctx.Request.ReadFromJsonAsync<ChangeRoleBody>(ctx.RequestAborted);
 
         var user = await dispatcher.Send(
-            new ChangeUserRoleCommand(Guid.Parse(id), role), ctx.RequestAborted);
+            new ChangeUserRoleCommand(Guid.Parse(id), body?.Role ?? string.Empty), ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, UserJson(user, includeRoles: true));
     }
+
+    private static int? QueryInt(HttpContext ctx, string name) =>
+        ctx.Request.Query.TryGetValue(name, out var values)
+            && int.TryParse(values[^1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : null;
+
+    /// <summary>The frozen ChangeUserRoleDto: a single role field.</summary>
+    private sealed record ChangeRoleBody(string? Role);
 
     /// <summary>
     /// The frozen user JSON: every column except the password hash, dates as

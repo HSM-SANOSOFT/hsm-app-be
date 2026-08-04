@@ -10,6 +10,7 @@
          (Hsm.Application.Errors.HsmException family) and the per-field failures
          FluentValidation validators report (Task 3). -->
     <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
   </ItemGroup>
 

@@ -26,7 +26,11 @@ namespace Hsm.Api.Docs;
 /// routes return 201 (the frozen runtime default; the OpenAPI snapshot
 /// under-documented these as 200). Two frozen stubs are pinned as stubs:
 /// POST /create and the bulk DELETE answered the bare success envelope
-/// without ever touching storage.
+/// without ever touching storage. Nested-payload shape validation (the
+/// bucket/files traversals below) is a full reshape left to Task 7 — Task 3
+/// only ports the business rules in Step 6's table (files non-empty, presign
+/// expiry bounds); a malformed nested shape now degrades to empty/default
+/// values instead of a field-keyed 400.
 /// </summary>
 public static class DocsEndpoints
 {
@@ -48,18 +52,15 @@ public static class DocsEndpoints
     {
         var principal = await RequestAuth.GateAsync(ctx);
 
-        var query = QueryValidator.Read(ctx);
-        var entityId = query.OptionalString("entityId");
-        var entityType = query.OptionalString("entityType");
-        var type = query.OptionalEnum("type", DocumentTypes.All);
-        var status = query.OptionalEnum("status", DocumentStatuses.All);
-        var page = query.OptionalInt("page", min: 1);
-        var limit = query.OptionalInt("limit", min: 1, max: 100);
-        query.RejectUnknownParams();
-        query.ThrowIfInvalid();
+        var entityId = QueryString(ctx, "entityId");
+        var entityType = QueryString(ctx, "entityType");
+        var type = QueryString(ctx, "type");
+        var status = QueryString(ctx, "status");
+        var page = QueryInt(ctx, "page") ?? 1;
+        var limit = QueryInt(ctx, "limit") ?? 20;
 
         var filter = new DocumentListFilter(
-            Guid.Parse(principal.Id), entityId, entityType, type, status, page ?? 1, limit ?? 20);
+            Guid.Parse(principal.Id), entityId, entityType, type, status, page, limit);
         var result = await dispatcher.Send(new ListDocumentsQuery(filter), ctx.RequestAborted);
 
         var data = new JsonArray([.. result.Items.Select(d => (JsonNode?)DocumentJson(d))]);
@@ -73,19 +74,13 @@ public static class DocsEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var body = await BodyValidator.ReadAsync(ctx);
-        var templateIdentifier = body.RequiredString("templateIdentifier");
-        var data = body.RequiredObject("data");
-        var title = body.RequiredString("title");
-        var description = body.OptionalString("description");
-        var entityId = body.OptionalString("entityId");
-        var entityType = body.OptionalString("entityType");
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
+        var body = await ctx.Request.ReadFromJsonAsync<GenerateDocumentBody>(ctx.RequestAborted)
+            ?? new GenerateDocumentBody(string.Empty, null, string.Empty, null, null, null);
+        var dataJson = body.Data?.ToJsonString() ?? "{}";
 
-        var dataJson = data?.ToJsonString() ?? "{}";
         var result = await dispatcher.Send(
-            new GenerateDocumentCommand(templateIdentifier, dataJson, title, description, entityId, entityType),
+            new GenerateDocumentCommand(
+                body.TemplateIdentifier, dataJson, body.Title, body.Description, body.EntityId, body.EntityType),
             ctx.RequestAborted);
 
         // Enqueued after dispatch returns — TransactionBehavior has already
@@ -95,7 +90,7 @@ public static class DocsEndpoints
         // document row already exists, and it must not be abandoned merely
         // because the client hung up (see Task 12's fix for the same pair).
         await queue.EnqueueAsync(
-            new RenderDocumentCommand(result.DocumentId, templateIdentifier, dataJson, entityId, entityType),
+            new RenderDocumentCommand(result.DocumentId, body.TemplateIdentifier, dataJson, body.EntityId, body.EntityType),
             CancellationToken.None);
 
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, new JsonObject
@@ -109,7 +104,7 @@ public static class DocsEndpoints
     {
         await RequestAuth.GateAsync(ctx);
         var document = await dispatcher.Send(
-            new GetDocumentQuery(RouteParams.UnpipedUuid(id)), ctx.RequestAborted);
+            new GetDocumentQuery(Guid.Parse(id)), ctx.RequestAborted);
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status200OK, DocumentJson(document, withVersions: true));
     }
@@ -119,7 +114,7 @@ public static class DocsEndpoints
     {
         await RequestAuth.GateAsync(ctx);
         var url = await dispatcher.Send(
-            new GetDocumentUrlQuery(RouteParams.UnpipedUuid(id)), ctx.RequestAborted);
+            new GetDocumentUrlQuery(Guid.Parse(id)), ctx.RequestAborted);
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status200OK, new JsonObject { ["url"] = url });
     }
@@ -128,7 +123,7 @@ public static class DocsEndpoints
         HttpContext ctx, string id, IDispatcher dispatcher)
     {
         await RequestAuth.GateAsync(ctx);
-        await dispatcher.Send(new DeleteDocumentCommand(RouteParams.UnpipedUuid(id)), ctx.RequestAborted);
+        await dispatcher.Send(new DeleteDocumentCommand(Guid.Parse(id)), ctx.RequestAborted);
         // Frozen deleteDocument answers { deleted: true }, 200.
         return ApiEnvelope.Success(
             ctx, StatusCodes.Status200OK, new JsonObject { ["deleted"] = true });
@@ -138,21 +133,16 @@ public static class DocsEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var body = await BodyValidator.ReadAsync(ctx);
-        var items = ReadDocumentsPayload(body);
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
+        var body = await ctx.Request.ReadFromJsonAsync<JsonObject>(ctx.RequestAborted);
+        var items = ReadDocumentsPayload(body, "fileId");
 
         // Frozen: bare @Query params, no DTO — no whitelist, no coercion. A
         // non-numeric expiresInSeconds falls back to the signer default.
-        var contentDisposition = NullableQuery(ctx, "contentDisposition");
-        int? expiresInSeconds = int.TryParse(
-            NullableQuery(ctx, "expiresInSeconds"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
-            ? parsed
-            : null;
+        var contentDisposition = QueryString(ctx, "contentDisposition");
+        var expiresInSeconds = QueryInt(ctx, "expiresInSeconds");
 
         var results = await dispatcher.Send(
-            new PresignDocumentsQuery(items!, contentDisposition, expiresInSeconds), ctx.RequestAborted);
+            new PresignDocumentsQuery(items, contentDisposition, expiresInSeconds), ctx.RequestAborted);
         var data = new JsonArray([.. results.Select(item => (JsonNode?)new JsonObject
         {
             ["bucket"] = item.Bucket,
@@ -234,8 +224,14 @@ public static class DocsEndpoints
         });
     }
 
-    private static string? NullableQuery(HttpContext ctx, string name) =>
+    private static string? QueryString(HttpContext ctx, string name) =>
         ctx.Request.Query.TryGetValue(name, out var values) ? values[^1] : null;
+
+    private static int? QueryInt(HttpContext ctx, string name) =>
+        ctx.Request.Query.TryGetValue(name, out var values)
+            && int.TryParse(values[^1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : null;
 
     /// <summary>The frozen DocumentsEntity JSON (TypeORM serialization).</summary>
     private static JsonObject DocumentJson(Document document, bool withVersions = false)
@@ -284,25 +280,24 @@ public static class DocsEndpoints
         },
     };
 
+    /// <summary>The frozen generateDocument body shape (data is a raw JSON object, serialized back to a string for the command).</summary>
+    private sealed record GenerateDocumentBody(
+        string TemplateIdentifier,
+        JsonObject? Data,
+        string Title,
+        string? Description,
+        string? EntityId,
+        string? EntityType);
+
     /// <summary>
     /// The frozen DocumentsPayloadDto surface: documents is @IsArray (no
     /// ArrayNotEmpty — an empty array is valid and answers []), items carry
     /// bucket + files[].folderName + files[].fileInfo.fileId.
     /// </summary>
-    private static List<PresignItem>? ReadDocumentsPayload(BodyValidator body)
-    {
-        var node = body.RawNode("documents");
-        if (node is not JsonArray array)
-        {
-            body.AddFailure("documents", "isArray", "documents must be an array");
-            return null;
-        }
-
-        return [.. ReadBucketFilesArray(array, "documents", "fileId", body.Failures)
+    private static List<PresignItem> ReadDocumentsPayload(JsonObject? body, string leafField) =>
+        [.. ReadBucketFilesArray(body?["documents"] as JsonArray, leafField)
             .Select(item => new PresignItem(
-                item.Bucket,
-                [.. item.Files.Select(f => new PresignFileRef(f.FolderName, f.LeafValue))]))];
-    }
+                item.Bucket, [.. item.Files.Select(f => new PresignFileRef(f.FolderName, f.LeafValue))]))];
 
     /// <summary>
     /// The frozen UploadDocumentPayloadDto surface: the multipart "payload"
@@ -312,53 +307,27 @@ public static class DocsEndpoints
     /// </summary>
     private static List<UploadPayloadItem> ReadUploadPayload(IFormCollection form)
     {
-        var failures = new ValidationFailures();
-        foreach (var field in form.Keys)
-        {
-            if (field is not ("payload" or "entityId" or "entityType"))
-            {
-                failures.Add(field, "whitelistValidation", $"property {field} should not exist");
-            }
-        }
-
-        JsonNode? node = null;
         if (!form.TryGetValue("payload", out var payloadValues))
         {
-            failures.Add("payload", "isArray", "payload must be an array");
-        }
-        else
-        {
-            try
-            {
-                node = JsonNode.Parse(payloadValues[^1] ?? string.Empty);
-            }
-            catch (JsonException)
-            {
-                // Frozen: JSON.parse threw inside @Transform — a bare 500.
-                // The handler is the mapper now: an unparseable payload string
-                // is our bug, not the caller's malformed request.
-                throw new InvalidOperationException("Unable to parse the 'payload' field as JSON.");
-            }
+            return [];
         }
 
-        var items = new List<UploadPayloadItem>();
-        if (node is not null)
+        JsonNode? node;
+        try
         {
-            if (node is not JsonArray array)
-            {
-                failures.Add("payload", "isArray", "payload must be an array");
-            }
-            else
-            {
-                items = [.. ReadBucketFilesArray(array, "payload", "fileName", failures)
-                    .Select(item => new UploadPayloadItem(
-                        item.Bucket,
-                        [.. item.Files.Select(f => new UploadPayloadFile(f.FolderName, f.LeafValue))]))];
-            }
+            node = JsonNode.Parse(payloadValues[^1] ?? string.Empty);
+        }
+        catch (JsonException)
+        {
+            // Frozen: JSON.parse threw inside @Transform — a bare 500.
+            // The handler is the mapper now: an unparseable payload string
+            // is our bug, not the caller's malformed request.
+            throw new InvalidOperationException("Unable to parse the 'payload' field as JSON.");
         }
 
-        failures.ThrowIfAny();
-        return items;
+        return [.. ReadBucketFilesArray(node as JsonArray, "fileName")
+            .Select(item => new UploadPayloadItem(
+                item.Bucket, [.. item.Files.Select(f => new UploadPayloadFile(f.FolderName, f.LeafValue))]))];
     }
 
     private sealed record RawFile(string FolderName, string LeafValue);
@@ -367,53 +336,46 @@ public static class DocsEndpoints
 
     /// <summary>
     /// The one traversal behind both frozen bucket+files payload shapes
-    /// (documents/fileId and payload/fileName), reporting into the caller's
-    /// failure sink.
+    /// (documents/fileId and payload/fileName). Tolerant: a malformed entry
+    /// degrades to empty strings rather than a field-keyed failure — full
+    /// shape validation for this nested payload is a Task 7 reshape.
     /// </summary>
-    private static List<RawItem> ReadBucketFilesArray(
-        JsonArray array, string root, string leafField, ValidationFailures failures)
+    private static List<RawItem> ReadBucketFilesArray(JsonArray? array, string leafField)
     {
         var items = new List<RawItem>();
-        for (var i = 0; i < array.Count; i++)
+        if (array is null)
         {
-            if (array[i] is not JsonObject item)
+            return items;
+        }
+
+        foreach (var entry in array)
+        {
+            if (entry is not JsonObject item)
             {
-                failures.Add(
-                    $"{root}.{i}", "nestedValidation",
-                    $"nested property {root} must be either object or array");
                 continue;
             }
 
-            var bucket = new NestedValidator(item, $"{root}.{i}", failures).NonEmptyString("bucket");
+            var bucket = item["bucket"]?.GetValueKind() == JsonValueKind.String
+                ? item["bucket"]!.GetValue<string>()
+                : string.Empty;
+
             var files = new List<RawFile>();
-            if (item["files"] is not JsonArray fileArray)
+            if (item["files"] is JsonArray fileArray)
             {
-                failures.Add($"{root}.{i}.files", "isArray", $"{root}.{i}.files must be an array");
-            }
-            else
-            {
-                for (var j = 0; j < fileArray.Count; j++)
+                foreach (var fileNode in fileArray)
                 {
-                    if (fileArray[j] is not JsonObject file)
+                    if (fileNode is not JsonObject file)
                     {
-                        failures.Add(
-                            $"{root}.{i}.files.{j}", "nestedValidation",
-                            "nested property files must be either object or array");
                         continue;
                     }
 
-                    var folderName = new NestedValidator(file, $"{root}.{i}.files.{j}", failures)
-                        .NonEmptyString("folderName");
-                    if (file["fileInfo"] is not JsonObject fileInfo)
-                    {
-                        failures.Add(
-                            $"{root}.{i}.files.{j}.fileInfo", "isObject",
-                            $"{root}.{i}.files.{j}.fileInfo must be an object");
-                        continue;
-                    }
-
-                    var leaf = new NestedValidator(fileInfo, $"{root}.{i}.files.{j}.fileInfo", failures)
-                        .NonEmptyString(leafField);
+                    var folderName = file["folderName"]?.GetValueKind() == JsonValueKind.String
+                        ? file["folderName"]!.GetValue<string>()
+                        : string.Empty;
+                    var leaf = file["fileInfo"] is JsonObject fileInfo
+                        && fileInfo[leafField]?.GetValueKind() == JsonValueKind.String
+                        ? fileInfo[leafField]!.GetValue<string>()
+                        : string.Empty;
                     files.Add(new RawFile(folderName, leaf));
                 }
             }

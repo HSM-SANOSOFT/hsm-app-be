@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using Hsm.Api.Auth;
 using Hsm.Api.Http;
@@ -6,14 +5,15 @@ using Hsm.Application.Abstractions;
 using Hsm.Application.Settings;
 using Hsm.Application.Settings.Commands.UpdateSettings;
 using Hsm.Application.Settings.Queries.GetSettings;
-using Hsm.Domain.Settings;
 
 namespace Hsm.Api.Settings;
 
 /// <summary>
 /// The two frozen /v1/settings operations (settings.controller.ts), both
 /// admin-only. Role policy rides on the request types (AuthorizationBehavior);
-/// GET and PUT return 200 with the fresh category read-back.
+/// GET and PUT return 200 with the fresh category read-back. Category and
+/// per-item key rules moved into GetSettingsValidator/UpdateSettingsValidator
+/// (Task 3); the full item-shape reshape is Task 9's.
 /// </summary>
 public static class SettingsEndpoints
 {
@@ -28,12 +28,9 @@ public static class SettingsEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var query = QueryValidator.Read(ctx);
-        var category = query.RequiredEnum("category", SettingsCategories.All);
-        query.RejectUnknownParams();
-        query.ThrowIfInvalid();
+        var category = ctx.Request.Query.TryGetValue("category", out var values) ? values[^1] : null;
 
-        var view = await dispatcher.Send(new GetSettingsQuery(category), ctx.RequestAborted);
+        var view = await dispatcher.Send(new GetSettingsQuery(category ?? string.Empty), ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, SettingsJson(view));
     }
 
@@ -41,79 +38,22 @@ public static class SettingsEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var body = await BodyValidator.ReadAsync(ctx);
-        var category = body.RequiredEnum("category", SettingsCategories.All);
-        var items = body.RequiredObjectArray("settings");
-        var updates = new List<SettingUpdate>();
-        if (items is not null)
-        {
-            for (var index = 0; index < items.Count; index++)
-            {
-                var item = ValidateItem(body, items[index], index);
-                if (item is not null)
-                {
-                    updates.Add(item);
-                }
-            }
-        }
+        var body = await ctx.Request.ReadFromJsonAsync<UpdateSettingsBody>(ctx.RequestAborted)
+            ?? new UpdateSettingsBody(string.Empty, []);
+        var updates = body.Settings
+            .Select(item => new SettingUpdate(item.Key ?? string.Empty, item.Value))
+            .ToList();
 
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
-
-        var view = await dispatcher.Send(new UpdateSettingsCommand(category, updates), ctx.RequestAborted);
+        var view = await dispatcher.Send(
+            new UpdateSettingsCommand(body.Category, updates), ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, SettingsJson(view));
     }
 
-    /// <summary>Frozen nested item validation (@ValidateNested over UpdateSettingItemDto).</summary>
-    private static SettingUpdate? ValidateItem(BodyValidator body, JsonNode? node, int index)
-    {
-        if (node is not JsonObject item)
-        {
-            body.AddFailure(
-                $"settings.{index}", "nestedValidation",
-                "each value in nested property settings must be either object or array");
-            return null;
-        }
+    /// <summary>The frozen UpdateSettingsDto surface.</summary>
+    private sealed record UpdateSettingsBody(string Category, List<SettingItemBody> Settings);
 
-        string? key = null;
-        var keyNode = item["key"];
-        if (keyNode is null
-            || keyNode.GetValueKind() != JsonValueKind.String
-            || keyNode.GetValue<string>().Length == 0)
-        {
-            body.AddFailure($"settings.{index}.key", "isNotEmpty", $"settings.{index}.key should not be empty");
-        }
-        else
-        {
-            key = keyNode.GetValue<string>();
-        }
-
-        string? value = null;
-        var valueNode = item["value"];
-        if (valueNode is not null)
-        {
-            if (valueNode.GetValueKind() == JsonValueKind.String)
-            {
-                value = valueNode.GetValue<string>();
-            }
-            else if (valueNode.GetValueKind() != JsonValueKind.Null)
-            {
-                body.AddFailure($"settings.{index}.value", "isString", $"settings.{index}.value must be a string");
-            }
-        }
-
-        foreach (var property in item)
-        {
-            if (property.Key is not ("key" or "value"))
-            {
-                body.AddFailure(
-                    $"settings.{index}.{property.Key}", "whitelistValidation",
-                    $"property {property.Key} should not exist");
-            }
-        }
-
-        return key is null ? null : new SettingUpdate(key, value);
-    }
+    /// <summary>The frozen UpdateSettingItemDto surface.</summary>
+    private sealed record SettingItemBody(string? Key, string? Value);
 
     private static JsonObject SettingsJson(SettingsView view)
     {

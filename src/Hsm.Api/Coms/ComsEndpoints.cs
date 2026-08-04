@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 using Hsm.Api.Auth;
 using Hsm.Api.Http;
@@ -47,19 +48,10 @@ public static class ComsEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var body = await BodyValidator.ReadAsync(ctx);
-        var fromEmail = body.OptionalEmail("fromEmail");
-        var fromName = body.OptionalString("fromName");
-        var toEmails = body.RequiredEmailArray("toEmails");
-        var emailTemplate = body.RequiredString("emailTemplate");
-        var data = body.RequiredObject("data");
-        var documentIds = body.OptionalUuidArray("documentIds");
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
+        var command = await ctx.Request.ReadFromJsonAsync<SendEmailCommand>(ctx.RequestAborted)
+            ?? new SendEmailCommand(null, null, [], string.Empty, new JsonObject(), null);
 
-        var result = await dispatcher.Send(
-            new SendEmailCommand(fromEmail, fromName, toEmails!, emailTemplate, data!, documentIds),
-            ctx.RequestAborted);
+        var result = await dispatcher.Send(command, ctx.RequestAborted);
         // Enqueued HERE, after dispatch returns — TransactionBehavior has
         // committed the batch by now (SendEmailHandler's doc comment explains
         // why the handler itself must not enqueue). CancellationToken.None,
@@ -87,16 +79,13 @@ public static class ComsEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var query = QueryValidator.Read(ctx);
-        var templateId = query.OptionalUuid("templateId");
-        var overallStatus = query.OptionalEnum("overallStatus", EmailBatchStatus.All);
-        var createdBy = query.OptionalUuid("createdBy");
-        var fromDate = query.OptionalDateString("fromDate");
-        var toDate = query.OptionalDateString("toDate");
-        var page = query.OptionalInt("page", min: 1) ?? 1;
-        var limit = query.OptionalInt("limit", min: 1, max: 100) ?? 20;
-        query.RejectUnknownParams();
-        query.ThrowIfInvalid();
+        var templateId = QueryUuid(ctx, "templateId");
+        var overallStatus = QueryString(ctx, "overallStatus");
+        var createdBy = QueryUuid(ctx, "createdBy");
+        var fromDate = QueryDate(ctx, "fromDate");
+        var toDate = QueryDate(ctx, "toDate");
+        var page = QueryInt(ctx, "page") ?? 1;
+        var limit = QueryInt(ctx, "limit") ?? 20;
 
         var batches = await dispatcher.Send(
             new ListEmailBatchesQuery(
@@ -133,14 +122,11 @@ public static class ComsEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var query = QueryValidator.Read(ctx);
-        var batchId = query.OptionalUuid("batchId");
-        var toEmail = query.OptionalEmail("toEmail");
-        var status = query.OptionalEnum("status", EmailRecipientStatus.All);
-        var page = query.OptionalInt("page", min: 1) ?? 1;
-        var limit = query.OptionalInt("limit", min: 1, max: 100) ?? 20;
-        query.RejectUnknownParams();
-        query.ThrowIfInvalid();
+        var batchId = QueryUuid(ctx, "batchId");
+        var toEmail = QueryString(ctx, "toEmail");
+        var status = QueryString(ctx, "status");
+        var page = QueryInt(ctx, "page") ?? 1;
+        var limit = QueryInt(ctx, "limit") ?? 20;
 
         var recipients = await dispatcher.Send(
             new ListEmailRecipientsQuery(new RecipientListFilter(batchId, toEmail, status, page, limit)),
@@ -241,4 +227,26 @@ public static class ComsEndpoints
         ["sentAt"] = IsoTimestamp.Of(recipient.SentAt),
         ["errorMessage"] = recipient.ErrorMessage,
     };
+
+    private static string? QueryString(HttpContext ctx, string name) =>
+        ctx.Request.Query.TryGetValue(name, out var values) ? values[^1] : null;
+
+    private static int? QueryInt(HttpContext ctx, string name) =>
+        ctx.Request.Query.TryGetValue(name, out var values)
+            && int.TryParse(values[^1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
+            ? value
+            : null;
+
+    private static Guid? QueryUuid(HttpContext ctx, string name) =>
+        ctx.Request.Query.TryGetValue(name, out var values) && Guid.TryParse(values[^1], out var value)
+            ? value
+            : null;
+
+    private static DateTimeOffset? QueryDate(HttpContext ctx, string name) =>
+        ctx.Request.Query.TryGetValue(name, out var values)
+            && DateTimeOffset.TryParse(
+                values[^1], CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal,
+                out var value)
+            ? value
+            : null;
 }

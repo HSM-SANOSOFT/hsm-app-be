@@ -21,6 +21,18 @@ public static class TemplateCategories
     public static bool IsSms(string category) => category is SmsInternal or SmsExternal;
 }
 
+/// <summary>
+/// Category-membership check shared by the template validators (Task 3):
+/// <see cref="TemplateCategories.All"/> stated once so "is this a template
+/// category" cannot drift between <c>CreateTemplateValidator</c> and
+/// <c>UpdateTemplateValidator</c>.
+/// </summary>
+public static class TemplateCatalog
+{
+    public static bool IsKnownCategory(string? category) =>
+        category is not null && TemplateCategories.All.Contains(category, StringComparer.Ordinal);
+}
+
 /// <summary>Frozen TemplateParseTriggerEnum values.</summary>
 public static class TemplateParseTriggers
 {

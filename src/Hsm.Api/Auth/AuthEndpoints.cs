@@ -15,7 +15,6 @@ using Hsm.Application.Auth.Commands.Signup;
 using Hsm.Application.Auth.Commands.SignupIntegration;
 using Hsm.Application.Auth.Commands.ValidatePin;
 using Hsm.Contracts.Auth;
-using Hsm.Domain.Identity;
 
 namespace Hsm.Api.Auth;
 
@@ -23,7 +22,10 @@ namespace Hsm.Api.Auth;
 /// The fourteen frozen /v1/auth operations. Success bodies ride the frozen
 /// envelope; POST returns 201 and GET 200, matching the frozen runtime
 /// (NestJS defaults — the snapshot's documented 200s were doc-generator
-/// drift, and integration consumers saw 201).
+/// drift, and integration consumers saw 201). Body shape validation for these
+/// routes is not yet in the pipeline — Identity tasks (11-14) reshape this
+/// module and add its validators; until then a malformed payload reaches the
+/// handler as-is.
 /// </summary>
 public static class AuthEndpoints
 {
@@ -57,27 +59,15 @@ public static class AuthEndpoints
 
     private static async Task<IResult> Signup(HttpContext ctx, IDispatcher dispatcher)
     {
-        var body = await BodyValidator.ReadAsync(ctx);
-        var username = body.RequiredString("username");
-        var email = body.RequiredString("email");
-        var password = body.RequiredString("password", minLength: 8);
-        var firstName = body.RequiredString("firstName");
-        var secondName = body.OptionalString("secondName");
-        var firstLastName = body.RequiredString("firstLastName");
-        var secondLastName = body.OptionalString("secondLastName");
-        var phoneNumber = body.OptionalString("phoneNumber");
-        var gender = body.OptionalString("gender");
-        // Client-supplied roles are accepted but IGNORED — public signup
-        // always provisions a Patient (frozen PublicSignupPayloadDto).
-        body.IgnoredArray("roles");
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
+        // Client-supplied "roles" are accepted in the frozen JSON but IGNORED —
+        // public signup always provisions a Patient (frozen
+        // PublicSignupPayloadDto) — and System.Text.Json drops unmapped
+        // members by default, so no explicit handling is needed here.
+        var command = await ctx.Request.ReadFromJsonAsync<SignupCommand>(ctx.RequestAborted)
+            ?? new SignupCommand(
+                string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, null, null, null, null);
 
-        var tokens = await dispatcher.Send(
-            new SignupCommand(
-                username, email, password, firstName, firstLastName,
-                secondName, secondLastName, phoneNumber, gender),
-            ctx.RequestAborted);
+        var tokens = await dispatcher.Send(command, ctx.RequestAborted);
         AuthCookies.Set(ctx, Options(ctx), tokens);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, TokensJson(tokens));
     }
@@ -86,21 +76,13 @@ public static class AuthEndpoints
     {
         // The frozen local guard ran BEFORE validation: missing/non-string
         // credentials surface 401, not 400.
-        var body = await BodyValidator.ReadAsync(ctx);
-        var username = body.OptionalString("username");
-        var password = body.OptionalString("password");
+        var body = await ctx.Request.ReadFromJsonAsync<LoginBody>(ctx.RequestAborted);
+        var username = body?.Username;
+        var password = body?.Password;
         if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
         {
             throw new Hsm.Application.Errors.UnauthorizedException();
         }
-
-        // Whitelist validation now runs BEFORE credential verification rather
-        // than between it and token issuance: LoginCommand verifies and issues
-        // in one dispatch, and issuing rotates the stored refresh hash, so
-        // validating afterwards would sign a caller out of their other sessions
-        // on a request that then 400s. See the Task 10 report, J2.
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
 
         var tokens = await dispatcher.Send(new LoginCommand(username, password), ctx.RequestAborted);
         AuthCookies.Set(ctx, Options(ctx), tokens);
@@ -145,15 +127,10 @@ public static class AuthEndpoints
         var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
         await RequestAuth.InstallActorAsync(ctx, principal);
 
-        var body = await BodyValidator.ReadAsync(ctx);
-        var newPassword = body.RequiredString("newPassword", minLength: 8);
-        var phoneNumber = body.RequiredString("phoneNumber");
-        var confirmEmail = body.RequiredString("confirmEmail", email: true);
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
+        var command = await ctx.Request.ReadFromJsonAsync<CompleteOnboardingCommand>(ctx.RequestAborted)
+            ?? new CompleteOnboardingCommand(string.Empty, string.Empty, string.Empty);
 
-        var tokens = await dispatcher.Send(
-            new CompleteOnboardingCommand(newPassword, phoneNumber, confirmEmail), ctx.RequestAborted);
+        var tokens = await dispatcher.Send(command, ctx.RequestAborted);
         AuthCookies.Set(ctx, Options(ctx), tokens);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, TokensJson(tokens));
     }
@@ -165,16 +142,11 @@ public static class AuthEndpoints
         // enforced once, in the pipeline.
         await RequestAuth.GateAsync(ctx);
 
-        var body = await BodyValidator.ReadAsync(ctx);
-        var name = body.RequiredString("name");
-        var description = body.RequiredString("description");
-        var functionality = body.RequiredString("functionality", oneOf: IntegrationFunctionality.All);
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
+        var command = await ctx.Request.ReadFromJsonAsync<SignupIntegrationCommand>(ctx.RequestAborted)
+            ?? new SignupIntegrationCommand(string.Empty, string.Empty, string.Empty);
 
         // Tokens in the body only — integrations never use cookies.
-        var tokens = await dispatcher.Send(
-            new SignupIntegrationCommand(name, description, functionality), ctx.RequestAborted);
+        var tokens = await dispatcher.Send(command, ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, TokensJson(tokens));
     }
 
@@ -184,12 +156,10 @@ public static class AuthEndpoints
         // now rides on LogoutIntegrationCommand's [RequireRole(Roles.Admin)].
         await RequestAuth.GateAsync(ctx);
 
-        var body = await BodyValidator.ReadAsync(ctx);
-        var token = body.RequiredString("token");
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
+        var command = await ctx.Request.ReadFromJsonAsync<LogoutIntegrationCommand>(ctx.RequestAborted)
+            ?? new LogoutIntegrationCommand(string.Empty);
 
-        await dispatcher.Send(new LogoutIntegrationCommand(token), ctx.RequestAborted);
+        await dispatcher.Send(command, ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, includeData: false);
     }
 
@@ -216,13 +186,10 @@ public static class AuthEndpoints
         // blocked, and GeneratePinCommand's (absent) policy is what says so now.
         await RequestAuth.GateAsync(ctx);
 
-        var body = await BodyValidator.ReadAsync(ctx);
-        var purpose = body.RequiredString("purpose", oneOf: PinPurposes);
-        var target = body.RequiredString("target");
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
+        var command = await ctx.Request.ReadFromJsonAsync<GeneratePinCommand>(ctx.RequestAborted)
+            ?? new GeneratePinCommand(string.Empty, string.Empty);
 
-        await dispatcher.Send(new GeneratePinCommand(purpose, target), ctx.RequestAborted);
+        await dispatcher.Send(command, ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, includeData: false);
     }
 
@@ -230,25 +197,19 @@ public static class AuthEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var body = await BodyValidator.ReadAsync(ctx);
-        var purpose = body.RequiredString("purpose", oneOf: PinPurposes);
-        var target = body.RequiredString("target");
-        var code = body.RequiredNumber("code");
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
+        var command = await ctx.Request.ReadFromJsonAsync<ValidatePinCommand>(ctx.RequestAborted)
+            ?? new ValidatePinCommand(string.Empty, string.Empty, 0);
 
-        await dispatcher.Send(new ValidatePinCommand(purpose, target, code), ctx.RequestAborted);
+        await dispatcher.Send(command, ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, includeData: false);
     }
 
     private static async Task<IResult> ForgotPassword(HttpContext ctx, IDispatcher dispatcher)
     {
-        var body = await BodyValidator.ReadAsync(ctx);
-        var email = body.RequiredString("email", email: true);
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
+        var command = await ctx.Request.ReadFromJsonAsync<ForgotPasswordCommand>(ctx.RequestAborted)
+            ?? new ForgotPasswordCommand(string.Empty);
 
-        await dispatcher.Send(new ForgotPasswordCommand(email), ctx.RequestAborted);
+        await dispatcher.Send(command, ctx.RequestAborted);
         return ApiEnvelope.Success(
             ctx,
             StatusCodes.Status201Created,
@@ -257,13 +218,10 @@ public static class AuthEndpoints
 
     private static async Task<IResult> ResetPassword(HttpContext ctx, IDispatcher dispatcher)
     {
-        var body = await BodyValidator.ReadAsync(ctx);
-        var token = body.RequiredString("token");
-        var newPassword = body.RequiredString("newPassword", minLength: 8);
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
+        var command = await ctx.Request.ReadFromJsonAsync<ResetPasswordCommand>(ctx.RequestAborted)
+            ?? new ResetPasswordCommand(string.Empty, string.Empty);
 
-        await dispatcher.Send(new ResetPasswordCommand(token, newPassword), ctx.RequestAborted);
+        await dispatcher.Send(command, ctx.RequestAborted);
         return ApiEnvelope.Success(
             ctx,
             StatusCodes.Status201Created,
@@ -272,25 +230,18 @@ public static class AuthEndpoints
 
     private static async Task<IResult> RecoverUsername(HttpContext ctx, IDispatcher dispatcher)
     {
-        var body = await BodyValidator.ReadAsync(ctx);
-        var email = body.RequiredString("email", email: true);
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
+        var command = await ctx.Request.ReadFromJsonAsync<RecoverUsernameCommand>(ctx.RequestAborted)
+            ?? new RecoverUsernameCommand(string.Empty);
 
-        await dispatcher.Send(new RecoverUsernameCommand(email), ctx.RequestAborted);
+        await dispatcher.Send(command, ctx.RequestAborted);
         return ApiEnvelope.Success(
             ctx,
             StatusCodes.Status201Created,
             new JsonObject { ["message"] = GenericRecoveryMessage });
     }
 
-    private static readonly string[] PinPurposes =
-    [
-        "email_verification",
-        "password_reset",
-        "identity_verification",
-        "integration_approval",
-    ];
+    /// <summary>The frozen LoginDto surface, read ahead of the local guard below.</summary>
+    private sealed record LoginBody(string? Username, string? Password);
 
     private static AuthWebOptions Options(HttpContext ctx) =>
         ctx.RequestServices.GetRequiredService<AuthWebOptions>();
