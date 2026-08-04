@@ -1,7 +1,7 @@
 using System.Threading.RateLimiting;
 using Hsm.Api;
 using Hsm.Api.Auth;
-using Hsm.Api.Docs;
+using Hsm.Api.Documents;
 using Hsm.Api.Emails;
 using Hsm.Api.Errors;
 using Hsm.Api.Fhir;
@@ -195,7 +195,7 @@ app.MapSettingsEndpoints();
 app.MapTemplateEndpoints();
 app.MapEmailEndpoints();
 app.MapWebhookEndpoints();
-app.MapDocsEndpoints();
+app.MapDocumentEndpoints();
 
 app.Run();
 return 0;
