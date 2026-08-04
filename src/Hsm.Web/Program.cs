@@ -1,6 +1,5 @@
 using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
-using Hsm.Application.System.Queries.GetSystemStatus;
 using Hsm.Contracts.Ui;
 using Hsm.Infrastructure;
 using Hsm.Infrastructure.Telemetry;
@@ -81,9 +80,6 @@ builder.Services.AddScoped<AmbientPrincipal>();
 builder.Services.AddScoped<ICurrentPrincipal>(sp => sp.GetRequiredService<AmbientPrincipal>());
 builder.Services.AddScoped<RequestActorFactory>();
 builder.Services.AddScoped<ShellActor>();
-
-// Application handlers.
-builder.Services.AddScoped<IRequestHandler<GetSystemStatusQuery, SystemStatusDto>, GetSystemStatusHandler>();
 
 // UI services: interfaces declared in Hsm.Contracts, implemented by this
 // host with in-process handler calls (client-isolation boundary, plan U8).

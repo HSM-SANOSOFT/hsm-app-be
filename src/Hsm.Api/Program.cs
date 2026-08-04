@@ -5,9 +5,9 @@ using Hsm.Api.Documents;
 using Hsm.Api.Emails;
 using Hsm.Api.Errors;
 using Hsm.Api.Fhir;
-using Hsm.Api.Health;
 using Hsm.Api.Http;
 using Hsm.Api.Settings;
+using Hsm.Api.SystemStatus;
 using Hsm.Api.Templates;
 using Hsm.Api.Users;
 using Hsm.Api.Webhooks;
@@ -60,6 +60,14 @@ builder.Services.AddHsmInfrastructure(builder.Configuration);
 // Hsm.Application's, so both doors decide it identically.
 builder.Services.AddHsmPipeline();
 builder.Services.AddHttpContextAccessor();
+
+// Liveness only, deliberately: no checks are registered, so /health answers
+// 200 as long as the process can serve a request. It never probes Postgres
+// or Redis — this is what a container orchestrator restarts the process on,
+// and restarting a healthy API over a two-second database blip turns a brief
+// degradation into an outage. Dependency state is reported, not acted on, by
+// GET /api/v1/system/status (SystemEndpoints) instead.
+builder.Services.AddHealthChecks();
 // ONE source of who is calling, and it is the request. This host serves HTTP
 // and nothing else: it enqueues background work into the shared queue
 // namespace and never consumes it — Hsm.Worker does — so there is no scope
@@ -187,7 +195,8 @@ app.Use(async (ctx, next) =>
     await next();
 });
 
-app.MapHealthEndpoints();
+app.MapHealthChecks("/health");
+app.MapSystemEndpoints();
 app.MapFhirEndpoints();
 app.MapAuthEndpoints();
 app.MapUserEndpoints();

@@ -18,7 +18,7 @@ public class HealthSmokeTests(HealthSmokeFactory factory) : IClassFixture<Health
     {
         using var client = factory.CreateApiClient();
 
-        var response = await client.GetAsync("/v1/health", CancellationToken.None);
+        var response = await client.GetAsync("/health", CancellationToken.None);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }

@@ -48,6 +48,7 @@ using Hsm.Application.Settings;
 using Hsm.Application.Settings.Commands.UpdateSettings;
 using Hsm.Application.Settings.Queries.GetSettings;
 using Hsm.Application.Settings.Queries.ListSettingsAudit;
+using Hsm.Application.System.Queries.GetSystemStatus;
 using Hsm.Application.Templates;
 using Hsm.Application.Templates.Commands.CreateTemplate;
 using Hsm.Application.Templates.Commands.DeleteTemplate;
@@ -63,6 +64,7 @@ using Hsm.Application.Users.Commands.CreateStaffUser;
 using Hsm.Application.Users.Commands.UpdateOwnProfile;
 using Hsm.Application.Users.Queries.GetUser;
 using Hsm.Application.Users.Queries.ListUsers;
+using Hsm.Contracts.Ui;
 using Hsm.Domain.Clinical;
 using Hsm.Domain.Coms;
 using Hsm.Domain.Docs;
@@ -290,6 +292,14 @@ public static class DependencyInjection
         services.AddScoped<IRequestHandler<UpdateSettingsCommand, SettingsView>, UpdateSettingsHandler>();
         services.AddScoped<
             IRequestHandler<ListSettingsAuditQuery, PagedResult<AppSettingAudit>>, ListSettingsAuditHandler>();
+
+        // System: the U8 boundary-proving query, dispatched from both doors —
+        // Hsm.Web's Blazor UI service in process, and Hsm.Api's
+        // GET /api/v1/system/status over HTTP (Task 10). Previously only
+        // Hsm.Web registered this handler for itself; it moves here so every
+        // host that composes AddHsmInfrastructure can dispatch it, matching
+        // every other handler's registration site.
+        services.AddScoped<IRequestHandler<GetSystemStatusQuery, SystemStatusDto>, GetSystemStatusHandler>();
     }
 
     /// <summary>
