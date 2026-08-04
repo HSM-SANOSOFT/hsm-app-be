@@ -6,6 +6,7 @@ using Hsm.Api.Emails;
 using Hsm.Api.Errors;
 using Hsm.Api.Fhir;
 using Hsm.Api.Http;
+using Hsm.Api.Identity;
 using Hsm.Api.Settings;
 using Hsm.Api.SystemStatus;
 using Hsm.Api.Templates;
@@ -14,6 +15,7 @@ using Hsm.Api.Webhooks;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
 using Hsm.Infrastructure;
+using Hsm.Infrastructure.Identity;
 using Hsm.Infrastructure.Telemetry;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
@@ -52,12 +54,13 @@ builder.Services.AddHsmInfrastructure(builder.Configuration);
 
 // The request pipeline (dispatcher + telemetry/authorization/validation/
 // transaction behaviors) and the actor it authorizes against. Authorization
-// happens HERE and nowhere else: no endpoint checks a role. The edge only
-// publishes WHO is calling, through RequestAuth.GateAsync, and
-// HttpCurrentPrincipal reads it back. Publishing nothing leaves the actor
-// null, which the pipeline answers with 401, so a forgotten install fails
-// closed. RequestActorFactory is the shared derivation of onboarding state —
-// Hsm.Application's, so both doors decide it identically.
+// happens HERE and nowhere else: no endpoint checks a role, and there is
+// deliberately no UseAuthorization() below either. The edge only publishes WHO
+// is calling, through UseHsmActor(), and HttpCurrentPrincipal reads it back.
+// Publishing nothing leaves the actor null, which the pipeline answers with
+// 401, so an unauthenticated request fails closed. RequestActorFactory is the
+// shared derivation of onboarding state — Hsm.Application's, so both doors
+// decide it identically.
 builder.Services.AddHsmPipeline();
 builder.Services.AddHttpContextAccessor();
 
@@ -76,17 +79,31 @@ builder.Services.AddHealthChecks();
 builder.Services.AddScoped<ICurrentPrincipal, HttpCurrentPrincipal>();
 builder.Services.AddScoped<RequestActorFactory>();
 
-// Auth web surface (plan U12): cookie posture + CSRF from configuration. The
-// cookie NAMES, paths, SameSite modes and lifetimes are Hsm.Contracts'
-// AuthCookiePolicy, shared with Hsm.Web so one sign-in serves both doors;
-// only the per-deployment posture is bound here.
-builder.Services.AddSingleton(new AuthWebOptions
+// One adaptive authentication scheme (Identity application cookie for
+// browsers, JWT bearer for integrations) plus standard antiforgery, both
+// configured in Hsm.Infrastructure so this door and the shell agree on the
+// session by construction rather than by two hand-rolled writers agreeing on a
+// shared constants file.
+builder.Services.AddHsmIdentityAuthentication(builder.Configuration);
+
+// The REST door answers with status codes. A redirect to an HTML login page is
+// the wrong answer to an API call and produces a 200-with-HTML that clients
+// misparse as success. (Nothing here challenges today — there is no
+// UseAuthorization() — but the cookie handler's own paths can, and a wrong
+// answer there would be silent.)
+builder.Services.ConfigureApplicationCookie(options =>
 {
-    CookieSecure = builder.Configuration.GetValue("Auth:CookieSecure", defaultValue: false),
-    CookieDomain = builder.Configuration["Auth:CookieDomain"],
-    CsrfSecret = builder.Configuration["Auth:CsrfSecret"] ?? string.Empty,
+    options.Events.OnRedirectToLogin = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return Task.CompletedTask;
+    };
 });
-builder.Services.AddSingleton<CsrfProtection>();
 
 // RFC 9457 for every failure on this door. traceId is attached HERE, once, so
 // a mapping branch cannot ship without it — and the Activity id is preferred
@@ -144,24 +161,9 @@ var app = builder.Build();
 
 // RFC 9457 problem+json for every failure on this door — the ONE place an
 // exception becomes a response (HsmExceptionHandler). Placed first so
-// everything downstream, including the antiforgery middleware Task 12 adds,
-// renders through it.
+// everything downstream, including the antiforgery middleware below, renders
+// through it.
 app.UseExceptionHandler();
-
-// Transitional: installs the actor for the reshaped /api routes while the old
-// per-endpoint GateAsync still serves the un-reshaped /v1 ones. Task 12
-// replaces this whole block with UseAuthentication() + UseHsmActor().
-app.Use(async (ctx, next) =>
-{
-    if (ctx.Request.Path.StartsWithSegments("/api")
-        && RequestAuth.AccessToken(ctx) is not null)
-    {
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        await RequestAuth.InstallActorAsync(ctx, principal);
-    }
-
-    await next();
-});
 
 if (!app.Environment.IsDevelopment())
 {
@@ -173,31 +175,22 @@ app.UseHttpsRedirection();
 
 app.UseRateLimiter();
 
-// CSRF double-submit (frozen csrf.util.ts): validates x-csrf-token on
-// cookie-authenticated browser mutations; safe methods, bearer clients, and
-// pre-session requests are skipped. Runs before endpoints, as the frozen
-// middleware ran before guards. It lives on this door alone: the token is
-// issued by GET /v1/auth/csrf and every route it protects is here, so the
-// /_blazor exemption the combined host needed has no subject any more.
-app.Use(async (ctx, next) =>
-{
-    if (!CsrfProtection.ShouldSkip(ctx)
-        && !ctx.RequestServices.GetRequiredService<CsrfProtection>().Validate(ctx))
-    {
-        // The frozen failure surfaced from the express layer, outside the
-        // response envelope.
-        ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
-        ctx.Response.ContentType = "text/plain";
-        await ctx.Response.WriteAsync("ForbiddenError: invalid csrf token");
-        return;
-    }
-
-    await next();
-});
+// Who is calling, then whether they were forged into calling. Authentication
+// resolves the adaptive scheme; UseHsmActor publishes the result as the
+// request's actor for EVERY route, so an endpoint cannot forget to establish
+// identity; antiforgery runs after both so it can tell a cookie caller from a
+// bearer one, and inside UseExceptionHandler so its refusal renders as a 403
+// problem like every other failure. There is no UseAuthorization() call: this
+// door has no endpoint-level authorization policies by design, and adding the
+// middleware would only invite one.
+app.UseAuthentication();
+app.UseHsmActor();
+app.UseHsmAntiforgery();
 
 app.MapHealthChecks("/health");
 app.MapSystemEndpoints();
 app.MapFhirEndpoints();
+app.MapIdentityEndpoints();
 app.MapAuthEndpoints();
 app.MapUserEndpoints();
 app.MapSettingsEndpoints();

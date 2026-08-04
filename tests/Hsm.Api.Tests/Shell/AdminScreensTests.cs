@@ -74,8 +74,8 @@ public sealed class AdminScreensTests(AdminScreensFactory factory)
         using var response = await Client.GetAsync(new Uri(path, UriKind.Relative));
 
         Assert.Equal(HttpStatusCode.Found, response.StatusCode);
-        var location = response.Headers.Location?.OriginalString ?? string.Empty;
-        Assert.StartsWith("/login", location, StringComparison.Ordinal);
+        var location = response.Headers.Location ?? throw new InvalidOperationException("no Location");
+        Assert.Equal("/login", location.AbsolutePath);
     }
 
     [Theory]
@@ -83,10 +83,10 @@ public sealed class AdminScreensTests(AdminScreensFactory factory)
     public async Task Authenticated_non_admin_direct_url_is_forbidden(string path, string title)
     {
         _ = title;
-        var (bearer, _) = await BearerAsync(role: "doctor");
+        var (session, _) = await SessionAsync(role: "doctor");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
-        request.Headers.Add("Cookie", $"access_token={bearer}");
+        request.Headers.Add("Cookie", session);
         using var response = await Client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -96,10 +96,10 @@ public sealed class AdminScreensTests(AdminScreensFactory factory)
     [MemberData(nameof(AdminScreens))]
     public async Task Admin_direct_url_reaches_the_screen(string path, string title)
     {
-        var (bearer, _) = await BearerAsync(role: "admin");
+        var (session, _) = await SessionAsync(role: "admin");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, path);
-        request.Headers.Add("Cookie", $"access_token={bearer}");
+        request.Headers.Add("Cookie", session);
         using var response = await Client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -113,33 +113,38 @@ public sealed class AdminScreensTests(AdminScreensFactory factory)
     public async Task Sign_in_form_post_establishes_the_cookie_session()
     {
         var username = Unique("shell_admin");
-        const string password = "Contract-Passw0rd";
-        await Factory.SeedUserAsync(username, password, "admin", DateTimeOffset.UtcNow);
+        await Factory.SeedUserAsync(username, SeedPassword, "admin", DateTimeOffset.UtcNow);
 
         var (fields, cookies) = await LoadSignInFormAsync();
         fields["Input.Username"] = username;
-        fields["Input.Password"] = password;
+        fields["Input.Password"] = SeedPassword;
 
         using var response = await PostSignInFormAsync(fields, cookies);
 
         // Static SSR turns the post-sign-in NavigateTo into a redirect, and
-        // the response carries the same cookies REST login issues.
+        // the response carries THE session cookie REST login issues — one
+        // cookie now, not the frozen access/refresh pair, because a sliding
+        // encrypted session has no browser refresh token to rotate.
         Assert.True(
             (int)response.StatusCode is >= 300 and < 400,
             $"expected redirect, got {(int)response.StatusCode}");
-        var setCookies = response.Headers.TryGetValues("Set-Cookie", out var values)
-            ? values.ToList()
-            : [];
-        Assert.Contains(setCookies, c => c.StartsWith("access_token=", StringComparison.Ordinal));
-        Assert.Contains(setCookies, c => c.StartsWith("refresh_token=", StringComparison.Ordinal));
+        var session = SessionCookieOf(response);
+        Assert.DoesNotContain(
+            response.Headers.GetValues("Set-Cookie"),
+            c => c.StartsWith("refresh_token=", StringComparison.Ordinal));
 
         // And that cookie session reaches the shell.
-        var accessCookie = setCookies.First(c => c.StartsWith("access_token=", StringComparison.Ordinal));
-        var accessToken = accessCookie.Split(';')[0]["access_token=".Length..];
         using var shellRequest = new HttpRequestMessage(HttpMethod.Get, "/");
-        shellRequest.Headers.Add("Cookie", $"access_token={accessToken}");
+        shellRequest.Headers.Add("Cookie", session);
         using var shellResponse = await Client.SendAsync(shellRequest);
         Assert.Equal(HttpStatusCode.OK, shellResponse.StatusCode);
+
+        // And it reaches the OTHER door too, decrypted off the shared key
+        // ring: the shell issued it, the API sidecar recognises it.
+        using var apiRequest = new HttpRequestMessage(HttpMethod.Get, "/api/v1/users?pageSize=1");
+        apiRequest.Headers.Add("Cookie", session);
+        using var apiResponse = await Client.SendAsync(apiRequest);
+        Assert.Equal(HttpStatusCode.OK, apiResponse.StatusCode);
     }
 
     [Fact]
@@ -163,7 +168,7 @@ public sealed class AdminScreensTests(AdminScreensFactory factory)
             ? values.ToList()
             : [];
         Assert.DoesNotContain(
-            setCookies, c => c.StartsWith("access_token=", StringComparison.Ordinal));
+            setCookies, c => c.StartsWith($"{SessionCookieName}=", StringComparison.Ordinal));
     }
 
     // ----- Screens 2-5 end to end through the UI services -----------------
@@ -185,10 +190,10 @@ public sealed class AdminScreensTests(AdminScreensFactory factory)
         Assert.True(created.OnboardingPending);
         Assert.Equal(["doctor"], created.Roles);
 
-        // The provisioned account signs in through the frozen REST login.
-        var login = await Api.PostJsonAsync(
-            Client, "/v1/auth/login", new { username, password = tempPassword });
-        Assert.Equal(201, login.Status);
+        // The provisioned account signs in through the REST login and gets a
+        // session, even though its onboarding is still pending.
+        var session = await SignInAsync(username, tempPassword);
+        Assert.StartsWith($"{SessionCookieName}=", session, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -273,7 +278,7 @@ public sealed class AdminScreensTests(AdminScreensFactory factory)
     public async Task Non_admin_session_is_blocked_by_the_pipeline()
     {
         var doctorId = await Factory.SeedUserAsync(
-            Unique("gate_doctor"), "Contract-Passw0rd", "doctor", DateTimeOffset.UtcNow);
+            Unique("gate_doctor"), SeedPassword, "doctor", DateTimeOffset.UtcNow);
 
         using var scope = CreateUiScope(doctorId, "doctor");
         var users = scope.ServiceProvider.GetRequiredService<IUsersAdminUiService>();
@@ -292,7 +297,7 @@ public sealed class AdminScreensTests(AdminScreensFactory factory)
     // ----- plumbing -------------------------------------------------------
 
     private Task<Guid> SeedAdminAsync() => Factory.SeedUserAsync(
-        Unique("screen_admin"), "Contract-Passw0rd", "admin", DateTimeOffset.UtcNow);
+        Unique("screen_admin"), SeedPassword, "admin", DateTimeOffset.UtcNow);
 
     /// <summary>
     /// A service scope carrying the authenticated principal the way the shell

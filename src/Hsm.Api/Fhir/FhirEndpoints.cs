@@ -1,5 +1,4 @@
 using FluentValidation;
-using Hsm.Api.Auth;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Clinical.Commands.CreatePatient;
 using Hsm.Application.Clinical.Queries.GetPatient;
@@ -18,8 +17,10 @@ namespace Hsm.Api.Fhir;
 /// — admin is an explicit member because the pipeline has no blanket bypass;
 /// see <c>GetPatientQuery</c>'s XML doc). Task 14 carried the grant here as
 /// well, belt-and-suspenders, purely so the frozen "Insufficient permissions"
-/// diagnostics survived; Task 15 removed the edge copy, so these routes
-/// authenticate, install the actor, and decide nothing.
+/// diagnostics survived; Task 15 removed the edge copy. Since Task 12 these
+/// routes do not even establish identity: HsmActorMiddleware has already
+/// installed the actor for every route, so what is left here is transport —
+/// parse a FHIR body, dispatch, render an OperationOutcome.
 ///
 /// The frozen Encounter and ServiceRequest facades are deliberately NOT here:
 /// plan Scope Boundaries exclude clinical modules beyond patient lookup, and
@@ -40,7 +41,6 @@ public static class FhirEndpoints
     private static Task SearchPatients(HttpContext ctx, IDispatcher dispatcher) =>
         FhirResponses.ExecuteAsync(ctx, async () =>
         {
-            await RequestAuth.GateAsync(ctx);
             var (system, value) = ReadIdentifierToken(ctx);
             var patients = await dispatcher.Send(
                 new SearchPatientsQuery(system, value), ctx.RequestAborted);
@@ -51,7 +51,6 @@ public static class FhirEndpoints
     private static Task ReadPatient(HttpContext ctx, string id, IDispatcher dispatcher) =>
         FhirResponses.ExecuteAsync(ctx, async () =>
         {
-            await RequestAuth.GateAsync(ctx);
             var patient = await dispatcher.Send(new GetPatientQuery(id), ctx.RequestAborted);
             return FhirResponses.Resource(PatientFhirMapper.ToJson(patient));
         });
@@ -60,7 +59,6 @@ public static class FhirEndpoints
     private static Task CreatePatient(HttpContext ctx, IDispatcher dispatcher) =>
         FhirResponses.ExecuteAsync(ctx, async () =>
         {
-            await RequestAuth.GateAsync(ctx);
             var (body, rawUtf8) = await ReadJsonBodyAsync(ctx);
             var input = PatientFhirMapper.Parse(body, rawUtf8);
             var patient = await dispatcher.Send(new CreatePatientCommand(input), ctx.RequestAborted);

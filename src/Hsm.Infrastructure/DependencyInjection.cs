@@ -342,7 +342,7 @@ public static class DependencyInjection
         // Auth: command/query slices behind the dispatcher. Policy rides on the
         // request type (see each command's attributes), so nothing here grants
         // access — this is only handler wiring.
-        services.AddScoped<IRequestHandler<LoginCommand, TokenPair>, LoginHandler>();
+        services.AddScoped<IRequestHandler<LoginCommand, HsmUser>, LoginHandler>();
         services.AddScoped<IRequestHandler<SignupCommand, TokenPair>, SignupHandler>();
         services.AddScoped<IRequestHandler<RefreshTokensCommand, TokenPair>, RefreshTokensHandler>();
         services.AddScoped<IRequestHandler<LogoutCommand, Unit>, LogoutHandler>();

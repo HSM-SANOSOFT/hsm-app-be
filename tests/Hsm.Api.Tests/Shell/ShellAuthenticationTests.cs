@@ -6,7 +6,10 @@ namespace Hsm.Api.Tests.Shell;
 /// The Blazor shell's session behavior end to end through the real host
 /// (plan U17, DoD C6): an anonymous visitor asking for a protected shell page
 /// is redirected to sign-in, the sign-in placeholder renders anonymously, and
-/// a session signed in through the REST login cookie reaches the shell.
+/// a session signed in at the REST door reaches the shell. Since Task 12 that
+/// last one is the ONE Identity session cookie, decrypted by the other host
+/// off the shared data-protection key ring — the strongest form of "one
+/// sign-in serves both doors" this topology can state.
 /// </summary>
 public sealed class ShellAuthenticationFactory : ShellFactory
 {
@@ -22,9 +25,12 @@ public sealed class ShellAuthenticationTests(ShellAuthenticationFactory factory)
         using var response = await Client.GetAsync(new Uri("/", UriKind.Relative));
 
         Assert.Equal(HttpStatusCode.Found, response.StatusCode);
-        var location = response.Headers.Location?.OriginalString ?? string.Empty;
-        Assert.StartsWith("/login", location, StringComparison.Ordinal);
-        Assert.Contains("returnUrl=", location, StringComparison.Ordinal);
+        // The cookie handler builds an absolute redirect (the hand-rolled one
+        // it replaced wrote a relative path); the PATH and the return URL are
+        // what this pins.
+        var location = response.Headers.Location ?? throw new InvalidOperationException("no Location");
+        Assert.Equal("/login", location.AbsolutePath);
+        Assert.Contains("returnUrl=", location.Query, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -41,11 +47,11 @@ public sealed class ShellAuthenticationTests(ShellAuthenticationFactory factory)
     public async Task Authenticated_admin_reaches_the_shell_with_admin_navigation()
     {
         // Sign in exactly the way a browser does: REST login issues the
-        // access-token cookie the shell's authentication scheme validates.
-        var (bearer, _) = await BearerAsync(role: "admin");
+        // session cookie the shell's authentication scheme validates.
+        var (session, _) = await SessionAsync(role: "admin");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/");
-        request.Headers.Add("Cookie", $"access_token={bearer}");
+        request.Headers.Add("Cookie", session);
         using var response = await Client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -60,10 +66,10 @@ public sealed class ShellAuthenticationTests(ShellAuthenticationFactory factory)
     [Fact]
     public async Task Authenticated_non_admin_reaches_the_shell_without_admin_navigation()
     {
-        var (bearer, _) = await BearerAsync(role: "doctor");
+        var (session, _) = await SessionAsync(role: "doctor");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/");
-        request.Headers.Add("Cookie", $"access_token={bearer}");
+        request.Headers.Add("Cookie", session);
         using var response = await Client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

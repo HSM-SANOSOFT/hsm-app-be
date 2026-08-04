@@ -34,7 +34,7 @@ public sealed class PipelineAuthorizationTests(PipelineAuthorizationFactory fact
     public async Task Wrong_role_in_process_dispatch_is_refused_with_no_edge_check_present()
     {
         var doctorId = await Factory.SeedUserAsync(
-            Unique("pipeline_doctor"), "Contract-Passw0rd", "doctor", DateTimeOffset.UtcNow);
+            Unique("pipeline_doctor"), SeedPassword, "doctor", DateTimeOffset.UtcNow);
 
         using var scope = await SignedInScopeAsync(doctorId, "doctor");
         var dispatcher = scope.ServiceProvider.GetRequiredService<IDispatcher>();
@@ -50,7 +50,7 @@ public sealed class PipelineAuthorizationTests(PipelineAuthorizationFactory fact
     public async Task Admin_in_process_dispatch_is_allowed_by_the_same_pipeline()
     {
         var adminId = await Factory.SeedUserAsync(
-            Unique("pipeline_admin"), "Contract-Passw0rd", "admin", DateTimeOffset.UtcNow);
+            Unique("pipeline_admin"), SeedPassword, "admin", DateTimeOffset.UtcNow);
 
         using var scope = await SignedInScopeAsync(adminId, "admin");
         var dispatcher = scope.ServiceProvider.GetRequiredService<IDispatcher>();
@@ -83,9 +83,9 @@ public sealed class PipelineAuthorizationTests(PipelineAuthorizationFactory fact
         // the command directly — an in-process caller with no edge in front of
         // it, same posture as this suite's other pipeline-only proofs.
         var adminId = await Factory.SeedUserAsync(
-            Unique("pipeline_admin_role"), "Contract-Passw0rd", "admin", DateTimeOffset.UtcNow);
+            Unique("pipeline_admin_role"), SeedPassword, "admin", DateTimeOffset.UtcNow);
         var targetId = await Factory.SeedUserAsync(
-            Unique("pipeline_target"), "Contract-Passw0rd", "doctor", DateTimeOffset.UtcNow);
+            Unique("pipeline_target"), SeedPassword, "doctor", DateTimeOffset.UtcNow);
 
         using var scope = await SignedInScopeAsync(adminId, "admin");
         var dispatcher = scope.ServiceProvider.GetRequiredService<IDispatcher>();

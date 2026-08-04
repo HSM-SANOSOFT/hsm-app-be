@@ -62,7 +62,7 @@ public class LockoutTests(LockoutFactory factory) : IClassFixture<LockoutFactory
         }
 
         var allowed = await SignInAsync(client, username, LockoutFactory.SeedPassword);
-        Assert.Equal(HttpStatusCode.Created, allowed.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
 
         // If the count had NOT been reset, this run of failures would lock the
         // account and the final sign-in would be refused.
@@ -73,7 +73,7 @@ public class LockoutTests(LockoutFactory factory) : IClassFixture<LockoutFactory
 
         var stillAllowed = await SignInAsync(client, username, LockoutFactory.SeedPassword);
 
-        Assert.Equal(HttpStatusCode.Created, stillAllowed.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, stillAllowed.StatusCode);
     }
 
     [Fact]
@@ -112,5 +112,5 @@ public class LockoutTests(LockoutFactory factory) : IClassFixture<LockoutFactory
     private static Task<HttpResponseMessage> SignInAsync(
         HttpClient client, string username, string password) =>
         client.PostAsJsonAsync(
-            "/v1/auth/login", new { username, password }, CancellationToken.None);
+            "/api/v1/identity/login", new { username, password }, CancellationToken.None);
 }

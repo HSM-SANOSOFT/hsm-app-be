@@ -2,12 +2,12 @@ using Hsm.Application.Abstractions;
 using Hsm.Application.Auth;
 using Hsm.Contracts.Ui;
 using Hsm.Infrastructure;
+using Hsm.Infrastructure.Identity;
 using Hsm.Infrastructure.Telemetry;
 using Hsm.Web.Auth;
 using Hsm.Web.Host;
 using Hsm.Web.Services;
 using Hsm.Web.Telemetry;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Components.Server.Circuits;
@@ -40,16 +40,33 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddMudServices();
 
-// Shell authentication (plan U17): the access-token cookie — issued by this
-// host's sign-in screen or by Hsm.Api's POST /v1/auth/login, identically,
-// because both write Hsm.Contracts' AuthCookiePolicy — signs the Blazor shell
-// in. Pages marked [Authorize] carry endpoint metadata, so anonymous visitors
-// are challenged — redirected to /login — before anything renders.
-builder.Services
-    .AddAuthentication(HsmCookieAuthenticationHandler.SchemeName)
-    .AddScheme<AuthenticationSchemeOptions, HsmCookieAuthenticationHandler>(
-        HsmCookieAuthenticationHandler.SchemeName, displayName: null, configureOptions: null);
+// Shell authentication (plan U17): the ONE Identity session cookie — issued by
+// this host's sign-in screen or by Hsm.Api's POST /api/v1/identity/login,
+// interchangeably, because both hosts call the same registration and (in a
+// real deployment) share one data-protection key ring. Pages marked
+// [Authorize] carry endpoint metadata, so anonymous visitors are challenged
+// before anything renders.
+builder.Services.AddHsmIdentityAuthentication(builder.Configuration);
 builder.Services.AddAuthorization();
+
+// This door's answer to "not signed in" is a screen, not a status code — the
+// opposite of Hsm.Api's, which is why the events are per host. The lower-case
+// returnUrl is the shell's own convention (RedirectToLogin writes it, and
+// ShellAuthenticationTests reads it back).
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/login";
+    options.ReturnUrlParameter = "returnUrl";
+
+    // "Signed in but not allowed here" must stay a 403. Redirecting an admin
+    // screen's refusal to another page would render a 200 that looks like the
+    // screen loaded.
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return Task.CompletedTask;
+    };
+});
 
 // Blazor-side auth state: the host hands the validated HttpContext principal
 // to this provider at circuit start (and per statically rendered page).
@@ -99,17 +116,6 @@ builder.Services.AddScoped<IIntegrationAccountsUiService, IntegrationAccountsUiS
 builder.Services.AddScoped<ISettingsAdminUiService, SettingsAdminUiService>();
 builder.Services.AddScoped<IDocumentsAdminUiService, DocumentsAdminUiService>();
 
-// Cookie posture from configuration (frozen COOKIE_* envs). The names, paths,
-// SameSite modes and lifetimes are AuthCookiePolicy's; only the posture is
-// per-deployment. No CsrfSecret here: the frozen double-submit CSRF guards
-// the REST surface, which this host no longer serves — Blazor form posts are
-// guarded by UseAntiforgery below.
-builder.Services.AddSingleton(new AuthWebOptions
-{
-    CookieSecure = builder.Configuration.GetValue("Auth:CookieSecure", defaultValue: false),
-    CookieDomain = builder.Configuration["Auth:CookieDomain"],
-});
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -122,8 +128,9 @@ if (!app.Environment.IsDevelopment())
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
-// Shell session: authenticate from the access-token cookie, then enforce the
-// [Authorize] endpoint metadata Blazor pages carry. Must precede antiforgery.
+// Shell session: authenticate from the Identity session cookie, then enforce
+// the [Authorize] endpoint metadata Blazor pages carry. Must precede
+// antiforgery.
 app.UseAuthentication();
 app.UseAuthorization();
 

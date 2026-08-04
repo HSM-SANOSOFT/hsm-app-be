@@ -42,7 +42,7 @@ public class SoftDeletedAccountTests(SoftDeletedAccountFactory factory)
             username, SoftDeletedAccountFactory.SeedPassword, Roles.Doctor, DateTimeOffset.UtcNow);
         using var client = factory.CreateApiClient();
         Assert.Equal(
-            HttpStatusCode.Created,
+            HttpStatusCode.OK,
             (await SignInAsync(client, username, SoftDeletedAccountFactory.SeedPassword)).StatusCode);
 
         await SoftDeleteAsync(username);
@@ -68,7 +68,7 @@ public class SoftDeletedAccountTests(SoftDeletedAccountFactory factory)
         // the lookup resolved the live row rather than happening to find it.
         var deleted = await SignInAsync(client, username, SoftDeletedAccountFactory.SeedPassword);
 
-        Assert.Equal(HttpStatusCode.Created, live.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, live.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, deleted.StatusCode);
     }
 
@@ -119,5 +119,5 @@ public class SoftDeletedAccountTests(SoftDeletedAccountFactory factory)
     private static Task<HttpResponseMessage> SignInAsync(
         HttpClient client, string username, string password) =>
         client.PostAsJsonAsync(
-            "/v1/auth/login", new { username, password }, CancellationToken.None);
+            "/api/v1/identity/login", new { username, password }, CancellationToken.None);
 }

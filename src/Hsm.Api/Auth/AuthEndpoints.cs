@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text.Json.Nodes;
 using Hsm.Api.Http;
 using Hsm.Application.Abstractions;
@@ -5,27 +6,41 @@ using Hsm.Application.Auth;
 using Hsm.Application.Auth.Commands.CompleteOnboarding;
 using Hsm.Application.Auth.Commands.ForgotPassword;
 using Hsm.Application.Auth.Commands.GeneratePin;
-using Hsm.Application.Auth.Commands.Login;
-using Hsm.Application.Auth.Commands.Logout;
 using Hsm.Application.Auth.Commands.LogoutIntegration;
 using Hsm.Application.Auth.Commands.RecoverUsername;
-using Hsm.Application.Auth.Commands.RefreshTokens;
 using Hsm.Application.Auth.Commands.ResetPassword;
 using Hsm.Application.Auth.Commands.Signup;
 using Hsm.Application.Auth.Commands.SignupIntegration;
 using Hsm.Application.Auth.Commands.ValidatePin;
-using Hsm.Contracts.Auth;
+using Hsm.Application.Errors;
 
 namespace Hsm.Api.Auth;
 
 /// <summary>
-/// The fourteen frozen /v1/auth operations. Success bodies ride the frozen
-/// envelope; POST returns 201 and GET 200, matching the frozen runtime
-/// (NestJS defaults — the snapshot's documented 200s were doc-generator
-/// drift, and integration consumers saw 201). Body shape validation for these
-/// routes is not yet in the pipeline — Identity tasks (11-14) reshape this
-/// module and add its validators; until then a malformed payload reaches the
-/// handler as-is.
+/// What is left of the frozen /v1/auth surface while Task 13 rewrites it into
+/// <c>/api/v1/identity</c>. Success bodies still ride the frozen envelope; POST
+/// returns 201 and GET 200, matching the frozen runtime.
+///
+/// <para><b>Four routes left in Task 12, with the mechanism they were.</b>
+/// <c>POST /login</c> and <c>GET /csrf</c> were replaced in the same commit by
+/// <c>POST /api/v1/identity/login</c> and <c>GET /api/v1/identity/csrf</c>:
+/// keeping the old pair would have meant two sign-in routes writing two
+/// different session mechanisms and two antiforgery issuers, which is the
+/// divergence this rewrite exists to remove. <c>GET /refresh</c> went with the
+/// browser refresh token itself — the Identity session cookie is sliding, so
+/// there is no rotation left to trigger. <c>GET /logout</c> went with the JWT
+/// cookies it cleared: its frozen contract is "present a token, have its
+/// stored hash revoked", and after Task 12 a browser has no token to present.
+/// Task 13 restores sign-out as <c>POST /api/v1/identity/logout</c> →
+/// <c>SignInManager.SignOutAsync</c>.</para>
+///
+/// <para><b>Everything else is untouched in contract.</b> The routes below no
+/// longer call <c>RequestAuth.GateAsync</c> because
+/// <c>HsmActorMiddleware</c> installs the actor for every route before they
+/// run; the roles and onboarding requirements they enforce are, as before, the
+/// dispatched request type's own and are enforced once in the pipeline. Body
+/// shape validation for these routes is still not in the pipeline — Task 13
+/// adds it with the reshape.</para>
 /// </summary>
 public static class AuthEndpoints
 {
@@ -36,17 +51,14 @@ public static class AuthEndpoints
 
     public static void MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
+        ArgumentNullException.ThrowIfNull(app);
         var auth = app.MapGroup("/v1/auth");
 
         auth.MapPost("/signup", Signup);
-        auth.MapPost("/login", Login);
-        auth.MapGet("/logout", Logout);
-        auth.MapGet("/refresh", Refresh);
         auth.MapPost("/onboarding", Onboarding);
         auth.MapPost("/signup/integration", SignupIntegration);
         auth.MapPost("/logout/integration", LogoutIntegration);
         auth.MapGet("/profile", (Delegate)Profile);
-        auth.MapGet("/csrf", Csrf);
         auth.MapPost("/pin/generate", (Delegate)PinGenerate);
         auth.MapPost("/pin/validate", (Delegate)PinValidate);
 
@@ -67,81 +79,38 @@ public static class AuthEndpoints
             ?? new SignupCommand(
                 string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, null, null, null, null);
 
+        // The token pair is still the response body, unchanged, and it is still
+        // a usable credential — the access token verifies against the same
+        // secret the bearer handler uses. What is gone is the cookie side
+        // channel: a browser signs in at /api/v1/identity/login now. Task 13
+        // turns this route into POST /api/v1/identity/register, which returns
+        // the created user and a session cookie.
         var tokens = await dispatcher.Send(command, ctx.RequestAborted);
-        AuthCookies.Set(ctx, Options(ctx), tokens);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, TokensJson(tokens));
-    }
-
-    private static async Task<IResult> Login(HttpContext ctx, IDispatcher dispatcher)
-    {
-        // The frozen local guard ran BEFORE validation: missing/non-string
-        // credentials surface 401, not 400.
-        var body = await ctx.Request.ReadValidatedJsonAsync<LoginBody>(ctx.RequestAborted);
-        var username = body?.Username;
-        var password = body?.Password;
-        if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
-        {
-            throw new Hsm.Application.Errors.UnauthorizedException();
-        }
-
-        var tokens = await dispatcher.Send(new LoginCommand(username, password), ctx.RequestAborted);
-        AuthCookies.Set(ctx, Options(ctx), tokens);
-        return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, TokensJson(tokens));
-    }
-
-    private static async Task<IResult> Logout(HttpContext ctx, IDispatcher dispatcher)
-    {
-        // Bearer header (integrations) first, then access cookie, then the
-        // refresh cookie. Cookies are cleared regardless of the outcome.
-        var token = RequestAuth.Bearer(ctx)
-            ?? ctx.Request.Cookies[AuthCookiePolicy.AccessTokenName]
-            ?? ctx.Request.Cookies[AuthCookiePolicy.RefreshTokenName];
-        AuthCookies.Clear(ctx, Options(ctx));
-        // No actor is installed: the token IS the credential here and it may be
-        // expired or unverifiable, which the handler answers with the frozen
-        // 401 messages. LogoutCommand is [AllowAnonymousRequest] for exactly
-        // that reason — see the Task 10 report, J1.
-        await dispatcher.Send(new LogoutCommand(token), ctx.RequestAborted);
-        return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, includeData: false);
-    }
-
-    private static async Task<IResult> Refresh(HttpContext ctx, IDispatcher dispatcher)
-    {
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Refresh);
-        var rawToken = RequestAuth.RefreshToken(ctx)!;
-        // No actor: RefreshTokensCommand is [AllowAnonymousRequest] because the
-        // refresh token is its credential, and it carries the principal this
-        // edge just validated.
-        var tokens = await dispatcher.Send(
-            new RefreshTokensCommand(principal, rawToken), ctx.RequestAborted);
-        AuthCookies.Set(ctx, Options(ctx), tokens);
-        return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, TokensJson(tokens));
     }
 
     private static async Task<IResult> Onboarding(HttpContext ctx, IDispatcher dispatcher)
     {
-        // @AllowPending — a pending user must be able to reach this, and the
-        // actor carries the principal's REAL onboarding state.
+        // @AllowPending — a pending user must be able to reach this.
         // CompleteOnboardingCommand is [AllowPendingOnboarding], so a pending
         // actor passes the pipeline on this route and only this route.
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        await RequestAuth.InstallActorAsync(ctx, principal);
-
+        //
+        // No re-issued session is needed after completing onboarding: the
+        // cookie's onboarding claim is a CACHE, and RequestActorFactory falls
+        // back to the now-updated user row whenever it is absent — which is
+        // exactly the state a still-pending session's cookie is in.
         var command = await ctx.Request.ReadValidatedJsonAsync<CompleteOnboardingCommand>(ctx.RequestAborted)
             ?? new CompleteOnboardingCommand(string.Empty, string.Empty, string.Empty);
 
         var tokens = await dispatcher.Send(command, ctx.RequestAborted);
-        AuthCookies.Set(ctx, Options(ctx), tokens);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, TokensJson(tokens));
     }
 
     private static async Task<IResult> SignupIntegration(HttpContext ctx, IDispatcher dispatcher)
     {
-        // Authenticate and install the actor; the admin requirement lives on
-        // SignupIntegrationCommand's [RequireRole(Roles.Admin)] and is
-        // enforced once, in the pipeline.
-        await RequestAuth.GateAsync(ctx);
-
+        // The admin requirement lives on SignupIntegrationCommand's
+        // [RequireRole(Roles.Admin)] and is enforced once, in the pipeline,
+        // against the actor the middleware already installed.
         var command = await ctx.Request.ReadValidatedJsonAsync<SignupIntegrationCommand>(ctx.RequestAborted)
             ?? new SignupIntegrationCommand(string.Empty, string.Empty, string.Empty);
 
@@ -152,10 +121,8 @@ public static class AuthEndpoints
 
     private static async Task<IResult> LogoutIntegration(HttpContext ctx, IDispatcher dispatcher)
     {
-        // Same chain as SignupIntegration. The frozen edge's admin requirement
-        // now rides on LogoutIntegrationCommand's [RequireRole(Roles.Admin)].
-        await RequestAuth.GateAsync(ctx);
-
+        // The frozen edge's admin requirement rides on
+        // LogoutIntegrationCommand's [RequireRole(Roles.Admin)].
         var command = await ctx.Request.ReadValidatedJsonAsync<LogoutIntegrationCommand>(ctx.RequestAborted)
             ?? new LogoutIntegrationCommand(string.Empty);
 
@@ -163,29 +130,23 @@ public static class AuthEndpoints
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, includeData: false);
     }
 
-    private static async Task<IResult> Profile(HttpContext ctx)
+    private static IResult Profile(HttpContext ctx)
     {
-        // @AllowPending — the token payload is returned as-is (id, claims, iat,
-        // exp). Nothing is dispatched, so no actor is installed.
-        var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, ProfileJson(principal));
-    }
+        // @AllowPending; authenticated by either half of the adaptive scheme.
+        // Nothing is dispatched, so this is the one route that reads
+        // HttpContext.User directly rather than the actor derived from it.
+        if (ctx.User.Identity?.IsAuthenticated != true)
+        {
+            throw new UnauthorizedException();
+        }
 
-    private static async Task<IResult> Csrf(HttpContext ctx, CsrfProtection csrf)
-    {
-        // @AllowPending; authenticated (cookie session or bearer). Dispatches
-        // nothing.
-        await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
-        var token = csrf.IssueToken(ctx);
-        return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, new JsonObject { ["csrfToken"] = token });
+        return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, ProfileJson(ctx.User));
     }
 
     private static async Task<IResult> PinGenerate(HttpContext ctx, IDispatcher dispatcher)
     {
         // NOT @AllowPending in the frozen controller — pending users are
         // blocked, and GeneratePinCommand's (absent) policy is what says so now.
-        await RequestAuth.GateAsync(ctx);
-
         var command = await ctx.Request.ReadValidatedJsonAsync<GeneratePinCommand>(ctx.RequestAborted)
             ?? new GeneratePinCommand(string.Empty, string.Empty);
 
@@ -195,8 +156,6 @@ public static class AuthEndpoints
 
     private static async Task<IResult> PinValidate(HttpContext ctx, IDispatcher dispatcher)
     {
-        await RequestAuth.GateAsync(ctx);
-
         var command = await ctx.Request.ReadValidatedJsonAsync<ValidatePinCommand>(ctx.RequestAborted)
             ?? new ValidatePinCommand(string.Empty, string.Empty, 0);
 
@@ -240,62 +199,72 @@ public static class AuthEndpoints
             new JsonObject { ["message"] = GenericRecoveryMessage });
     }
 
-    /// <summary>The frozen LoginDto surface, read ahead of the local guard below.</summary>
-    private sealed record LoginBody(string? Username, string? Password);
-
-    private static AuthWebOptions Options(HttpContext ctx) =>
-        ctx.RequestServices.GetRequiredService<AuthWebOptions>();
-
     private static JsonObject TokensJson(TokenPair tokens) => new()
     {
         ["access_token"] = tokens.AccessToken,
         ["refresh_token"] = tokens.RefreshToken,
     };
 
-    private static JsonObject ProfileJson(AuthPrincipal principal)
+    /// <summary>
+    /// The frozen profile payload, read off the authenticated principal instead
+    /// of off a hand-decoded JWT. An integration's bearer token carries the
+    /// frozen claim names verbatim (the bearer handler maps nothing), so that
+    /// caller — the one this route exists for — sees exactly what it saw
+    /// before. A cookie session has no <c>iat</c>/<c>exp</c> to report and
+    /// carries Identity's claim names; those members are simply absent for it.
+    /// Task 13 replaces the whole shape with <c>GET /api/v1/identity/me</c>,
+    /// which reads the user row and does not depend on either claim layout.
+    /// </summary>
+    private static JsonObject ProfileJson(ClaimsPrincipal user)
     {
-        var profile = new JsonObject { ["id"] = principal.Id };
-        if (principal.Username is not null)
+        var profile = new JsonObject
         {
-            profile["username"] = principal.Username;
-        }
+            ["id"] = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? user.FindFirstValue("sub"),
+        };
 
-        if (principal.Email is not null)
-        {
-            profile["email"] = principal.Email;
-        }
-
-        if (principal.FirstName is not null)
-        {
-            profile["firstName"] = principal.FirstName;
-        }
-
-        if (principal.FirstLastName is not null)
-        {
-            profile["firstLastName"] = principal.FirstLastName;
-        }
-
-        if (principal.Name is not null)
-        {
-            profile["name"] = principal.Name;
-        }
+        Copy(profile, "username", user.FindFirstValue("username") ?? user.FindFirstValue(ClaimTypes.Name));
+        Copy(profile, "email", user.FindFirstValue("email") ?? user.FindFirstValue(ClaimTypes.Email));
+        Copy(profile, "firstName", user.FindFirstValue("firstName"));
+        Copy(profile, "firstLastName", user.FindFirstValue("firstLastName"));
+        Copy(profile, "name", user.FindFirstValue("name"));
 
         var roles = new JsonArray();
-        foreach (var role in principal.Roles)
+        foreach (var role in user.Identities.SelectMany(i => i.FindAll(i.RoleClaimType)))
         {
-            roles.Add(role);
+            roles.Add(role.Value);
         }
 
         profile["roles"] = roles;
-        if (principal.HasOnboardingClaim)
+
+        // Users carry the claim (possibly null while pending); integrations
+        // never did, and absence is the frozen encoding of that.
+        var onboarding = user.FindFirstValue("onboardingCompletedAt")
+            ?? user.FindFirstValue(HsmClaims.OnboardingCompletedAt);
+        if (onboarding is not null)
         {
-            profile["onboardingCompletedAt"] = principal.OnboardingCompletedAt is null
-                ? null
-                : JsonValue.Create(principal.OnboardingCompletedAt);
+            profile["onboardingCompletedAt"] = onboarding;
         }
 
-        profile["iat"] = principal.IssuedAt;
-        profile["exp"] = principal.ExpiresAt;
+        // Unix seconds, and NUMBERS in the frozen payload — a claim value is
+        // always a string, so it is parsed back rather than copied across.
+        CopyNumber(profile, "iat", user.FindFirstValue("iat"));
+        CopyNumber(profile, "exp", user.FindFirstValue("exp"));
         return profile;
+    }
+
+    private static void Copy(JsonObject profile, string member, string? value)
+    {
+        if (value is not null)
+        {
+            profile[member] = value;
+        }
+    }
+
+    private static void CopyNumber(JsonObject profile, string member, string? value)
+    {
+        if (long.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, out var number))
+        {
+            profile[member] = number;
+        }
     }
 }

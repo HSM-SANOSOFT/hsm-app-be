@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Hsm.Application.Abstractions;
 using Hsm.Domain.Identity;
 
@@ -50,6 +51,53 @@ public sealed class RequestActorFactory(IUserDirectory users)
         ArgumentNullException.ThrowIfNull(roles);
         return new RequestActor(
             id, roles, await OnboardingCompletedAsync(id, roles, onboardingCompletedAt, ct));
+    }
+
+    /// <summary>
+    /// Builds the actor from an authenticated principal. Null for an
+    /// unauthenticated one — the pipeline answers that with 401, so a route
+    /// that needed no authentication is unaffected and one that did fails
+    /// closed.
+    ///
+    /// <para>Roles are read through each identity's own
+    /// <see cref="ClaimsIdentity.RoleClaimType"/> rather than through a fixed
+    /// <see cref="ClaimTypes.Role"/>, because the two handlers behind the
+    /// adaptive scheme genuinely disagree: the Identity cookie carries
+    /// <see cref="ClaimTypes.Role"/>, an integration's JWT carries the frozen
+    /// <c>roles</c> claim. Reading the type the identity itself declares is
+    /// what <see cref="ClaimsPrincipal.IsInRole"/> does, and it keeps this
+    /// method from having to know which door the caller came through.</para>
+    /// </summary>
+    public async Task<RequestActor?> CreateAsync(
+        ClaimsPrincipal principal, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(principal);
+        if (principal.Identity?.IsAuthenticated != true)
+        {
+            return null;
+        }
+
+        var id = principal.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? principal.FindFirstValue("sub");
+        if (string.IsNullOrEmpty(id))
+        {
+            return null;
+        }
+
+        var roles = principal.Identities
+            .SelectMany(identity => identity.FindAll(identity.RoleClaimType))
+            .Select(claim => claim.Value)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        return await CreateAsync(
+            id,
+            roles,
+            // The cookie's cached claim; a JWT carries the frozen
+            // onboardingCompletedAt name instead, and its absence here simply
+            // routes that caller to the authoritative user row below.
+            principal.FindFirstValue(HsmClaims.OnboardingCompletedAt),
+            ct);
     }
 
     private async Task<bool> OnboardingCompletedAsync(

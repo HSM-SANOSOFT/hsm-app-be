@@ -178,10 +178,10 @@ commits — see "NoAmbientTransaction is not a general escape hatch" below.
     unrouted path on `Hsm.Api` gets a bare 404 instead — each host handles an unknown route its own
     way, and neither is wrong, but they no longer match.
   - The Blazor static-SSR login form (`Pages/Login.razor`) is antiforgery-protected via `EditForm`'s
-    `FormName` plus `app.UseAntiforgery()`, not by the frozen `/v1` double-submit CSRF middleware —
-    that middleware no longer applies to `Hsm.Web` at all (see the "No CsrfSecret here" comment in
-    `Hsm.Web/Program.cs`); CSRF protection for the REST surface and the Blazor shell are now two
-    different mechanisms, not one shared one.
+    `FormName` plus `app.UseAntiforgery()`; the REST surface is protected by
+    `Hsm.Api.Identity.HsmAntiforgery`, which validates the `X-XSRF-TOKEN` header on unsafe
+    *cookie-authenticated* methods only. Both are standard `IAntiforgery`, applied at two different
+    seams — a form post and a JSON request — not one shared middleware.
 
 - **Telemetry destination is `Telemetry:*` configuration, not collector config.**
   `Telemetry:Exporters` sets the default exporter list for every signal;

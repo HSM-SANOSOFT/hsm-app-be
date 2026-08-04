@@ -19,6 +19,12 @@
   <ItemGroup>
     <PackageReference Include="AWSSDK.S3" />
     <PackageReference Include="Handlebars.Net" />
+    <!-- The bearer half of the adaptive scheme (AddHsmIdentityAuthentication).
+         It sits HERE rather than in the two hosts because the scheme
+         registration does — one configuration, both doors — and it flows to
+         Hsm.Api/Hsm.Web transitively. It is a NuGet package, not part of the
+         Microsoft.AspNetCore.App shared framework referenced above. -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <!-- The EF Core Identity stores HsmDbContext (an IdentityDbContext) backs. -->
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
     <PackageReference Include="MeiliSearch" />

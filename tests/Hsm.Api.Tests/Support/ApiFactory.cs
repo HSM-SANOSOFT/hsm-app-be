@@ -6,6 +6,7 @@ using Hsm.Application.Abstractions;
 using Hsm.Domain.Identity;
 using Hsm.Infrastructure.Persistence;
 using Hsm.Worker;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Http;
@@ -14,6 +15,32 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Hsm.Api.Tests;
+
+/// <summary>
+/// One data-protection key ring for every host this assembly boots.
+///
+/// <para>The session cookie is ENCRYPTED, and the shell suites' whole point is
+/// that a browser signed in at one door is recognised at the other — so the two
+/// in-memory hosts must be able to read each other's cookie. Left alone, each
+/// host generates its own ephemeral keys and the sibling sees an undecryptable
+/// blob, i.e. an anonymous request. The fix is the one a real multi-instance
+/// deployment needs (a shared key ring plus one application discriminator),
+/// never a weaker cookie.</para>
+///
+/// <para>It is a NON-GENERIC holder on purpose. A static field on
+/// <see cref="ApiHostFactory{TEntryPoint}"/> would be a field per CLOSED
+/// generic type, so <c>Hsm.Api</c>'s hosts and <c>Hsm.Web</c>'s hosts would
+/// each get their own "shared" directory and the cross-door proof would fail
+/// in exactly the way it is meant to catch.</para>
+/// </summary>
+internal static class TestKeyRing
+{
+    /// <summary>The application discriminator both hosts must agree on.</summary>
+    public const string ApplicationName = "hsm";
+
+    public static readonly string Directory =
+        global::System.IO.Directory.CreateTempSubdirectory("hsm-test-keys").FullName;
+}
 
 /// <summary>
 /// Boots a real host against the dev container's PostgreSQL on a database
@@ -52,6 +79,10 @@ public abstract class ApiHostFactory<TEntryPoint> : WebApplicationFactory<TEntry
         builder.UseSetting("ConnectionStrings:HsmDb", ConnectionStringFor(DatabaseName));
         builder.UseSetting("Jobs:KeyPrefix", JobKeyPrefix);
         builder.UseSetting("OpenApi:Enabled", "true");
+        builder.ConfigureServices(services => services
+            .AddDataProtection()
+            .PersistKeysToFileSystem(new DirectoryInfo(TestKeyRing.Directory))
+            .SetApplicationName(TestKeyRing.ApplicationName));
         if (ConsumesJobs)
         {
             builder.ConfigureServices(services =>
@@ -70,11 +101,11 @@ public abstract class ApiHostFactory<TEntryPoint> : WebApplicationFactory<TEntry
             });
         }
 
-        // HS256 keys must be at least 256 bits. Task 14 reduces these to the
+        // HS256 keys must be at least 256 bits. The access secret is now the
+        // BEARER handler's verification key too. Task 14 reduces these to the
         // integration-token secret alone.
         builder.UseSetting("Auth:JwtAccessSecret", "api_test_at_secret_0123456789abcdef");
         builder.UseSetting("Auth:JwtRefreshSecret", "api_test_rt_secret_0123456789abcdef");
-        builder.UseSetting("Auth:CsrfSecret", "api_test_csrf_secret_0123456789abcdef");
         builder.UseSetting("Auth:Environment", "dev");
         ConfigureModule(builder);
     }
@@ -163,19 +194,22 @@ public abstract class ApiHostFactory<TEntryPoint> : WebApplicationFactory<TEntry
         return user.Id;
     }
 
+    /// <summary>The antiforgery header the API's options bind the request token to.</summary>
+    public const string AntiforgeryHeader = "X-XSRF-TOKEN";
+
     /// <summary>
     /// THE AUTH SEAM. Seeds an account in <paramref name="role"/> and returns a
-    /// client already carrying its session — and the double-submit CSRF
-    /// credentials the middleware requires on every cookie-authenticated
-    /// mutation, so callers of this seam can POST/PATCH/DELETE without
-    /// reimplementing the CSRF handshake per module suite.
+    /// client already carrying its session — and the antiforgery credentials
+    /// the middleware requires on every cookie-authenticated mutation, so
+    /// callers of this seam can POST/PATCH/DELETE without reimplementing the
+    /// handshake per module suite.
     ///
-    /// <para>Tasks 2-10 run on the pre-Identity machinery, so the body below
-    /// signs in through POST /v1/auth/login and replays the Set-Cookie header.
-    /// Task 12 replaces the mechanism (Identity application cookie) and Task 13
-    /// replaces the route (/api/v1/identity/login). The SIGNATURE does not
-    /// change in either task, which is the whole point: no module suite is
-    /// rewritten when identity lands.</para>
+    /// <para>Task 12 replaced both halves of the mechanism underneath this
+    /// signature: the session is now the Identity application cookie issued by
+    /// POST /api/v1/identity/login, and the forgery token is standard
+    /// antiforgery from GET /api/v1/identity/csrf. The SIGNATURE did not change,
+    /// which is the whole point — no module suite was rewritten when identity
+    /// landed.</para>
     /// </summary>
     public async Task<HttpClient> AuthenticatedClientAsync(
         string role, bool onboarded = true, string? username = null)
@@ -185,7 +219,7 @@ public abstract class ApiHostFactory<TEntryPoint> : WebApplicationFactory<TEntry
 
         var client = CreateApiClient();
         var response = await client.PostAsJsonAsync(
-            "/v1/auth/login",
+            "/api/v1/identity/login",
             new { username = name, password = SeedPassword },
             CancellationToken.None);
         if (!response.IsSuccessStatusCode)
@@ -194,40 +228,39 @@ public abstract class ApiHostFactory<TEntryPoint> : WebApplicationFactory<TEntry
                 $"Seed sign-in for role '{role}' failed with {(int)response.StatusCode}.");
         }
 
-        var cookies = (response.Headers.TryGetValues("Set-Cookie", out var values)
-            ? values.Select(value => value.Split(';', 2)[0])
-            : []).ToList();
+        var cookies = SetCookies(response);
         client.DefaultRequestHeaders.Add("Cookie", string.Join("; ", cookies));
 
-        // GET /v1/auth/csrf issues the double-submit cookie and returns the
-        // matching token; both must ride every subsequent mutation on this
-        // client or CsrfProtection.Validate refuses it before the pipeline
-        // sees the request.
-        var csrf = await client.GetAsync(new Uri("/v1/auth/csrf", UriKind.Relative), CancellationToken.None);
-        if (csrf.IsSuccessStatusCode)
+        // GET /api/v1/identity/csrf stores the cookie half and returns the half
+        // the caller must echo in X-XSRF-TOKEN. Both must ride every subsequent
+        // mutation on this client, or HsmAntiforgery refuses it with a 403
+        // before the pipeline sees the request. It runs AFTER sign-in on
+        // purpose: the request token is bound to the authenticated identity.
+        var csrf = await client.GetAsync(new Uri("/api/v1/identity/csrf", UriKind.Relative), CancellationToken.None);
+        if (!csrf.IsSuccessStatusCode)
         {
-            var csrfCookie = csrf.Headers.TryGetValues("Set-Cookie", out var csrfSetCookies)
-                ? csrfSetCookies
-                    .Select(value => value.Split(';', 2)[0])
-                    .FirstOrDefault(value => value.StartsWith($"{CsrfProtection.CookieName}=", StringComparison.Ordinal))
-                : null;
-            if (csrfCookie is not null)
-            {
-                cookies.Add(csrfCookie);
-                client.DefaultRequestHeaders.Remove("Cookie");
-                client.DefaultRequestHeaders.Add("Cookie", string.Join("; ", cookies));
-            }
-
-            using var body = await csrf.Content.ReadAsStreamAsync(CancellationToken.None);
-            var payload = await JsonSerializer.DeserializeAsync<JsonElement>(body, cancellationToken: CancellationToken.None);
-            if (payload.GetProperty("data").TryGetProperty("csrfToken", out var token))
-            {
-                client.DefaultRequestHeaders.Add(CsrfProtection.HeaderName, token.GetString());
-            }
+            throw new InvalidOperationException(
+                $"Seed antiforgery handshake failed with {(int)csrf.StatusCode}.");
         }
+
+        cookies.AddRange(SetCookies(csrf));
+        client.DefaultRequestHeaders.Remove("Cookie");
+        client.DefaultRequestHeaders.Add("Cookie", string.Join("; ", cookies));
+
+        using var body = await csrf.Content.ReadAsStreamAsync(CancellationToken.None);
+        var payload = await JsonSerializer.DeserializeAsync<JsonElement>(
+            body, cancellationToken: CancellationToken.None);
+        client.DefaultRequestHeaders.Add(
+            AntiforgeryHeader, payload.GetProperty("token").GetString());
 
         return client;
     }
+
+    /// <summary>The name=value halves of a response's Set-Cookie headers.</summary>
+    private static List<string> SetCookies(HttpResponseMessage response) =>
+        [.. response.Headers.TryGetValues("Set-Cookie", out var values)
+            ? values.Select(value => value.Split(';', 2)[0])
+            : []];
 
     public async Task<T> WithDbAsync<T>(Func<HsmDbContext, Task<T>> work)
     {

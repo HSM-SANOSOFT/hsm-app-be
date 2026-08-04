@@ -7,11 +7,10 @@ namespace Hsm.Application.Auth.Commands.Login;
 
 public sealed class LoginHandler(
     UserManager<HsmUser> users,
-    IUserDirectory directory,
-    TokenIssuer issuer)
-    : IRequestHandler<LoginCommand, TokenPair>
+    IUserDirectory directory)
+    : IRequestHandler<LoginCommand, HsmUser>
 {
-    public async Task<TokenPair> HandleAsync(LoginCommand request, CancellationToken ct)
+    public async Task<HsmUser> HandleAsync(LoginCommand request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -42,7 +41,10 @@ public sealed class LoginHandler(
         }
 
         await users.ResetAccessFailedCountAsync(user);
-        return await issuer.IssueAsync(
-            TokenIssuer.PrincipalFor(user, [.. await users.GetRolesAsync(user)]), ct);
+
+        // The verified account, and nothing else. What a successful sign-in
+        // then hands the caller — a session cookie at the REST door and at the
+        // shell — is transport, and each door writes its own.
+        return user;
     }
 }
