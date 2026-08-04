@@ -48,7 +48,7 @@ public static class ComsEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var command = await ctx.Request.ReadFromJsonAsync<SendEmailCommand>(ctx.RequestAborted)
+        var command = await ctx.Request.ReadValidatedJsonAsync<SendEmailCommand>(ctx.RequestAborted)
             ?? new SendEmailCommand(null, null, [], string.Empty, new JsonObject(), null);
 
         var result = await dispatcher.Send(command, ctx.RequestAborted);

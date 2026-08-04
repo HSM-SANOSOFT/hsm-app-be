@@ -63,7 +63,7 @@ public static class AuthEndpoints
         // public signup always provisions a Patient (frozen
         // PublicSignupPayloadDto) — and System.Text.Json drops unmapped
         // members by default, so no explicit handling is needed here.
-        var command = await ctx.Request.ReadFromJsonAsync<SignupCommand>(ctx.RequestAborted)
+        var command = await ctx.Request.ReadValidatedJsonAsync<SignupCommand>(ctx.RequestAborted)
             ?? new SignupCommand(
                 string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, null, null, null, null);
 
@@ -76,7 +76,7 @@ public static class AuthEndpoints
     {
         // The frozen local guard ran BEFORE validation: missing/non-string
         // credentials surface 401, not 400.
-        var body = await ctx.Request.ReadFromJsonAsync<LoginBody>(ctx.RequestAborted);
+        var body = await ctx.Request.ReadValidatedJsonAsync<LoginBody>(ctx.RequestAborted);
         var username = body?.Username;
         var password = body?.Password;
         if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
@@ -127,7 +127,7 @@ public static class AuthEndpoints
         var principal = await RequestAuth.AuthenticateAsync(ctx, TokenKind.Access);
         await RequestAuth.InstallActorAsync(ctx, principal);
 
-        var command = await ctx.Request.ReadFromJsonAsync<CompleteOnboardingCommand>(ctx.RequestAborted)
+        var command = await ctx.Request.ReadValidatedJsonAsync<CompleteOnboardingCommand>(ctx.RequestAborted)
             ?? new CompleteOnboardingCommand(string.Empty, string.Empty, string.Empty);
 
         var tokens = await dispatcher.Send(command, ctx.RequestAborted);
@@ -142,7 +142,7 @@ public static class AuthEndpoints
         // enforced once, in the pipeline.
         await RequestAuth.GateAsync(ctx);
 
-        var command = await ctx.Request.ReadFromJsonAsync<SignupIntegrationCommand>(ctx.RequestAborted)
+        var command = await ctx.Request.ReadValidatedJsonAsync<SignupIntegrationCommand>(ctx.RequestAborted)
             ?? new SignupIntegrationCommand(string.Empty, string.Empty, string.Empty);
 
         // Tokens in the body only — integrations never use cookies.
@@ -156,7 +156,7 @@ public static class AuthEndpoints
         // now rides on LogoutIntegrationCommand's [RequireRole(Roles.Admin)].
         await RequestAuth.GateAsync(ctx);
 
-        var command = await ctx.Request.ReadFromJsonAsync<LogoutIntegrationCommand>(ctx.RequestAborted)
+        var command = await ctx.Request.ReadValidatedJsonAsync<LogoutIntegrationCommand>(ctx.RequestAborted)
             ?? new LogoutIntegrationCommand(string.Empty);
 
         await dispatcher.Send(command, ctx.RequestAborted);
@@ -186,7 +186,7 @@ public static class AuthEndpoints
         // blocked, and GeneratePinCommand's (absent) policy is what says so now.
         await RequestAuth.GateAsync(ctx);
 
-        var command = await ctx.Request.ReadFromJsonAsync<GeneratePinCommand>(ctx.RequestAborted)
+        var command = await ctx.Request.ReadValidatedJsonAsync<GeneratePinCommand>(ctx.RequestAborted)
             ?? new GeneratePinCommand(string.Empty, string.Empty);
 
         await dispatcher.Send(command, ctx.RequestAborted);
@@ -197,7 +197,7 @@ public static class AuthEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var command = await ctx.Request.ReadFromJsonAsync<ValidatePinCommand>(ctx.RequestAborted)
+        var command = await ctx.Request.ReadValidatedJsonAsync<ValidatePinCommand>(ctx.RequestAborted)
             ?? new ValidatePinCommand(string.Empty, string.Empty, 0);
 
         await dispatcher.Send(command, ctx.RequestAborted);
@@ -206,7 +206,7 @@ public static class AuthEndpoints
 
     private static async Task<IResult> ForgotPassword(HttpContext ctx, IDispatcher dispatcher)
     {
-        var command = await ctx.Request.ReadFromJsonAsync<ForgotPasswordCommand>(ctx.RequestAborted)
+        var command = await ctx.Request.ReadValidatedJsonAsync<ForgotPasswordCommand>(ctx.RequestAborted)
             ?? new ForgotPasswordCommand(string.Empty);
 
         await dispatcher.Send(command, ctx.RequestAborted);
@@ -218,7 +218,7 @@ public static class AuthEndpoints
 
     private static async Task<IResult> ResetPassword(HttpContext ctx, IDispatcher dispatcher)
     {
-        var command = await ctx.Request.ReadFromJsonAsync<ResetPasswordCommand>(ctx.RequestAborted)
+        var command = await ctx.Request.ReadValidatedJsonAsync<ResetPasswordCommand>(ctx.RequestAborted)
             ?? new ResetPasswordCommand(string.Empty, string.Empty);
 
         await dispatcher.Send(command, ctx.RequestAborted);
@@ -230,7 +230,7 @@ public static class AuthEndpoints
 
     private static async Task<IResult> RecoverUsername(HttpContext ctx, IDispatcher dispatcher)
     {
-        var command = await ctx.Request.ReadFromJsonAsync<RecoverUsernameCommand>(ctx.RequestAborted)
+        var command = await ctx.Request.ReadValidatedJsonAsync<RecoverUsernameCommand>(ctx.RequestAborted)
             ?? new RecoverUsernameCommand(string.Empty);
 
         await dispatcher.Send(command, ctx.RequestAborted);

@@ -49,7 +49,7 @@ public static class UserEndpoints
         // through this path — the command has no other field to carry
         // self-escalation with. Shape rules (non-empty when present) now live
         // in UpdateOwnProfileValidator.
-        var command = await ctx.Request.ReadFromJsonAsync<UpdateOwnProfileCommand>(ctx.RequestAborted)
+        var command = await ctx.Request.ReadValidatedJsonAsync<UpdateOwnProfileCommand>(ctx.RequestAborted)
             ?? new UpdateOwnProfileCommand(null, null);
 
         var user = await dispatcher.Send(command, ctx.RequestAborted);
@@ -60,7 +60,7 @@ public static class UserEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var command = await ctx.Request.ReadFromJsonAsync<ChangeOwnPasswordCommand>(ctx.RequestAborted)
+        var command = await ctx.Request.ReadValidatedJsonAsync<ChangeOwnPasswordCommand>(ctx.RequestAborted)
             ?? new ChangeOwnPasswordCommand(string.Empty, string.Empty);
 
         await dispatcher.Send(command, ctx.RequestAborted);
@@ -88,7 +88,7 @@ public static class UserEndpoints
         // Field names line up 1:1 with the frozen JSON body, so the command
         // record is the wire shape; CreateStaffUserValidator carries every
         // shape and business rule that used to live at this edge.
-        var command = await ctx.Request.ReadFromJsonAsync<CreateStaffUserCommand>(ctx.RequestAborted)
+        var command = await ctx.Request.ReadValidatedJsonAsync<CreateStaffUserCommand>(ctx.RequestAborted)
             ?? new CreateStaffUserCommand(
                 string.Empty, string.Empty, string.Empty, null, string.Empty, null, null,
                 string.Empty, string.Empty);
@@ -114,7 +114,7 @@ public static class UserEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var body = await ctx.Request.ReadFromJsonAsync<ChangeRoleBody>(ctx.RequestAborted);
+        var body = await ctx.Request.ReadValidatedJsonAsync<ChangeRoleBody>(ctx.RequestAborted);
 
         var user = await dispatcher.Send(
             new ChangeUserRoleCommand(Guid.Parse(id), body?.Role ?? string.Empty), ctx.RequestAborted);

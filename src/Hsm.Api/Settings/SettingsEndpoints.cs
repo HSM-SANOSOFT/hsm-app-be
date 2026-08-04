@@ -38,7 +38,7 @@ public static class SettingsEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var body = await ctx.Request.ReadFromJsonAsync<UpdateSettingsBody>(ctx.RequestAborted)
+        var body = await ctx.Request.ReadValidatedJsonAsync<UpdateSettingsBody>(ctx.RequestAborted)
             ?? new UpdateSettingsBody(string.Empty, []);
         var updates = body.Settings
             .Select(item => new SettingUpdate(item.Key ?? string.Empty, item.Value))

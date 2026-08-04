@@ -93,7 +93,7 @@ public static class TemplateEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var query = await ctx.Request.ReadFromJsonAsync<ValidateTemplateQuery>(ctx.RequestAborted)
+        var query = await ctx.Request.ReadValidatedJsonAsync<ValidateTemplateQuery>(ctx.RequestAborted)
             ?? new ValidateTemplateQuery(string.Empty, null);
 
         var result = await dispatcher.Send(query, ctx.RequestAborted);
@@ -115,7 +115,7 @@ public static class TemplateEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var query = await ctx.Request.ReadFromJsonAsync<DraftRenderQuery>(ctx.RequestAborted)
+        var query = await ctx.Request.ReadValidatedJsonAsync<DraftRenderQuery>(ctx.RequestAborted)
             ?? new DraftRenderQuery(string.Empty, null, null);
 
         var html = await dispatcher.Send(query, ctx.RequestAborted);
@@ -209,7 +209,7 @@ public static class TemplateEndpoints
     /// </summary>
     private static async Task<TemplatePayload> ReadTemplateBodyAsync(HttpContext ctx)
     {
-        var body = await ctx.Request.ReadFromJsonAsync<JsonObject>(ctx.RequestAborted) ?? [];
+        var body = await ctx.Request.ReadValidatedJsonAsync<JsonObject>(ctx.RequestAborted) ?? [];
 
         var category = OptionalString(body, "category");
         var name = OptionalString(body, "name");

@@ -74,7 +74,7 @@ public static class DocsEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var body = await ctx.Request.ReadFromJsonAsync<GenerateDocumentBody>(ctx.RequestAborted)
+        var body = await ctx.Request.ReadValidatedJsonAsync<GenerateDocumentBody>(ctx.RequestAborted)
             ?? new GenerateDocumentBody(string.Empty, null, string.Empty, null, null, null);
         var dataJson = body.Data?.ToJsonString() ?? "{}";
 
@@ -133,7 +133,7 @@ public static class DocsEndpoints
     {
         await RequestAuth.GateAsync(ctx);
 
-        var body = await ctx.Request.ReadFromJsonAsync<JsonObject>(ctx.RequestAborted);
+        var body = await ctx.Request.ReadValidatedJsonAsync<JsonObject>(ctx.RequestAborted);
         var items = ReadDocumentsPayload(body, "fileId");
 
         // Frozen: bare @Query params, no DTO — no whitelist, no coercion. A
