@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Hsm.Api.Auth;
 using Hsm.Api.Http;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Templates;
@@ -11,201 +10,123 @@ using Hsm.Application.Templates.Queries.DraftRender;
 using Hsm.Application.Templates.Queries.GetTemplate;
 using Hsm.Application.Templates.Queries.ListTemplates;
 using Hsm.Application.Templates.Queries.ValidateTemplate;
-using Hsm.Domain.Templates;
 
 namespace Hsm.Api.Templates;
 
 /// <summary>
-/// The seven frozen /v1/templates operations (templates.controller.ts). Every
-/// route is @Roles() with no arguments — any authenticated, onboarded user.
-/// POST routes return 201 (the frozen runtime default; its OpenAPI snapshot
-/// under-documented these as 200). The category-conditional nested-block shape
-/// rules (email/doc/sms requirements, schema/Handlebars checks) are a full
-/// reshape left to Task 8 — Task 3 only ports the business rules in Step 6's
-/// table (name/category non-empty, category known); a malformed nested block
-/// now degrades to empty/default values instead of a field-keyed 400.
+/// The templates resource. Every delegate does transport work only — bind,
+/// dispatch, project, choose a status. There is no authentication call and no
+/// role check here — the actor is installed by middleware and the policy
+/// rides on the request type (every Templates command/query below is
+/// authenticated-only, no role restriction: the frozen controller decorated
+/// every route with a bare <c>@Roles()</c>).
+///
+/// <para><c>{id}</c> means two different things on this resource, and that is
+/// deliberate, not an inconsistency to "fix": <see cref="GetTemplate"/> keeps
+/// NO <c>:guid</c> route constraint, because <see cref="GetTemplateQuery"/>
+/// accepts a slug — the catalog's <c>Name</c> column is the form templates are
+/// authored in (see <see cref="TemplateResource"/>'s own doc comment) — and a
+/// GUID-shaped value also matches by id (<c>TemplateStore.FindByIdentifierAsync</c>).
+/// <see cref="UpdateTemplate"/>/<see cref="DeleteTemplate"/> DO constrain
+/// <c>{id:guid}</c>, because they address a stored row by its actual primary
+/// key, never by name.</para>
 /// </summary>
 public static class TemplateEndpoints
 {
     public static void MapTemplateEndpoints(this IEndpointRouteBuilder app)
     {
-        var templates = app.MapGroup("/v1/templates");
-        templates.MapGet("", (Delegate)ListTemplates);
-        templates.MapPost("", (Delegate)CreateTemplate);
-        templates.MapPost("/validate", (Delegate)ValidateTemplate);
-        templates.MapPost("/draft-render", (Delegate)DraftRender);
-        templates.MapGet("/{identifier}", (Delegate)GetTemplate);
-        templates.MapPut("/{id}", (Delegate)UpdateTemplate);
-        templates.MapDelete("/{id}", (Delegate)DeleteTemplate);
+        ArgumentNullException.ThrowIfNull(app);
+        var templates = app.MapGroup("/api/v1/templates").WithTags("Templates");
+
+        templates.MapGet("/", ListTemplates)
+            .WithSummary("List templates, optionally filtered by category (an unpaged catalog).")
+            .Produces<IReadOnlyList<TemplateResource>>();
+
+        templates.MapPost("/", CreateTemplate)
+            .WithSummary("Create a template.")
+            .Produces<TemplateDetailResource>(StatusCodes.Status201Created);
+
+        templates.MapPost("/validate", ValidateTemplate)
+            .WithSummary("Validate sample data against a stored template's schema and Handlebars source.")
+            .Produces<ValidateTemplateResource>();
+
+        templates.MapPost("/draft-render", DraftRender)
+            .WithSummary("Render unsaved Handlebars source (optionally wrapped in a BASE template) against sample data.")
+            .Produces<DraftRenderResource>();
+
+        templates.MapGet("/{id}", GetTemplate)
+            .WithSummary("Read one template, addressed by id or by its unique name.")
+            .Produces<TemplateDetailResource>();
+
+        templates.MapPut("/{id:guid}", UpdateTemplate)
+            .WithSummary("Update a template.")
+            .Produces<TemplateDetailResource>();
+
+        templates.MapDelete("/{id:guid}", DeleteTemplate)
+            .WithSummary("Delete a template not referenced as a base by any other template.")
+            .Produces(StatusCodes.Status204NoContent);
     }
 
-    private static async Task<IResult> ListTemplates(HttpContext ctx, IDispatcher dispatcher)
+    private static async Task<IResult> ListTemplates(
+        IDispatcher dispatcher, CancellationToken ct, string? category = null)
     {
-        await RequestAuth.GateAsync(ctx);
-
-        var category = ctx.Request.Query.TryGetValue("category", out var values) ? values[^1] : null;
-
-        var templates = await dispatcher.Send(new ListTemplatesQuery(category), ctx.RequestAborted);
-        var data = new JsonArray([.. templates.Select(t => (JsonNode?)DetailJson(t))]);
-        return ApiEnvelope.Success(
-            ctx, StatusCodes.Status200OK, data, extra: ApiEnvelope.SinglePagePagination(templates.Count));
+        var templates = await dispatcher.Send(new ListTemplatesQuery(category), ct);
+        return Results.Ok(templates.Select(TemplateResource.From).ToList());
     }
 
-    private static async Task<IResult> GetTemplate(
-        HttpContext ctx, string identifier, IDispatcher dispatcher)
+    private static async Task<IResult> CreateTemplate(HttpContext ctx, IDispatcher dispatcher, CancellationToken ct)
     {
-        await RequestAuth.GateAsync(ctx);
-        var template = await dispatcher.Send(new GetTemplateQuery(identifier), ctx.RequestAborted);
-        return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, WithBaseJson(template));
-    }
-
-    private static async Task<IResult> CreateTemplate(HttpContext ctx, IDispatcher dispatcher)
-    {
-        await RequestAuth.GateAsync(ctx);
         var payload = await ReadTemplateBodyAsync(ctx);
-        var created = await dispatcher.Send(new CreateTemplateCommand(payload), ctx.RequestAborted);
-        return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, WithBaseJson(created));
+        var created = await dispatcher.Send(new CreateTemplateCommand(payload), ct);
+        return Results.Created($"/api/v1/templates/{created.Id}", TemplateDetailResource.From(created));
     }
+
+    private static async Task<IResult> ValidateTemplate(
+        ValidateTemplateRequest request, IDispatcher dispatcher, CancellationToken ct)
+    {
+        var result = await dispatcher.Send(new ValidateTemplateQuery(request.Identifier, request.Data), ct);
+        var issues = (result.Issues ?? []).Select(TemplateIssueResource.From).ToList();
+        return Results.Ok(new ValidateTemplateResource(result.Valid, result.TemplateId, issues));
+    }
+
+    private static async Task<IResult> DraftRender(
+        DraftRenderRequest request, IDispatcher dispatcher, CancellationToken ct)
+    {
+        var html = await dispatcher.Send(
+            new DraftRenderQuery(request.Content, request.BaseTemplateId, request.SampleData), ct);
+        return Results.Ok(new DraftRenderResource(html));
+    }
+
+    private static async Task<IResult> GetTemplate(string id, IDispatcher dispatcher, CancellationToken ct) =>
+        Results.Ok(TemplateDetailResource.From(await dispatcher.Send(new GetTemplateQuery(id), ct)));
 
     private static async Task<IResult> UpdateTemplate(
-        HttpContext ctx, string id, IDispatcher dispatcher)
+        Guid id, HttpContext ctx, IDispatcher dispatcher, CancellationToken ct)
     {
-        await RequestAuth.GateAsync(ctx);
-        var templateId = Guid.Parse(id);
         var payload = await ReadTemplateBodyAsync(ctx);
-        var updated = await dispatcher.Send(
-            new UpdateTemplateCommand(templateId, payload), ctx.RequestAborted);
-        return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, WithBaseJson(updated));
+        var updated = await dispatcher.Send(new UpdateTemplateCommand(id, payload), ct);
+        return Results.Ok(TemplateDetailResource.From(updated));
     }
 
-    private static async Task<IResult> DeleteTemplate(
-        HttpContext ctx, string id, IDispatcher dispatcher)
+    private static async Task<IResult> DeleteTemplate(Guid id, IDispatcher dispatcher, CancellationToken ct)
     {
-        await RequestAuth.GateAsync(ctx);
-        var templateId = Guid.Parse(id);
-        await dispatcher.Send(new DeleteTemplateCommand(templateId), ctx.RequestAborted);
-        // Frozen controller: delete answers { id } (enveloped), 200.
-        return ApiEnvelope.Success(
-            ctx, StatusCodes.Status200OK, new JsonObject { ["id"] = templateId.ToString() });
-    }
-
-    private static async Task<IResult> ValidateTemplate(HttpContext ctx, IDispatcher dispatcher)
-    {
-        await RequestAuth.GateAsync(ctx);
-
-        var query = await ctx.Request.ReadValidatedJsonAsync<ValidateTemplateQuery>(ctx.RequestAborted)
-            ?? new ValidateTemplateQuery(string.Empty, null);
-
-        var result = await dispatcher.Send(query, ctx.RequestAborted);
-        var json = new JsonObject { ["valid"] = result.Valid };
-        if (result.TemplateId is not null)
-        {
-            json["templateId"] = result.TemplateId.ToString();
-        }
-
-        if (result.Issues is not null)
-        {
-            json["issues"] = IssuesJson(result.Issues);
-        }
-
-        return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, json);
-    }
-
-    private static async Task<IResult> DraftRender(HttpContext ctx, IDispatcher dispatcher)
-    {
-        await RequestAuth.GateAsync(ctx);
-
-        var query = await ctx.Request.ReadValidatedJsonAsync<DraftRenderQuery>(ctx.RequestAborted)
-            ?? new DraftRenderQuery(string.Empty, null, null);
-
-        var html = await dispatcher.Send(query, ctx.RequestAborted);
-        return ApiEnvelope.Success(
-            ctx, StatusCodes.Status201Created, new JsonObject { ["html"] = html });
-    }
-
-    internal static JsonArray IssuesJson(IReadOnlyList<TemplateSchemaIssue> issues) =>
-        new([.. issues.Select(issue => (JsonNode?)new JsonObject
-        {
-            ["path"] = issue.Path,
-            ["expected"] = issue.Expected,
-            ["received"] = issue.Received,
-        })]);
-
-    /// <summary>The frozen TemplateWithBaseResponseDto shape.</summary>
-    internal static JsonObject WithBaseJson(Template template) => new()
-    {
-        ["template"] = DetailJson(template),
-        ["baseTemplate"] = template.BaseTemplate is null ? null : DetailJson(template.BaseTemplate),
-    };
-
-    /// <summary>
-    /// The frozen TemplateDetailDto: metadata is the category-matching shape
-    /// (cc/bcc omitted when unset), null for BASE or when no child row exists.
-    /// </summary>
-    internal static JsonObject DetailJson(Template template)
-    {
-        JsonObject? metadata = null;
-        if (TemplateCategories.IsEmail(template.Category) && template.Email is not null)
-        {
-            metadata = new JsonObject
-            {
-                ["subject"] = template.Email.Subject,
-                ["fromEmail"] = template.Email.FromEmail,
-                ["fromName"] = template.Email.FromName,
-            };
-            if (template.Email.Cc is not null)
-            {
-                metadata["cc"] = new JsonArray([.. template.Email.Cc.Select(c => (JsonNode?)c)]);
-            }
-
-            if (template.Email.Bcc is not null)
-            {
-                metadata["bcc"] = new JsonArray([.. template.Email.Bcc.Select(b => (JsonNode?)b)]);
-            }
-
-            metadata["hasAttachment"] = template.Email.HasAttachment;
-        }
-        else if (template.Category == TemplateCategories.Docs && template.Doc is not null)
-        {
-            metadata = new JsonObject
-            {
-                ["documentCode"] = template.Doc.DocumentCode,
-                ["format"] = template.Doc.Format,
-                ["size"] = template.Doc.Size,
-                ["orientation"] = template.Doc.Orientation,
-            };
-        }
-        else if (TemplateCategories.IsSms(template.Category) && template.Sms is not null)
-        {
-            metadata = new JsonObject
-            {
-                ["provider"] = template.Sms.Provider,
-                ["templateName"] = template.Sms.TemplateName,
-                ["from"] = template.Sms.From,
-            };
-        }
-
-        return new JsonObject
-        {
-            ["id"] = template.Id.ToString(),
-            ["category"] = template.Category,
-            ["name"] = template.Name,
-            ["isActive"] = template.IsActive,
-            ["schema"] = JsonNode.Parse(template.SchemaJson),
-            ["content"] = template.Content,
-            ["description"] = template.Description,
-            ["metadata"] = metadata,
-        };
+        await dispatcher.Send(new DeleteTemplateCommand(id), ct);
+        return Results.NoContent();
     }
 
     /// <summary>
     /// Reads the frozen Create/Update Template payload. Shape validation
-    /// (required fields, category-conditional block requirements) no longer
-    /// happens here — CreateTemplateValidator/UpdateTemplateValidator carry
-    /// the subset ported in Task 3, and the rest is a Task 8 reshape.
-    /// DescriptionPresent/BaseTemplatePresent are still computed from the raw
-    /// JSON keys because the handlers use them for PATCH semantics (a field
-    /// present-but-null clears the column; an absent field leaves it alone).
+    /// (required fields, category-conditional block requirements) does not
+    /// happen here — CreateTemplateValidator/UpdateTemplateValidator carry the
+    /// FluentValidation subset (Task 3), and CreateTemplateHandler's
+    /// AssertCategoryShape carries the rest (Task 3's own note; a full
+    /// FluentValidation port was never promised). DescriptionPresent/
+    /// BaseTemplatePresent are computed from the raw JSON keys because the
+    /// handlers use them for PATCH semantics: a field present-but-null clears
+    /// the column; an absent field leaves it alone — a plain record binder
+    /// cannot distinguish those two cases, which is why this endpoint still
+    /// reads the body as a bare <see cref="JsonObject"/> instead of a typed
+    /// request record like every other reshaped module.
     /// </summary>
     private static async Task<TemplatePayload> ReadTemplateBodyAsync(HttpContext ctx)
     {

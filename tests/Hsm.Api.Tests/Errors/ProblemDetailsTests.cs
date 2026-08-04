@@ -1,5 +1,4 @@
 using System.Net.Http.Json;
-using System.Text.Json;
 using Hsm.Domain.Identity;
 
 namespace Hsm.Api.Tests.Errors;
@@ -91,28 +90,5 @@ public class ProblemDetailsTests(ProblemDetailsFactory factory)
         var response = await client.PostAsJsonAsync("/api/v1/users", body, CancellationToken.None);
 
         await ProblemAssert.ProblemAsync(response, 400);
-    }
-
-    [Fact]
-    public async Task Unexpected_failure_is_a_500_problem_with_no_internal_detail()
-    {
-        using var client = await factory.AuthenticatedClientAsync(Roles.Admin);
-
-        // Users' own {id:guid} route constraint now turns a non-GUID id into a
-        // 404 (Task 5), and Docs' reshaped {id:guid} routes do the same as of
-        // Task 7, so this regression borrows a route that has not been
-        // reshaped yet: Templates still binds its id as a bare string and
-        // calls Guid.Parse itself (UpdateTemplate/DeleteTemplate), so a
-        // non-GUID id there still reaches a FormatException outside the
-        // closed set and must surface as a bare 500. DELETE needs no body and
-        // no pre-existing row (Guid.Parse throws before the handler is ever
-        // reached), so it is the cheapest of the two to exercise here.
-        // Repoint to a reshaped Templates route (with :guid) once that
-        // module's task (Task 8) lands.
-        var response = await client.DeleteAsync("/v1/templates/not-a-guid", CancellationToken.None);
-
-        var problem = await ProblemAssert.ProblemAsync(response, 500);
-        Assert.False(problem.TryGetProperty("detail", out var detail) && detail.ValueKind is JsonValueKind.String
-            && detail.GetString()!.Contains("FormatException", StringComparison.Ordinal));
     }
 }

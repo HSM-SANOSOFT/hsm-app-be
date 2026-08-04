@@ -7,6 +7,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Hsm.Api.Tests calls HsmExceptionHandler.Map directly (internal) to
+         prove the closed-exception-set → status-code mapping without a
+         borrowed HTTP route — see ProblemDetailsTests' history: Task 8
+         (Templates) closed the last route that still bare-Guid.Parse'd a
+         route parameter, so no HTTP vehicle for an unmapped-exception 500
+         remained. -->
+    <InternalsVisibleTo Include="Hsm.Api.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- FHIR R4 validation/parsing at the API edge only (frozen @medplum/core
          validateResource replacement). Application/Domain never see it. -->
     <PackageReference Include="Hl7.Fhir.R4" />
