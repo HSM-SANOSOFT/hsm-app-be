@@ -59,6 +59,9 @@ dotnet format Hsm.sln --verify-no-changes                        # lint gate
 # Apply the schema — an explicit step, never done on host boot
 dotnet run --project src/Hsm.Api -- --migrate
 
+# Regenerate the committed OpenAPI spec after any surface change
+HSM_OPENAPI_UPDATE=1 dotnet test tests/Hsm.Api.Tests --filter OpenApiSpecTests
+
 # Run the hosts (three doors onto one core — any subset runs without the others)
 dotnet run --project src/Hsm.Web        # staff shell on :5000 (published to host)
 dotnet run --project src/Hsm.Api        # REST/FHIR on :5001 (published to host)
@@ -109,7 +112,7 @@ to any tooling or session that reaches it.
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **hsm-app** (4012 symbols, 9523 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **hsm-app** (4746 symbols, 9988 relationships, 288 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 

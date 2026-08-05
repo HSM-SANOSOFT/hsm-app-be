@@ -38,35 +38,51 @@ public static class DocumentEndpoints
 
         documents.MapGet("/", ListDocuments)
             .WithSummary("List the caller's documents, newest first.")
-            .Produces<PagedResult<DocumentResource>>();
+            .Produces<PagedResult<DocumentResource>>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         documents.MapPost("/", UploadDocuments)
             .WithSummary("Upload one or more documents (multipart/form-data, field 'files').")
-            .Produces<UploadResultResource>(StatusCodes.Status201Created);
+            .Produces<UploadResultResource>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .Accepts<IFormFile>("multipart/form-data");
 
         documents.MapPost("/generated", GenerateDocument)
             .WithSummary("Generate a document from a template.")
-            .Produces<AcceptedDocumentResponse>(StatusCodes.Status202Accepted);
+            .Produces<AcceptedDocumentResponse>(StatusCodes.Status202Accepted)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         documents.MapPost("/urls", PresignDocuments)
             .WithSummary("Presign GET URLs for a batch of stored objects.")
-            .Produces<IReadOnlyList<PresignedItemResource>>();
+            .Produces<IReadOnlyList<PresignedItemResource>>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         documents.MapGet("/{id:guid}", GetDocument)
             .WithSummary("Read one document with its versions.")
-            .Produces<DocumentDetailResource>();
+            .Produces<DocumentDetailResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         documents.MapDelete("/{id:guid}", DeleteDocument)
             .WithSummary("Delete one document.")
-            .Produces(StatusCodes.Status204NoContent);
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
+        // No {id} in this route's own path (ids are a query string), so no
+        // 404 here — an unknown id inside the batch still throws
+        // NotFoundException, but that is DeleteDocument's contract, not this
+        // route's own shape; see the per-{id}-route note in Task 16's sweep.
         documents.MapDelete("/", DeleteDocumentsBulk)
             .WithSummary("Delete a batch of documents (?ids=a,b,c).")
-            .Produces(StatusCodes.Status204NoContent);
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         documents.MapGet("/{id:guid}/url", GetDocumentUrl)
             .WithSummary("Presign a GET URL for a document's latest version.")
-            .Produces<DocumentUrlResource>();
+            .Produces<DocumentUrlResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static async Task<IResult> ListDocuments(

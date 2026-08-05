@@ -24,18 +24,24 @@ public static class SettingsEndpoints
 
         settings.MapGet("/", GetSettings)
             .WithSummary("Read a settings category (one of four known categories), values masked for secrets.")
-            .Produces<SettingsResource>();
+            .Produces<SettingsResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
 
         settings.MapPut("/", UpdateSettings)
             .WithSummary("Update a settings category and return the fresh read-back.")
-            .Produces<SettingsResource>();
+            .Produces<SettingsResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
 
         // Registered before no route below could ever shadow it — the group
         // has no other path segment, so ordering is not actually load-bearing
         // here, unlike Templates' {id} vs /validate; kept for readability.
         settings.MapGet("/audit", ListSettingsAudit)
             .WithSummary("Read the settings audit trail for a category, newest first, paged.")
-            .Produces<PagedResult<SettingAuditResource>>();
+            .Produces<PagedResult<SettingAuditResource>>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
     }
 
     private static async Task<IResult> GetSettings(

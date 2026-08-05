@@ -22,7 +22,12 @@ public static class WebhookEndpoints
         app.MapPost("/api/v1/webhooks/{provider}", ReceiveWebhook)
             .WithTags("Webhooks")
             .WithSummary("Receive a provider email delivery-status webhook.")
-            .Produces<WebhookAcceptedResponse>(StatusCodes.Status202Accepted);
+            .Produces<WebhookAcceptedResponse>(StatusCodes.Status202Accepted)
+            // Not an authentication 401 in the usual sense — this route is
+            // anonymous by design (the signature IS the credential) — but a
+            // bad/missing HMAC signature answers 401 all the same
+            // (ReceiveWebhookHandler's own UnauthorizedException).
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
     }
 
     /// <summary>

@@ -39,31 +39,46 @@ public static class TemplateEndpoints
 
         templates.MapGet("/", ListTemplates)
             .WithSummary("List templates, optionally filtered by category (an unpaged catalog).")
-            .Produces<IReadOnlyList<TemplateResource>>();
+            .Produces<IReadOnlyList<TemplateResource>>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         templates.MapPost("/", CreateTemplate)
             .WithSummary("Create a template.")
-            .Produces<TemplateDetailResource>(StatusCodes.Status201Created);
+            .Produces<TemplateDetailResource>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         templates.MapPost("/validate", ValidateTemplate)
             .WithSummary("Validate sample data against a stored template's schema and Handlebars source.")
-            .Produces<ValidateTemplateResource>();
+            .Produces<ValidateTemplateResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         templates.MapPost("/draft-render", DraftRender)
             .WithSummary("Render unsaved Handlebars source (optionally wrapped in a BASE template) against sample data.")
-            .Produces<DraftRenderResource>();
+            .Produces<DraftRenderResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         templates.MapGet("/{id}", GetTemplate)
             .WithSummary("Read one template, addressed by id or by its unique name.")
-            .Produces<TemplateDetailResource>();
+            .Produces<TemplateDetailResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         templates.MapPut("/{id:guid}", UpdateTemplate)
             .WithSummary("Update a template.")
-            .Produces<TemplateDetailResource>();
+            .Produces<TemplateDetailResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
+        // The one route in this group that can 409: DeleteTemplateCommand
+        // raises a domain ConflictException when the template is still
+        // referenced as another template's base (its own doc comment) — never
+        // a database foreign-key error surfacing as a 500.
         templates.MapDelete("/{id:guid}", DeleteTemplate)
             .WithSummary("Delete a template not referenced as a base by any other template.")
-            .Produces(StatusCodes.Status204NoContent);
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
     }
 
     private static async Task<IResult> ListTemplates(

@@ -29,23 +29,31 @@ public static class EmailEndpoints
 
         emails.MapPost("/", SendEmail)
             .WithSummary("Send an email batch.")
-            .Produces<AcceptedEmailResponse>(StatusCodes.Status202Accepted);
+            .Produces<AcceptedEmailResponse>(StatusCodes.Status202Accepted)
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         emails.MapGet("/", ListEmails)
             .WithSummary("List email batches, newest first.")
-            .Produces<PagedResult<EmailResource>>();
+            .Produces<PagedResult<EmailResource>>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         emails.MapGet("/{id:guid}", GetEmail)
             .WithSummary("Read one email batch with its recipients.")
-            .Produces<EmailDetailResource>();
+            .Produces<EmailDetailResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         emails.MapPost("/{id:guid}/resend", ResendEmail)
             .WithSummary("Resend an entire email batch.")
-            .Produces<AcceptedJobResponse>(StatusCodes.Status202Accepted);
+            .Produces<AcceptedJobResponse>(StatusCodes.Status202Accepted)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         emails.MapPost("/{id:guid}/recipients/{recipientId:guid}/resend", ResendRecipient)
             .WithSummary("Resend a single recipient of an email batch.")
-            .Produces<AcceptedJobResponse>(StatusCodes.Status202Accepted);
+            .Produces<AcceptedJobResponse>(StatusCodes.Status202Accepted)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status404NotFound);
     }
 
     private static async Task<IResult> SendEmail(

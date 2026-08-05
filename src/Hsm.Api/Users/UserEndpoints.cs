@@ -26,31 +26,52 @@ public static class UserEndpoints
         ArgumentNullException.ThrowIfNull(app);
         var users = app.MapGroup("/api/v1/users").WithTags("Users");
 
+        // ListUsers/CreateUser/GetUser/UpdateUser are admin-only
+        // ([RequireRole(Roles.Admin)] on their request types), so 403 is a
+        // real response; UpdateOwnProfile/ChangeOwnPassword carry no role
+        // restriction — any authenticated caller reaches them — so only 401
+        // applies.
         users.MapGet("/", ListUsers)
             .WithSummary("List users, newest first.")
-            .Produces<PagedResult<UserResource>>();
+            .Produces<PagedResult<UserResource>>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden);
 
         users.MapPost("/", CreateUser)
             .WithSummary("Create a staff user.")
-            .Produces<UserResource>(StatusCodes.Status201Created);
+            .Produces<UserResource>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesValidationProblem();
 
         // /me is registered before /{id:guid} for readability only — the guid
         // constraint means "me" could never match the parameterised route.
         users.MapPatch("/me", UpdateOwnProfile)
             .WithSummary("Update the calling user's own profile.")
-            .Produces<UserResource>();
+            .Produces<UserResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem();
 
         users.MapPost("/me/password", ChangeOwnPassword)
             .WithSummary("Change the calling user's own password.")
-            .Produces(StatusCodes.Status204NoContent);
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem();
 
         users.MapGet("/{id:guid}", GetUser)
             .WithSummary("Read one user.")
-            .Produces<UserResource>();
+            .Produces<UserResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
         users.MapPatch("/{id:guid}", UpdateUser)
             .WithSummary("Update a user's role.")
-            .Produces<UserResource>();
+            .Produces<UserResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem();
     }
 
     private static async Task<IResult> ListUsers(

@@ -29,7 +29,10 @@ public static class FhirEndpoints
 {
     public static void MapFhirEndpoints(this IEndpointRouteBuilder app)
     {
-        var patient = app.MapGroup("/fhir/R4/Patient");
+        // ExcludeFromDescription: FHIR has its own published specification —
+        // a second, weaker copy of it in our OpenAPI document helps nobody
+        // and only invites the two to drift.
+        var patient = app.MapGroup("/fhir/R4/Patient").WithTags("FHIR").ExcludeFromDescription();
         patient.MapGet("", (Delegate)SearchPatients);
         patient.MapGet("/{id}", (Delegate)ReadPatient);
         patient.MapPost("", (Delegate)CreatePatient);

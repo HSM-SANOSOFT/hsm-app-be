@@ -5,6 +5,7 @@ using Hsm.Api.Documents;
 using Hsm.Api.Emails;
 using Hsm.Api.Errors;
 using Hsm.Api.Fhir;
+using Hsm.Api.OpenApi;
 using Hsm.Api.Settings;
 using Hsm.Api.SystemStatus;
 using Hsm.Api.Templates;
@@ -178,6 +179,10 @@ builder.Services.AddRateLimiter(limiter =>
     };
 });
 
+// The generated OpenAPI document and Scalar's reference UI at /api, both
+// gated by OpenApi:Enabled (see OpenApiRegistration's doc comment).
+builder.Services.AddHsmOpenApi(builder.Environment, builder.Configuration);
+
 var app = builder.Build();
 
 // RFC 9457 problem+json for every failure on this door — the ONE place an
@@ -218,6 +223,7 @@ app.MapTemplateEndpoints();
 app.MapEmailEndpoints();
 app.MapWebhookEndpoints();
 app.MapDocumentEndpoints();
+app.MapHsmOpenApi();
 
 app.Run();
 return 0;

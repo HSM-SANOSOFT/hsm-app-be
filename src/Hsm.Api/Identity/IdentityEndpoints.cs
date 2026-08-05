@@ -83,11 +83,18 @@ public static class IdentityEndpoints
 
         identity.MapPost("/register", Register)
             .WithSummary("Register a patient account and start a session.")
-            .Produces<MeResource>(StatusCodes.Status201Created);
+            .Produces<MeResource>(StatusCodes.Status201Created)
+            .ProducesValidationProblem();
 
+        // Login CAN answer 401: an unrecognised username, wrong password, or a
+        // locked-out account all surface as the same UnauthorizedException
+        // (LoginHandler's own doc comment) — anonymous reachability and "may
+        // still refuse with 401" are not in tension here.
         identity.MapPost("/login", Login)
             .WithSummary("Sign in and start a session.")
-            .Produces<MeResource>();
+            .Produces<MeResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem();
 
         identity.MapPost("/logout", Logout)
             .WithSummary("End the calling session.")
@@ -95,11 +102,14 @@ public static class IdentityEndpoints
 
         identity.MapGet("/me", Me)
             .WithSummary("Read the calling user's own account.")
-            .Produces<MeResource>();
+            .Produces<MeResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized);
 
         identity.MapPost("/onboarding", Onboarding)
             .WithSummary("Complete first-login onboarding.")
-            .Produces<MeResource>();
+            .Produces<MeResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem();
 
         identity.MapGet("/csrf", Csrf)
             .WithSummary("Issue an antiforgery token.")
@@ -111,16 +121,22 @@ public static class IdentityEndpoints
         identity.MapPost("/password/forgot", ForgotPassword)
             .WithSummary("Begin a password reset.")
             .Produces<AcknowledgedResource>(StatusCodes.Status202Accepted)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .RequireRateLimiting(RecoveryRateLimitPolicy);
 
         identity.MapPost("/password/reset", ResetPassword)
             .WithSummary("Consume a reset token and set a new password.")
             .Produces(StatusCodes.Status204NoContent)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .RequireRateLimiting(RecoveryRateLimitPolicy);
 
         identity.MapPost("/username/recover", RecoverUsername)
             .WithSummary("Email the username for an account.")
             .Produces<AcknowledgedResource>(StatusCodes.Status202Accepted)
+            .ProducesValidationProblem()
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .RequireRateLimiting(RecoveryRateLimitPolicy);
 
         // ----- integrations ------------------------------------------------
@@ -131,18 +147,27 @@ public static class IdentityEndpoints
         // it presents IS the credential.
         identity.MapPost("/integrations/register", RegisterIntegration)
             .WithSummary("Provision an integration account and issue its first credential.")
-            .Produces<IntegrationTokenResource>(StatusCodes.Status201Created);
+            .Produces<IntegrationTokenResource>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem();
 
         identity.MapPost("/integrations/logout", LogoutIntegration)
             .WithSummary("Revoke an integration account's credential by presenting it.")
-            .Produces(StatusCodes.Status204NoContent);
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem();
 
         // Under /identity rather than /identity/integrations because it is the
         // machine speaking for itself, not an admin acting on it — the same
-        // split login and register sit on either side of.
+        // split login and register sit on either side of. Anonymous, but the
+        // presented token can be unknown, spent, or reused — the SAME 401
+        // refusal RefreshIntegrationTokensHandler answers every one of those
+        // with (its own doc comment).
         identity.MapPost("/refresh", Refresh)
             .WithSummary("Redeem an integration's refresh token for a fresh credential.")
             .Produces<IntegrationTokenResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem()
             .RequireRateLimiting(RefreshRateLimitPolicy);
     }
 
