@@ -1,7 +1,3 @@
-using System.Text.Json.Nodes;
-using Hsm.Api.Auth;
-using Hsm.Api.Http;
-using Hsm.Application;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Users.Commands.ChangeOwnPassword;
 using Hsm.Application.Users.Commands.ChangeUserRole;
@@ -9,183 +5,150 @@ using Hsm.Application.Users.Commands.CreateStaffUser;
 using Hsm.Application.Users.Commands.UpdateOwnProfile;
 using Hsm.Application.Users.Queries.GetUser;
 using Hsm.Application.Users.Queries.ListUsers;
+using Hsm.Contracts;
 using Hsm.Domain.Identity;
+using Hsm.Infrastructure.Identity;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Identity;
 
 namespace Hsm.Api.Users;
 
 /// <summary>
-/// The six frozen /v1/user operations (user.controller.ts). Each endpoint now
-/// does transport work only — authenticate, bind and shape-validate the
-/// request, dispatch, render. Role and onboarding policy rides on the request
-/// types (AuthorizationBehavior); none of the frozen routes carried
-/// @AllowPending, so none of these commands is [AllowPendingOnboarding] and a
-/// pending non-admin actor is refused by the pipeline.
-/// POST returns 201 and GET/PATCH 200, matching the frozen runtime.
+/// The users resource. Every delegate does transport work only — bind, dispatch,
+/// project, choose a status. There is no authentication call and no role check
+/// here: the actor is installed by middleware and the policy rides on the
+/// request type, so an endpoint cannot fail open by forgetting either.
 /// </summary>
 public static class UserEndpoints
 {
     public static void MapUserEndpoints(this IEndpointRouteBuilder app)
     {
-        var user = app.MapGroup("/v1/user");
+        ArgumentNullException.ThrowIfNull(app);
+        var users = app.MapGroup("/api/v1/users").WithTags("Users");
 
-        // Self-service (any authenticated, onboarded user).
-        user.MapPatch("/me", (Delegate)UpdateOwnProfile);
-        user.MapPost("/me/password", (Delegate)ChangeOwnPassword);
+        // ListUsers/CreateUser/GetUser/UpdateUser are admin-only
+        // ([RequireRole(Roles.Admin)] on their request types), so 403 is a
+        // real response; UpdateOwnProfile/ChangeOwnPassword carry no role
+        // restriction — any authenticated caller reaches them — so only 401
+        // applies.
+        users.MapGet("/", ListUsers)
+            .WithSummary("List users, newest first.")
+            .Produces<PagedResult<UserResource>>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesValidationProblem();
 
-        // Admin user management.
-        user.MapGet("", (Delegate)ListUsers);
-        user.MapPost("/staff", (Delegate)CreateStaff);
-        user.MapGet("/{id}", (Delegate)GetUser);
-        user.MapPatch("/{id}/role", (Delegate)ChangeUserRole);
+        users.MapPost("/", CreateUser)
+            .WithSummary("Create a staff user.")
+            .Produces<UserResource>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesValidationProblem();
+
+        // /me is registered before /{id:guid} for readability only — the guid
+        // constraint means "me" could never match the parameterised route.
+        users.MapPatch("/me", UpdateOwnProfile)
+            .WithSummary("Update the calling user's own profile.")
+            .Produces<UserResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem();
+
+        users.MapPost("/me/password", ChangeOwnPassword)
+            .WithSummary("Change the calling user's own password.")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem();
+
+        users.MapGet("/{id:guid}", GetUser)
+            .WithSummary("Read one user.")
+            .Produces<UserResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        users.MapPatch("/{id:guid}", UpdateUser)
+            .WithSummary("Update a user's role.")
+            .Produces<UserResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem();
     }
 
-    private static async Task<IResult> UpdateOwnProfile(HttpContext ctx, IDispatcher dispatcher)
+    private static async Task<IResult> ListUsers(
+        IDispatcher dispatcher,
+        CancellationToken ct,
+        int page = PagingRules.DefaultPage,
+        int pageSize = PagingRules.DefaultPageSize)
     {
-        await RequestAuth.GateAsync(ctx);
-
-        // Frozen UpdateOwnProfileDto: ONLY firstName and email. Any role/roles
-        // property is rejected by the whitelist — self-escalation is
-        // structurally impossible on this route, and the command has no user id
-        // to point somewhere else with.
-        var body = await BodyValidator.ReadAsync(ctx);
-        var firstName = body.OptionalString("firstName", notEmpty: true);
-        var email = body.OptionalString("email", notEmpty: true);
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
-
-        var user = await dispatcher.Send(
-            new UpdateOwnProfileCommand(firstName, email), ctx.RequestAborted);
-        return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, UserJson(user, includeRoles: true));
+        var result = await dispatcher.Send(new ListUsersQuery(page, pageSize), ct);
+        return Results.Ok(result.Map(UserResource.From));
     }
 
-    private static async Task<IResult> ChangeOwnPassword(HttpContext ctx, IDispatcher dispatcher)
+    private static async Task<IResult> CreateUser(
+        CreateUserRequest request, IDispatcher dispatcher, CancellationToken ct)
     {
-        await RequestAuth.GateAsync(ctx);
-
-        var body = await BodyValidator.ReadAsync(ctx);
-        var currentPassword = body.RequiredString("currentPassword");
-        var newPassword = body.RequiredString("newPassword", minLength: 8);
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
-
-        await dispatcher.Send(
-            new ChangeOwnPasswordCommand(currentPassword, newPassword), ctx.RequestAborted);
-        return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, includeData: false);
-    }
-
-    private static async Task<IResult> ListUsers(HttpContext ctx, IDispatcher dispatcher)
-    {
-        await RequestAuth.GateAsync(ctx);
-
-        var query = QueryValidator.Read(ctx);
-        var page = query.OptionalInt("page", min: 1) ?? 1;
-        var limit = query.OptionalInt("limit", min: 1, max: 100) ?? 20;
-        query.RejectUnknownParams();
-        query.ThrowIfInvalid();
-
-        var result = await dispatcher.Send(new ListUsersQuery(page, limit), ctx.RequestAborted);
-        var data = new JsonArray([.. result.Users.Select(u => (JsonNode?)UserJson(u, includeRoles: true))]);
-        return ApiEnvelope.Success(
-            ctx, StatusCodes.Status200OK, data,
-            extra: ApiEnvelope.Pagination(result.Page, result.PageSize, result.TotalItems));
-    }
-
-    private static async Task<IResult> CreateStaff(HttpContext ctx, IDispatcher dispatcher)
-    {
-        await RequestAuth.GateAsync(ctx);
-
-        var body = await BodyValidator.ReadAsync(ctx);
-        var username = body.RequiredString("username");
-        var email = body.RequiredString("email", email: true);
-        var firstName = body.RequiredString("firstName");
-        var secondName = body.OptionalString("secondName");
-        var firstLastName = body.RequiredString("firstLastName");
-        var secondLastName = body.OptionalString("secondLastName");
-        var phoneNumber = body.OptionalString("phoneNumber");
-        // Frozen @IsIn(ROLE_VALUES) — constraint key isIn, not isEnum.
-        var role = body.RequiredString("role", oneOf: RoleCatalog.All, oneOfConstraint: "isIn");
-        var tempPassword = body.RequiredString("tempPassword", minLength: 8);
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
-
         var created = await dispatcher.Send(
             new CreateStaffUserCommand(
-                username, email, firstName, secondName, firstLastName,
-                secondLastName, phoneNumber, role, tempPassword),
-            ctx.RequestAborted);
-        // Frozen response: the created row without roles (and of course without
-        // any password field).
-        return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, UserJson(created, includeRoles: false));
+                request.Username,
+                request.Email,
+                request.FirstName,
+                request.SecondName,
+                request.FirstLastName,
+                request.SecondLastName,
+                request.PhoneNumber,
+                request.Role,
+                request.TempPassword),
+            ct);
+        return Results.Created($"/api/v1/users/{created.User.Id}", UserResource.From(created));
     }
 
-    private static async Task<IResult> GetUser(HttpContext ctx, string id, IDispatcher dispatcher)
+    private static async Task<IResult> GetUser(Guid id, IDispatcher dispatcher, CancellationToken ct) =>
+        Results.Ok(UserResource.From(await dispatcher.Send(new GetUserQuery(id), ct)));
+
+    private static async Task<IResult> UpdateUser(
+        Guid id, UpdateUserRoleRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+        Results.Ok(UserResource.From(
+            await dispatcher.Send(new ChangeUserRoleCommand(id, request.Role), ct)));
+
+    private static async Task<IResult> UpdateOwnProfile(
+        UpdateOwnProfileRequest request, IDispatcher dispatcher, CancellationToken ct) =>
+        Results.Ok(UserResource.From(await dispatcher.Send(
+            new UpdateOwnProfileCommand(request.FirstName, request.Email), ct)));
+
+    private static async Task<IResult> ChangeOwnPassword(
+        ChangeOwnPasswordRequest request,
+        HttpContext context,
+        IDispatcher dispatcher,
+        HsmSessionSignIn sessions,
+        CancellationToken ct)
     {
-        await RequestAuth.GateAsync(ctx);
-
-        // No UUID pipe in the frozen route: a malformed id reached the driver
-        // and failed as a 500. Guid.Parse reproduces that observable surface
-        // (FormatException → the 500 envelope).
-        var user = await dispatcher.Send(new GetUserQuery(Guid.Parse(id)), ctx.RequestAborted);
-        return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, UserJson(user, includeRoles: true));
-    }
-
-    private static async Task<IResult> ChangeUserRole(HttpContext ctx, string id, IDispatcher dispatcher)
-    {
-        await RequestAuth.GateAsync(ctx);
-
-        var body = await BodyValidator.ReadAsync(ctx);
-        var role = body.RequiredString("role", oneOf: RoleCatalog.All, oneOfConstraint: "isIn");
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
-
+        ArgumentNullException.ThrowIfNull(sessions);
         var user = await dispatcher.Send(
-            new ChangeUserRoleCommand(Guid.Parse(id), role), ctx.RequestAborted);
-        return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, UserJson(user, includeRoles: true));
-    }
+            new ChangeOwnPasswordCommand(request.CurrentPassword, request.NewPassword), ct);
 
-    /// <summary>
-    /// The frozen user JSON: every column except the password hash, dates as
-    /// ISO-8601, role rows attached where the frozen query loaded them.
-    /// </summary>
-    internal static JsonObject UserJson(User user, bool includeRoles)
-    {
-        var json = new JsonObject
+        // The change rotated the security stamp, so every cookie for this
+        // account — the caller's included — is now stale and would be refused
+        // on its next request. Every OTHER session losing its cookie is the
+        // point; this one losing it is not, and on the shell it presents as
+        // "I changed my password and got bounced to the sign-in screen".
+        // RefreshAsync reissues THIS session's cookie with the new stamp.
+        //
+        // Through HsmSessionSignIn rather than SignInManager.RefreshSignInAsync:
+        // the latter rebuilds the principal and carries only `amr` across, so it
+        // would drop the session claim and the caller's very next request would
+        // be refused for having no session — turning "keep my own session" into
+        // the exact sign-out it exists to prevent.
+        //
+        // Only when the caller actually has a cookie session: an integration
+        // authenticated by bearer must not be handed one as a side effect of a
+        // password change, and AuthenticateAsync's per-request cache makes the
+        // check free.
+        if ((await context.AuthenticateAsync(IdentityConstants.ApplicationScheme)).Succeeded)
         {
-            ["id"] = user.Id.ToString(),
-            ["username"] = user.Username,
-            ["email"] = user.Email,
-            ["firstName"] = user.FirstName,
-            ["secondName"] = user.SecondName,
-            ["firstLastName"] = user.FirstLastName,
-            ["secondLastName"] = user.SecondLastName,
-            ["phoneNumber"] = user.PhoneNumber,
-            ["gender"] = user.Gender,
-            ["lastLoginAt"] = IsoTimestamp.Of(user.LastLoginAt),
-            ["onboardingCompletedAt"] = IsoTimestamp.Of(user.OnboardingCompletedAt),
-            ["isActive"] = user.IsActive,
-            ["emailVerified"] = user.EmailVerified,
-            ["phoneVerified"] = user.PhoneVerified,
-            ["createdAt"] = IsoTimestamp.Of(user.CreatedAt),
-            ["updatedAt"] = IsoTimestamp.Of(user.UpdatedAt),
-            ["deletedAt"] = IsoTimestamp.Of(user.DeletedAt),
-        };
-        if (includeRoles)
-        {
-            var roles = new JsonArray();
-            foreach (var role in user.Roles)
-            {
-                roles.Add(new JsonObject
-                {
-                    ["id"] = role.Id.ToString(),
-                    ["domain"] = role.Domain,
-                    ["role"] = role.Role,
-                    ["createdAt"] = IsoTimestamp.Of(role.CreatedAt),
-                });
-            }
-
-            json["roles"] = roles;
+            await sessions.RefreshAsync(user, ct);
         }
 
-        return json;
+        return Results.NoContent();
     }
 }

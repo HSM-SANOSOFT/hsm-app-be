@@ -1,48 +1,47 @@
 using Hsm.Application.Abstractions;
 using Hsm.Application.Docs;
 using Hsm.Application.Docs.Commands.DeleteDocument;
+using Hsm.Application.Docs.Commands.DeleteDocumentBlobs;
 using Hsm.Application.Docs.Commands.UploadDocuments;
 using Hsm.Application.Docs.Queries.GetDocumentUrl;
 using Hsm.Application.Docs.Queries.ListDocuments;
 using Hsm.Application.Errors;
+using Hsm.Application.Ports;
+using Hsm.Contracts;
 using Hsm.Contracts.Ui;
 using Hsm.Web.Auth;
 
 namespace Hsm.Web.Services;
 
 /// <summary>
-/// Host-side document management (plan U18, screen 5): publish the actor, then
-/// dispatch the same requests the frozen /v1/docs endpoints do, with the
-/// frozen createdBy scoping bound to the signed-in admin (see
+/// Host-side document management (plan U18, screen 5): publish the actor,
+/// then dispatch the same requests the /v1/docs endpoints do, with the same
+/// createdBy scoping bound to the signed-in admin (see
 /// <see cref="ShellActor"/>). Uploads land in the configured docs bucket under
 /// a fixed folder — the screen does not expose bucket/folder choice.
 /// </summary>
 public sealed class DocumentsAdminUiService(
     ShellActor shellActor,
     IDispatcher dispatcher,
+    IJobQueue jobQueue,
     DocsOptions docsOptions) : IDocumentsAdminUiService
 {
     /// <summary>Where screen uploads land inside the docs bucket.</summary>
     public const string UploadFolder = "admin-uploads";
 
-    public async Task<DocumentListPageDto> ListDocumentsAsync(
+    public async Task<PagedResult<DocumentRowDto>> ListDocumentsAsync(
         int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var actor = await shellActor.InstallAsync(cancellationToken)
-            ?? throw ApiException.Unauthorized();
-        // The frozen createdBy scoping: this screen lists the signed-in
-        // admin's own uploads. Whether that caller may list at all is
+            ?? throw new UnauthorizedException();
+        // CreatedBy scoping: this screen lists the signed-in admin's own
+        // uploads. Whether that caller may list at all is
         // ListDocumentsQuery's policy, decided in the pipeline a line later.
         var adminId = Guid.Parse(actor.Id);
         var filter = new DocumentListFilter(
-            adminId, EntityId: null, EntityType: null, Type: null, Status: null, page, pageSize);
-        var result = await dispatcher.Send(new ListDocumentsQuery(filter), cancellationToken);
-        return new DocumentListPageDto(
-            [.. result.Items.Select(d => new DocumentRowDto(
-                d.Id.ToString(), d.Title, d.Type, d.Status, d.CreatedAt))],
-            page,
-            pageSize,
-            result.Total);
+            adminId, EntityId: null, EntityType: null, Type: null, Status: null);
+        var result = await dispatcher.Send(new ListDocumentsQuery(filter, page, pageSize), cancellationToken);
+        return result.Map(d => new DocumentRowDto(d.Id.ToString(), d.Title, d.Type, d.Status, d.CreatedAt));
     }
 
     public async Task<IReadOnlyList<string>> UploadAsync(
@@ -100,6 +99,17 @@ public sealed class DocumentsAdminUiService(
     public async Task DeleteAsync(string documentId, CancellationToken cancellationToken = default)
     {
         await shellActor.InstallAsync(cancellationToken);
-        await dispatcher.Send(new DeleteDocumentCommand(Guid.Parse(documentId)), cancellationToken);
+        var result = await dispatcher.Send(new DeleteDocumentCommand(Guid.Parse(documentId)), cancellationToken);
+
+        // Same post-commit-enqueue rule as DocumentEndpoints.DeleteDocument:
+        // DeleteDocumentHandler no longer deletes blobs itself (see its own
+        // doc comment) — this door must schedule the cleanup exactly the way
+        // the REST door does, or an admin-screen delete would leak the blob
+        // forever.
+        if (result.Blobs.Count > 0)
+        {
+            await jobQueue.EnqueueAsync(
+                new DeleteDocumentBlobsCommand(result.DocumentId, result.Blobs), CancellationToken.None);
+        }
     }
 }

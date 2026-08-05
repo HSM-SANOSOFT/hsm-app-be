@@ -1,6 +1,5 @@
-using System.Security.Claims;
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Microsoft.AspNetCore.Components.Authorization;
 
 namespace Hsm.Web.Auth;
@@ -21,7 +20,9 @@ namespace Hsm.Web.Auth;
 /// The authentication state (rather than <c>IHttpContextAccessor</c>) is the
 /// source because it is the only one that resolves both inside an interactive
 /// circuit and during static server rendering; see
-/// <see cref="HsmAuthenticationStateProvider"/>.
+/// <see cref="HsmAuthenticationStateProvider"/>. Since Task 12 that state's
+/// principal is the framework's own — the Identity session cookie's — so there
+/// is nothing left here to parse out of a token.
 /// </summary>
 public sealed class ShellActor(
     AuthenticationStateProvider authenticationState,
@@ -36,21 +37,11 @@ public sealed class ShellActor(
     public async Task<RequestActor?> InstallAsync(CancellationToken ct = default)
     {
         var state = await authenticationState.GetAuthenticationStateAsync();
-        var user = state.User;
-        var id = user.Identity is { IsAuthenticated: true }
-            ? user.FindFirstValue(ClaimTypes.NameIdentifier)
-            : null;
-        if (string.IsNullOrEmpty(id))
-        {
-            ambientPrincipal.Set(null);
-            return null;
-        }
 
-        var actor = await actorFactory.CreateAsync(
-            id,
-            [.. user.FindAll(ClaimTypes.Role).Select(claim => claim.Value)],
-            user.FindFirstValue(AuthPrincipalClaims.OnboardingCompletedAtClaim),
-            ct);
+        // The SAME derivation the REST door runs, on the same ClaimsPrincipal
+        // type, through the same Hsm.Application factory — so the two doors
+        // cannot drift on who a caller is or whether they are onboarded.
+        var actor = await actorFactory.CreateAsync(state.User, ct);
         ambientPrincipal.Set(actor);
         return actor;
     }

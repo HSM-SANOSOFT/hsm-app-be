@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Application.Templates.Queries.GetTemplate;
 using Hsm.Domain.Templates;
 
@@ -9,7 +9,7 @@ namespace Hsm.Application.Templates.Commands.CreateTemplate;
 public sealed class CreateTemplateHandler(
     ITemplateStore store,
     ITemplateRenderer renderer,
-    IAuthUnitOfWork unitOfWork,
+    IUnitOfWork unitOfWork,
     IRequestHandler<GetTemplateQuery, Template> reader)
     : IRequestHandler<CreateTemplateCommand, Template>
 {
@@ -56,11 +56,11 @@ public sealed class CreateTemplateHandler(
         await store.AddAsync(template, ct);
         await unitOfWork.SaveChangesAsync(ct);
 
-        // Frozen behavior: respond with the fresh read-back (children + base).
+        // Respond with the fresh read-back (children + base).
         return await reader.HandleAsync(new GetTemplateQuery(template.Id.ToString()), ct);
     }
 
-    /// <summary>The frozen assertCategoryShape, message for message.</summary>
+    /// <summary>Validates category-conditional shape requirements for the payload.</summary>
     internal static void AssertCategoryShape(TemplatePayload command)
     {
         var category = command.Category;

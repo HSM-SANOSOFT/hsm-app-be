@@ -6,18 +6,31 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="AWSSDK.S3" Version="4.0.101.5" />
-    <PackageVersion Include="BCrypt.Net-Next" Version="4.2.0" />
+    <PackageVersion Include="FluentValidation" Version="12.1.1" />
+    <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
     <PackageVersion Include="Handlebars.Net" Version="2.1.6" />
     <PackageVersion Include="Hl7.Fhir.R4" Version="6.3.0" />
     <PackageVersion Include="MeiliSearch" Version="0.20.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.Authorization" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.10" />
     <PackageVersion Include="Microsoft.AspNetCore.Components.Web" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    <!-- Microsoft.AspNetCore.OpenApi 10.0.10 pulls in Microsoft.OpenApi 2.0.0,
+         which carries a high-severity stack-overflow advisory
+         (GHSA-v5pm-xwqc-g5wc, CVE-2026-49451) on circular-schema-reference
+         parsing; patched at 2.7.5+ in the 2.x line. Pinned explicitly (and
+         referenced directly below) so restore resolves the patched version
+         instead of the vulnerable transitive minimum. -->
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.11.0" />
     <PackageVersion Include="MudBlazor" Version="9.7.0" />
     <PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Identity.Core" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Identity.Stores" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.Testing" Version="10.8.0" />
     <!-- Design-time only: the migrations scaffolder. Pinned to the EF Core
          version Npgsql.EntityFrameworkCore.PostgreSQL resolves, so the tool
@@ -28,6 +41,7 @@
     <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.21.0" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageVersion Include="QuestPDF" Version="2026.7.1" />
+    <PackageVersion Include="Scalar.AspNetCore" Version="2.16.17" />
     <PackageVersion Include="StackExchange.Redis" Version="2.7.27" />
     <PackageVersion Include="Npgsql.OpenTelemetry" Version="10.0.3" />
     <PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.17.0" />

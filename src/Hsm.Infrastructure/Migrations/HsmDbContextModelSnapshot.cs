@@ -18,7 +18,7 @@ namespace Hsm.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "citext");
@@ -460,6 +460,109 @@ namespace Hsm.Infrastructure.Migrations
                     b.ToTable("documents-version", (string)null);
                 });
 
+            modelBuilder.Entity("Hsm.Domain.Identity.HsmUser", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AccessFailedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("citext");
+
+                    b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("FirstLastName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Gender")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastLoginAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("LockoutEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NormalizedEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("citext");
+
+                    b.Property<string>("NormalizedUserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("citext");
+
+                    b.Property<DateTimeOffset?>("OnboardingCompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("PhoneNumberConfirmed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("SecondLastName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SecondName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SecurityStamp")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("TwoFactorEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("citext");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedEmail")
+                        .IsUnique()
+                        .HasDatabaseName("ix_users_normalized_email")
+                        .HasFilter("\"DeletedAt\" IS NULL");
+
+                    b.HasIndex("NormalizedUserName")
+                        .IsUnique()
+                        .HasDatabaseName("ix_users_normalized_user_name")
+                        .HasFilter("\"DeletedAt\" IS NULL");
+
+                    b.ToTable("users", (string)null);
+                });
+
             modelBuilder.Entity("Hsm.Domain.Identity.IntegrationAccount", b =>
                 {
                     b.Property<Guid>("Id")
@@ -527,7 +630,7 @@ namespace Hsm.Infrastructure.Migrations
                     b.ToTable("refresh_token_user_integration", (string)null);
                 });
 
-            modelBuilder.Entity("Hsm.Domain.Identity.PasswordResetToken", b =>
+            modelBuilder.Entity("Hsm.Domain.Identity.UserSession", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -539,158 +642,14 @@ namespace Hsm.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("TokenHash")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset?>("UsedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TokenHash");
+                    b.HasIndex("UserId", "ExpiresAt");
 
-                    b.HasIndex("UserId");
-
-                    b.ToTable("password_reset_tokens", (string)null);
-                });
-
-            modelBuilder.Entity("Hsm.Domain.Identity.User", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("citext");
-
-                    b.Property<bool>("EmailVerified")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("FirstLastName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("FirstName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Gender")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset?>("LastLoginAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTimeOffset?>("OnboardingCompletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("PasswordHash")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("PhoneNumber")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("PhoneVerified")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("SecondLastName")
-                        .HasColumnType("text");
-
-                    b.Property<string>("SecondName")
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("citext");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Email")
-                        .IsUnique()
-                        .HasFilter("\"DeletedAt\" IS NULL");
-
-                    b.HasIndex("Username")
-                        .IsUnique()
-                        .HasFilter("\"DeletedAt\" IS NULL");
-
-                    b.ToTable("users", (string)null);
-                });
-
-            modelBuilder.Entity("Hsm.Domain.Identity.UserRefreshToken", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("TokenHash")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TokenHash")
-                        .IsUnique();
-
-                    b.HasIndex("UserId", "IsActive");
-
-                    b.ToTable("refresh_token_users", (string)null);
-                });
-
-            modelBuilder.Entity("Hsm.Domain.Identity.UserRole", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Domain")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId", "Domain", "Role")
-                        .IsUnique();
-
-                    b.ToTable("user_roles", (string)null);
+                    b.ToTable("user_sessions", (string)null);
                 });
 
             modelBuilder.Entity("Hsm.Domain.Proving.ProvingItem", b =>
@@ -982,6 +941,411 @@ namespace Hsm.Infrastructure.Migrations
                     b.ToTable("template_coms_sms", (string)null);
                 });
 
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("NormalizedName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("RoleNameIndex");
+
+                    b.ToTable("roles", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("e576698c-41b5-1504-bde9-08bd4dee15df"),
+                            ConcurrencyStamp = "e576698c-41b5-1504-bde9-08bd4dee15df",
+                            Name = "admin",
+                            NormalizedName = "ADMIN"
+                        },
+                        new
+                        {
+                            Id = new Guid("750dfa88-849f-475b-c044-c2cd44e29082"),
+                            ConcurrencyStamp = "750dfa88-849f-475b-c044-c2cd44e29082",
+                            Name = "developer",
+                            NormalizedName = "DEVELOPER"
+                        },
+                        new
+                        {
+                            Id = new Guid("52cc92eb-66a7-00c5-e001-d02f1eaa7878"),
+                            ConcurrencyStamp = "52cc92eb-66a7-00c5-e001-d02f1eaa7878",
+                            Name = "integration",
+                            NormalizedName = "INTEGRATION"
+                        },
+                        new
+                        {
+                            Id = new Guid("e32ca6c5-7ffa-866d-af00-09389ccd8152"),
+                            ConcurrencyStamp = "e32ca6c5-7ffa-866d-af00-09389ccd8152",
+                            Name = "auditor",
+                            NormalizedName = "AUDITOR"
+                        },
+                        new
+                        {
+                            Id = new Guid("89bef472-ebd6-14ab-96e2-1e38bcd7c8ca"),
+                            ConcurrencyStamp = "89bef472-ebd6-14ab-96e2-1e38bcd7c8ca",
+                            Name = "doctor",
+                            NormalizedName = "DOCTOR"
+                        },
+                        new
+                        {
+                            Id = new Guid("16511e78-e1a1-344a-eada-50159d589e69"),
+                            ConcurrencyStamp = "16511e78-e1a1-344a-eada-50159d589e69",
+                            Name = "nurse",
+                            NormalizedName = "NURSE"
+                        },
+                        new
+                        {
+                            Id = new Guid("9c9dba29-5aef-4666-1116-a24938bb9307"),
+                            ConcurrencyStamp = "9c9dba29-5aef-4666-1116-a24938bb9307",
+                            Name = "technician",
+                            NormalizedName = "TECHNICIAN"
+                        },
+                        new
+                        {
+                            Id = new Guid("3ae58ff7-103f-847b-4ec9-b58963a6d6cd"),
+                            ConcurrencyStamp = "3ae58ff7-103f-847b-4ec9-b58963a6d6cd",
+                            Name = "therapist",
+                            NormalizedName = "THERAPIST"
+                        },
+                        new
+                        {
+                            Id = new Guid("ca26992e-a3f5-364b-25f9-f73567680a47"),
+                            ConcurrencyStamp = "ca26992e-a3f5-364b-25f9-f73567680a47",
+                            Name = "pharmacist",
+                            NormalizedName = "PHARMACIST"
+                        },
+                        new
+                        {
+                            Id = new Guid("02a76b6a-0a49-4737-9175-18200e696dea"),
+                            ConcurrencyStamp = "02a76b6a-0a49-4737-9175-18200e696dea",
+                            Name = "admission",
+                            NormalizedName = "ADMISSION"
+                        },
+                        new
+                        {
+                            Id = new Guid("ecc7950c-cee1-971a-5027-5ef1c6d7ad6b"),
+                            ConcurrencyStamp = "ecc7950c-cee1-971a-5027-5ef1c6d7ad6b",
+                            Name = "billing",
+                            NormalizedName = "BILLING"
+                        },
+                        new
+                        {
+                            Id = new Guid("a6b419a9-d9cd-a925-7e96-9ae31b2c092b"),
+                            ConcurrencyStamp = "a6b419a9-d9cd-a925-7e96-9ae31b2c092b",
+                            Name = "scheduling",
+                            NormalizedName = "SCHEDULING"
+                        },
+                        new
+                        {
+                            Id = new Guid("e6477b63-38ae-42b2-015f-de4b9f03a693"),
+                            ConcurrencyStamp = "e6477b63-38ae-42b2-015f-de4b9f03a693",
+                            Name = "human_resources",
+                            NormalizedName = "HUMAN_RESOURCES"
+                        },
+                        new
+                        {
+                            Id = new Guid("3bc68985-4309-2ba6-fda9-b35dccc71a30"),
+                            ConcurrencyStamp = "3bc68985-4309-2ba6-fda9-b35dccc71a30",
+                            Name = "maintenance",
+                            NormalizedName = "MAINTENANCE"
+                        },
+                        new
+                        {
+                            Id = new Guid("f97168c2-6492-488a-0184-8b93f9ccb46f"),
+                            ConcurrencyStamp = "f97168c2-6492-488a-0184-8b93f9ccb46f",
+                            Name = "housekeeping",
+                            NormalizedName = "HOUSEKEEPING"
+                        },
+                        new
+                        {
+                            Id = new Guid("eb3c2d5d-be7a-2355-4427-6d47d36a8175"),
+                            ConcurrencyStamp = "eb3c2d5d-be7a-2355-4427-6d47d36a8175",
+                            Name = "security",
+                            NormalizedName = "SECURITY"
+                        },
+                        new
+                        {
+                            Id = new Guid("04a7d82a-7c9d-1155-ac25-4f5f51fe70a0"),
+                            ConcurrencyStamp = "04a7d82a-7c9d-1155-ac25-4f5f51fe70a0",
+                            Name = "it",
+                            NormalizedName = "IT"
+                        },
+                        new
+                        {
+                            Id = new Guid("9ec9d829-5bc2-1027-07f0-5eace87ec009"),
+                            ConcurrencyStamp = "9ec9d829-5bc2-1027-07f0-5eace87ec009",
+                            Name = "accountant",
+                            NormalizedName = "ACCOUNTANT"
+                        },
+                        new
+                        {
+                            Id = new Guid("741af960-5824-60ae-6572-f40dd7df0a12"),
+                            ConcurrencyStamp = "741af960-5824-60ae-6572-f40dd7df0a12",
+                            Name = "payroll",
+                            NormalizedName = "PAYROLL"
+                        },
+                        new
+                        {
+                            Id = new Guid("856e9b9c-304f-8b9d-7e71-c662284daf92"),
+                            ConcurrencyStamp = "856e9b9c-304f-8b9d-7e71-c662284daf92",
+                            Name = "financial_analyst",
+                            NormalizedName = "FINANCIAL_ANALYST"
+                        },
+                        new
+                        {
+                            Id = new Guid("13348d76-a955-2a4e-5a21-851b06398242"),
+                            ConcurrencyStamp = "13348d76-a955-2a4e-5a21-851b06398242",
+                            Name = "insurance_specialist",
+                            NormalizedName = "INSURANCE_SPECIALIST"
+                        },
+                        new
+                        {
+                            Id = new Guid("e478c788-c4d1-6686-923e-11677d00849c"),
+                            ConcurrencyStamp = "e478c788-c4d1-6686-923e-11677d00849c",
+                            Name = "community_manager",
+                            NormalizedName = "COMMUNITY_MANAGER"
+                        },
+                        new
+                        {
+                            Id = new Guid("a9524f1e-f059-4605-bff6-e2f2adf6bbea"),
+                            ConcurrencyStamp = "a9524f1e-f059-4605-bff6-e2f2adf6bbea",
+                            Name = "designer",
+                            NormalizedName = "DESIGNER"
+                        },
+                        new
+                        {
+                            Id = new Guid("3637499d-6472-3e8e-a0c7-692eebf67f54"),
+                            ConcurrencyStamp = "3637499d-6472-3e8e-a0c7-692eebf67f54",
+                            Name = "crm_specialist",
+                            NormalizedName = "CRM_SPECIALIST"
+                        },
+                        new
+                        {
+                            Id = new Guid("323d9907-6536-c3d0-1b9c-255d3530ff68"),
+                            ConcurrencyStamp = "323d9907-6536-c3d0-1b9c-255d3530ff68",
+                            Name = "quality_officer",
+                            NormalizedName = "QUALITY_OFFICER"
+                        },
+                        new
+                        {
+                            Id = new Guid("4b59596a-5fa4-34ef-6b39-87ac3ee2c5c3"),
+                            ConcurrencyStamp = "4b59596a-5fa4-34ef-6b39-87ac3ee2c5c3",
+                            Name = "compliance_officer",
+                            NormalizedName = "COMPLIANCE_OFFICER"
+                        },
+                        new
+                        {
+                            Id = new Guid("db5968ba-517f-9dd9-278b-e471b4ecbcf1"),
+                            ConcurrencyStamp = "db5968ba-517f-9dd9-278b-e471b4ecbcf1",
+                            Name = "process_analyst",
+                            NormalizedName = "PROCESS_ANALYST"
+                        },
+                        new
+                        {
+                            Id = new Guid("272d36f0-554e-7795-cf46-1285e54f8650"),
+                            ConcurrencyStamp = "272d36f0-554e-7795-cf46-1285e54f8650",
+                            Name = "legal_counsel",
+                            NormalizedName = "LEGAL_COUNSEL"
+                        },
+                        new
+                        {
+                            Id = new Guid("89593dc5-9dc5-c2e3-5d71-6daf9f544c0f"),
+                            ConcurrencyStamp = "89593dc5-9dc5-c2e3-5d71-6daf9f544c0f",
+                            Name = "paralegal",
+                            NormalizedName = "PARALEGAL"
+                        },
+                        new
+                        {
+                            Id = new Guid("12d272e5-ebbb-e8d1-8d8e-ea0217919612"),
+                            ConcurrencyStamp = "12d272e5-ebbb-e8d1-8d8e-ea0217919612",
+                            Name = "clinical_researcher",
+                            NormalizedName = "CLINICAL_RESEARCHER"
+                        },
+                        new
+                        {
+                            Id = new Guid("91a2fd40-32f4-5b9e-9a5e-41bc372236f4"),
+                            ConcurrencyStamp = "91a2fd40-32f4-5b9e-9a5e-41bc372236f4",
+                            Name = "research_coordinator",
+                            NormalizedName = "RESEARCH_COORDINATOR"
+                        },
+                        new
+                        {
+                            Id = new Guid("d3a0d038-5f64-91da-31b7-04c5390de794"),
+                            ConcurrencyStamp = "d3a0d038-5f64-91da-31b7-04c5390de794",
+                            Name = "data_analyst",
+                            NormalizedName = "DATA_ANALYST"
+                        },
+                        new
+                        {
+                            Id = new Guid("a5ff8f63-f338-9108-158f-5ffdf658cde4"),
+                            ConcurrencyStamp = "a5ff8f63-f338-9108-158f-5ffdf658cde4",
+                            Name = "social_worker",
+                            NormalizedName = "SOCIAL_WORKER"
+                        },
+                        new
+                        {
+                            Id = new Guid("28aa9971-2304-1f3d-0b9f-8a2c7ff18ec2"),
+                            ConcurrencyStamp = "28aa9971-2304-1f3d-0b9f-8a2c7ff18ec2",
+                            Name = "case_manager",
+                            NormalizedName = "CASE_MANAGER"
+                        },
+                        new
+                        {
+                            Id = new Guid("96be82bd-3c4f-027c-926b-49ba8bd13a5e"),
+                            ConcurrencyStamp = "96be82bd-3c4f-027c-926b-49ba8bd13a5e",
+                            Name = "patient_advocate",
+                            NormalizedName = "PATIENT_ADVOCATE"
+                        },
+                        new
+                        {
+                            Id = new Guid("a8f3f682-2809-3cc7-7b78-36dc63ffd8d6"),
+                            ConcurrencyStamp = "a8f3f682-2809-3cc7-7b78-36dc63ffd8d6",
+                            Name = "guest_relations",
+                            NormalizedName = "GUEST_RELATIONS"
+                        },
+                        new
+                        {
+                            Id = new Guid("47872314-ed33-62cf-404a-a8f08ad669d2"),
+                            ConcurrencyStamp = "47872314-ed33-62cf-404a-a8f08ad669d2",
+                            Name = "patient_services",
+                            NormalizedName = "PATIENT_SERVICES"
+                        },
+                        new
+                        {
+                            Id = new Guid("7aff9522-d88b-f2b3-884c-6482146e3ded"),
+                            ConcurrencyStamp = "7aff9522-d88b-f2b3-884c-6482146e3ded",
+                            Name = "patient",
+                            NormalizedName = "PATIENT"
+                        },
+                        new
+                        {
+                            Id = new Guid("9a564ad3-aab7-4da5-acd7-15ae64953455"),
+                            ConcurrencyStamp = "9a564ad3-aab7-4da5-acd7-15ae64953455",
+                            Name = "family",
+                            NormalizedName = "FAMILY"
+                        });
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ClaimType")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClaimValue")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("role_claims", (string)null);
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ClaimType")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClaimValue")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("user_claims", (string)null);
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
+                {
+                    b.Property<string>("LoginProvider")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProviderKey")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProviderDisplayName")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("LoginProvider", "ProviderKey");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("user_logins", (string)null);
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("UserId", "RoleId");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("user_roles", (string)null);
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LoginProvider")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Value")
+                        .HasColumnType("text");
+
+                    b.HasKey("UserId", "LoginProvider", "Name");
+
+                    b.ToTable("user_tokens", (string)null);
+                });
+
             modelBuilder.Entity("Hsm.Domain.Clinical.PatientIdentifier", b =>
                 {
                     b.HasOne("Hsm.Domain.Clinical.Patient", null)
@@ -1070,28 +1434,10 @@ namespace Hsm.Infrastructure.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Hsm.Domain.Identity.PasswordResetToken", b =>
+            modelBuilder.Entity("Hsm.Domain.Identity.UserSession", b =>
                 {
-                    b.HasOne("Hsm.Domain.Identity.User", null)
+                    b.HasOne("Hsm.Domain.Identity.HsmUser", null)
                         .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Hsm.Domain.Identity.UserRefreshToken", b =>
-                {
-                    b.HasOne("Hsm.Domain.Identity.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Hsm.Domain.Identity.UserRole", b =>
-                {
-                    b.HasOne("Hsm.Domain.Identity.User", null)
-                        .WithMany("Roles")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1151,6 +1497,57 @@ namespace Hsm.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
+                {
+                    b.HasOne("Hsm.Domain.Identity.HsmUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
+                {
+                    b.HasOne("Hsm.Domain.Identity.HsmUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Hsm.Domain.Identity.HsmUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
+                {
+                    b.HasOne("Hsm.Domain.Identity.HsmUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Hsm.Domain.Clinical.Patient", b =>
                 {
                     b.Navigation("Identifiers");
@@ -1175,11 +1572,6 @@ namespace Hsm.Infrastructure.Migrations
                     b.Navigation("Generated");
 
                     b.Navigation("Storage");
-                });
-
-            modelBuilder.Entity("Hsm.Domain.Identity.User", b =>
-                {
-                    b.Navigation("Roles");
                 });
 
             modelBuilder.Entity("Hsm.Domain.Proving.ProvingRoot", b =>

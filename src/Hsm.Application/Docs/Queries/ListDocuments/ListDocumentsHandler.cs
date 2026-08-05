@@ -1,14 +1,15 @@
 using Hsm.Application.Abstractions;
+using Hsm.Contracts;
+using Hsm.Domain.Docs;
 
 namespace Hsm.Application.Docs.Queries.ListDocuments;
 
 public sealed class ListDocumentsHandler(IDocumentStore store)
-    : IRequestHandler<ListDocumentsQuery, ListDocumentsResult>
+    : IRequestHandler<ListDocumentsQuery, PagedResult<Document>>
 {
-    public async Task<ListDocumentsResult> HandleAsync(ListDocumentsQuery request, CancellationToken ct)
+    public Task<PagedResult<Document>> HandleAsync(ListDocumentsQuery request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var (items, total) = await store.ListAsync(request.Filter, ct);
-        return new ListDocumentsResult(items, total);
+        return store.ListAsync(request.Filter, request.Page, request.PageSize, ct);
     }
 }

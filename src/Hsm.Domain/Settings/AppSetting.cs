@@ -1,9 +1,9 @@
 namespace Hsm.Domain.Settings;
 
 /// <summary>
-/// A store-managed application setting. Mirrors the frozen app_setting table:
-/// one row per key, category from the settings catalog, secrets flagged so
-/// the API masks them on read and in the audit log.
+/// A store-managed application setting: one row per key, category from the
+/// settings catalog, secrets flagged so the API masks them on read and in
+/// the audit log.
 /// </summary>
 public class AppSetting
 {
@@ -20,9 +20,9 @@ public class AppSetting
 }
 
 /// <summary>
-/// One audit entry per effective settings change (frozen app_setting_audit):
-/// who changed what, from which value to which value. Secret values are
-/// stored MASKED — the plaintext never reaches this table.
+/// One audit entry per effective settings change: who changed what, from
+/// which value to which value. Secret values are stored MASKED — the
+/// plaintext never reaches this table.
 /// </summary>
 public class AppSettingAudit
 {

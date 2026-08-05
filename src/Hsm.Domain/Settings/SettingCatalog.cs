@@ -1,9 +1,6 @@
 namespace Hsm.Domain.Settings;
 
-/// <summary>
-/// Setting categories frozen by the reference implementation
-/// (packages/common/src/enums/settings.enum.ts). Values are contract.
-/// </summary>
+/// <summary>Setting categories. Values are contract.</summary>
 public static class SettingsCategories
 {
     public const string Email = "EMAIL";
@@ -18,12 +15,11 @@ public static class SettingsCategories
 public sealed record SettingDefinition(string Key, string Category, bool IsSecret);
 
 /// <summary>
-/// The store-managed settings catalog, frozen at
-/// packages/database/src/settings/setting-definitions.ts. Only these keys are
-/// readable/writable through the settings API — unknown keys are ignored, and
-/// infra keys (DB/Redis/JWT, throttler limits) are deliberately absent: they
-/// stay deploy-only. Each definition's deploy-environment seed is resolved
-/// through the ISettingSeedSource port, mirroring the frozen envValue().
+/// The store-managed settings catalog. Only these keys are readable/writable
+/// through the settings API — unknown keys are ignored, and infra keys
+/// (DB/Redis/JWT, throttler limits) are deliberately absent: they stay
+/// deploy-only. Each definition's deploy-environment seed is resolved
+/// through the ISettingSeedSource port.
 /// </summary>
 public static class SettingCatalog
 {
@@ -37,7 +33,7 @@ public static class SettingCatalog
         new("SMTP_SECURE", SettingsCategories.Email, IsSecret: false),
         // WEBHOOK signing keys
         new("COMS_WEBHOOK_SIGNING_KEYS", SettingsCategories.Webhook, IsSecret: true),
-        // STORAGE / S3 (access key non-secret, secret key secret — frozen flags)
+        // STORAGE / S3 (access key non-secret, secret key secret)
         new("STRG_S3_ACCESS_KEY", SettingsCategories.Storage, IsSecret: false),
         new("STRG_S3_SECRET_KEY", SettingsCategories.Storage, IsSecret: true),
         new("STRG_S3_HOST", SettingsCategories.Storage, IsSecret: false),
@@ -53,4 +49,6 @@ public static class SettingCatalog
 
     public static SettingDefinition? ForKey(string key) =>
         Definitions.FirstOrDefault(d => d.Key == key);
+
+    public static bool IsKnown(string category) => SettingsCategories.All.Contains(category, StringComparer.Ordinal);
 }

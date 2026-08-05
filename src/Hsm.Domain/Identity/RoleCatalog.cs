@@ -1,9 +1,8 @@
 namespace Hsm.Domain.Identity;
 
 /// <summary>
-/// Role identifiers frozen by the reference implementation
-/// (packages/common/src/enums/roles.enum.ts at freeze/typescript-2026-07-27).
-/// The string values are contract: they ride in JWTs and role rows.
+/// Role identifiers. The string values are contract: they ride in JWTs and
+/// role rows.
 /// </summary>
 public static class Roles
 {
@@ -60,9 +59,9 @@ public static class Roles
 }
 
 /// <summary>
-/// Maps every role to its domain branch — the frozen RolesService resolved
-/// role→domain pairs before persisting role rows; unknown roles resolve to
-/// nothing (frozen behavior: silently skipped, or rejected by the caller).
+/// Maps every role to its domain branch, resolving role→domain pairs before
+/// persisting role rows; unknown roles resolve to nothing — silently
+/// skipped, or rejected by the caller.
 /// </summary>
 public static class RoleCatalog
 {
@@ -99,18 +98,25 @@ public static class RoleCatalog
     }
 
     /// <summary>
-    /// All known role identifiers in the frozen declaration order — the order
-    /// of the frozen ROLE_VALUES constant, which rides in validation messages.
+    /// All known role identifiers in declaration order — that order rides in
+    /// validation messages.
     /// </summary>
     public static IReadOnlyList<string> All => OrderedRoles;
 
-    public static bool IsKnown(string role) => DomainByRole.ContainsKey(role);
+    /// <summary>
+    /// Null-guarded (mirrors <c>TemplateCatalog.IsKnownCategory</c>): a
+    /// validator's <c>Must</c> rule runs even when an earlier <c>NotEmpty</c>
+    /// rule on the same property failed (FluentValidation's default cascade
+    /// is Continue), and a body-bound command's <c>Role</c> is a real
+    /// <see langword="null"/> — not <see cref="string.Empty"/> — when the
+    /// caller omits the field entirely.
+    /// </summary>
+    public static bool IsKnown(string? role) => role is not null && DomainByRole.ContainsKey(role);
 
     /// <summary>
-    /// Whether a role may be handed to a staff account. The frozen
-    /// createStaffUser guard rejects the patient-facing branch outright: those
-    /// accounts are created by the patient signup path, never by an admin
-    /// provisioning staff.
+    /// Whether a role may be handed to a staff account. Rejects the
+    /// patient-facing branch outright: those accounts are created by the
+    /// patient signup path, never by an admin provisioning staff.
     /// </summary>
     public static bool IsAssignableToStaff(string role) =>
         role is not (Roles.Patient or Roles.Family);
@@ -118,4 +124,14 @@ public static class RoleCatalog
     /// <summary>The domain branch for a role, or null when unknown.</summary>
     public static string? DomainOf(string role) =>
         DomainByRole.TryGetValue(role, out var domain) ? domain : null;
+
+    /// <summary>
+    /// The Identity role row's id for a role name, derived from the name so it
+    /// is the same in every database that ever gets seeded. That determinism is
+    /// what lets the seed live in the migration (HasData) instead of in a
+    /// startup task two hosts could race.
+    /// </summary>
+    public static Guid IdFor(string role) =>
+        new(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(role)).AsSpan(0, 16));
 }

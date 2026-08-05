@@ -1,30 +1,24 @@
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Application.Coms;
 using Hsm.Domain.Coms;
 
 namespace Hsm.Application.Coms.Commands.ProcessWebhookEvent;
 
 /// <summary>
-/// The frozen worker 'process-webhook-event' processor: idempotent on
-/// processedAt, matches the MOST RECENT recipient row by address, maps
-/// delivery-relevant event types onto the recipient's status, writes the
-/// suppression row for hard bounces and spam complaints (insert-or-ignore),
-/// and stamps processedAt — all in one <c>SaveChangesAsync</c> call, which is
-/// atomic on its own (a single call, relational provider) — the frozen
-/// <c>ExecuteInTransactionAsync</c> wrapper around it added no additional
-/// atomicity and is not carried forward.
+/// The 'process-webhook-event' processor: idempotent on processedAt, matches
+/// the MOST RECENT recipient row by address, maps delivery-relevant event
+/// types onto the recipient's status, writes the suppression row for hard
+/// bounces and spam complaints (insert-or-ignore), and stamps processedAt —
+/// all in one <c>SaveChangesAsync</c> call, which is atomic on its own (a
+/// single call, relational provider), so no explicit transaction wrapper is
+/// needed around it.
 /// </summary>
-/// <remarks>
-/// The frozen service also enqueued a 'send-alert' job afterwards, which the
-/// frozen worker never handled (every alert job failed as unknown). That dead
-/// enqueue is deliberately not ported.
-/// </remarks>
 public sealed class ProcessWebhookEventCommandHandler(
     IEmailWebhookEventStore events,
     IEmailBatchStore batches,
     IEmailSuppressionStore suppressions,
-    IAuthUnitOfWork unitOfWork) : IRequestHandler<ProcessWebhookEventCommand, Unit>
+    IUnitOfWork unitOfWork) : IRequestHandler<ProcessWebhookEventCommand, Unit>
 {
     public async Task<Unit> HandleAsync(ProcessWebhookEventCommand request, CancellationToken ct)
     {
@@ -69,7 +63,7 @@ public sealed class ProcessWebhookEventCommandHandler(
         return Unit.Value;
     }
 
-    /// <summary>The frozen event→recipient status map; null means no status change.</summary>
+    /// <summary>Maps a webhook event type to a recipient status; null means no status change.</summary>
     private static string? MapEventTypeToRecipientStatus(string eventType) => eventType switch
     {
         EmailWebhookEventTypes.Delivered => EmailRecipientStatus.Delivered,

@@ -1,6 +1,9 @@
 using System.Reflection;
 using Hsm.Application.Abstractions;
+using Hsm.Application.Identity.Commands.Login;
+using Hsm.Application.Identity.Commands.RefreshIntegrationTokens;
 using Hsm.Application.Coms.Commands.DispatchEmailBatch;
+using Hsm.Application.Docs.Commands.DeleteDocumentBlobs;
 using Hsm.Application.Docs.Commands.RenderDocument;
 
 namespace Hsm.Tests.Architecture;
@@ -13,7 +16,7 @@ namespace Hsm.Tests.Architecture;
 /// loudly, as a diff against <see cref="ExpectedPolicies"/> — rather than
 /// silently leaving a request unaccounted for. "Authenticated" (no attribute)
 /// is a valid, deliberate policy, not a gap: the point is that every one of the
-/// 53 current types is consciously listed, not that all must carry an
+/// 51 current types is consciously listed, not that all must carry an
 /// attribute. It also pins the <see cref="NoAmbientTransactionAttribute"/>
 /// carrier set, closing the Task 19 gap where that set was asserted per-module
 /// but never as a whole.
@@ -32,16 +35,38 @@ public class RequestPolicyClosureTests
     }
 
     [Fact]
-    public void The_NoAmbientTransaction_carrier_set_is_exactly_the_two_known_job_commands()
+    public void The_NoAmbientTransaction_carrier_set_is_exactly_the_five_known_commands()
     {
         var carriers = RequestTypes()
             .Where(t => t.GetCustomAttribute<NoAmbientTransactionAttribute>() is not null)
             .Select(t => t.Name)
             .OrderBy(n => n, StringComparer.Ordinal);
 
+        // Four carriers are here because a refusal from their handler writes
+        // something that must survive being refused:
+        //
+        // - Two queued jobs whose contract is to persist what went wrong and
+        //   then throw.
+        // - LoginCommand (Task 11): the lockout counter must survive the refusal
+        //   that incremented it.
+        // - RefreshIntegrationTokensCommand (Task 14): replaying a spent token
+        //   revokes the account's whole chain and then throws; an ambient
+        //   transaction would roll the revocation back with the exception,
+        //   silently turning reuse detection into a no-op.
+        //
+        // The fifth is here for the opposite reason — it writes nothing at all:
+        // - DeleteDocumentBlobsCommand: its handler only calls IObjectStorage,
+        //   so an ambient transaction would hold a Postgres connection open
+        //   across a batch of concurrent S3 deletes and issue no statement on it.
         Assert.Equal(
-            new[] { nameof(DispatchEmailBatchCommand), nameof(RenderDocumentCommand) }
-                .OrderBy(n => n, StringComparer.Ordinal),
+            new[]
+            {
+                nameof(DeleteDocumentBlobsCommand),
+                nameof(DispatchEmailBatchCommand),
+                nameof(LoginCommand),
+                nameof(RefreshIntegrationTokensCommand),
+                nameof(RenderDocumentCommand),
+            }.OrderBy(n => n, StringComparer.Ordinal),
             carriers);
     }
 
@@ -83,17 +108,18 @@ public class RequestPolicyClosureTests
         "CreatePatientCommand: RequireRole(doctor,nurse,technician,therapist,pharmacist,admin)",
         "CreateStaffUserCommand: RequireRole(admin)",
         "CreateTemplateCommand: Authenticated",
+        "DeleteDocumentBlobsCommand: Authenticated",
         "DeleteDocumentCommand: Authenticated",
         "DeleteTemplateCommand: Authenticated",
         "DispatchEmailBatchCommand: Authenticated",
         "DraftRenderQuery: Authenticated",
         "ForgotPasswordCommand: AllowAnonymousRequest",
         "GenerateDocumentCommand: Authenticated",
-        "GeneratePinCommand: Authenticated",
         "GetDocumentQuery: Authenticated",
         "GetDocumentUrlQuery: Authenticated",
         "GetEmailBatchQuery: Authenticated",
         "GetEmailRecipientQuery: Authenticated",
+        "GetMeQuery: AllowPendingOnboarding",
         "GetPatientQuery: RequireRole(doctor,nurse,technician,therapist,pharmacist,admin)",
         "GetSettingsQuery: RequireRole(admin)",
         "GetSystemStatusQuery: AllowAnonymousRequest",
@@ -101,20 +127,20 @@ public class RequestPolicyClosureTests
         "GetUserQuery: RequireRole(admin)",
         "IssueIntegrationTokensCommand: RequireRole(admin)",
         "ListDocumentsQuery: Authenticated",
-        "ListEmailBatchesQuery: Authenticated",
-        "ListEmailRecipientsQuery: Authenticated",
+        "ListEmailsQuery: Authenticated",
         "ListIntegrationAccountsQuery: RequireRole(admin)",
         "ListSettingsAuditQuery: RequireRole(admin)",
         "ListTemplatesQuery: Authenticated",
         "ListUsersQuery: RequireRole(admin)",
         "LoginCommand: AllowAnonymousRequest",
-        "LogoutCommand: AllowAnonymousRequest",
         "LogoutIntegrationCommand: RequireRole(admin)",
         "PresignDocumentsQuery: Authenticated",
         "ProcessWebhookEventCommand: AllowAnonymousRequest",
         "ReceiveWebhookCommand: AllowAnonymousRequest",
         "RecoverUsernameCommand: AllowAnonymousRequest",
-        "RefreshTokensCommand: AllowAnonymousRequest",
+        "RefreshIntegrationTokensCommand: AllowAnonymousRequest",
+        "RegisterCommand: AllowAnonymousRequest",
+        "RegisterIntegrationCommand: RequireRole(admin)",
         "RenderDocumentCommand: Authenticated",
         "ResendEmailBatchCommand: Authenticated",
         "ResendEmailRecipientCommand: Authenticated",
@@ -122,13 +148,10 @@ public class RequestPolicyClosureTests
         "RevokeIntegrationTokensCommand: RequireRole(admin)",
         "SearchPatientsQuery: RequireRole(doctor,nurse,technician,therapist,pharmacist,admin)",
         "SendEmailCommand: Authenticated",
-        "SignupCommand: AllowAnonymousRequest",
-        "SignupIntegrationCommand: RequireRole(admin)",
         "UpdateOwnProfileCommand: Authenticated",
         "UpdateSettingsCommand: RequireRole(admin)",
         "UpdateTemplateCommand: Authenticated",
         "UploadDocumentsCommand: Authenticated",
-        "ValidatePinCommand: Authenticated",
         "ValidateTemplateQuery: Authenticated",
     ];
 }

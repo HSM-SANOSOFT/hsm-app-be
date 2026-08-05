@@ -9,7 +9,7 @@ namespace Hsm.Contracts.Ui;
 /// </summary>
 public interface IUsersAdminUiService
 {
-    Task<UserListPageDto> ListUsersAsync(int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<PagedResult<UserRowDto>> ListUsersAsync(int page, int pageSize, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Provisions a staff account pending first-login onboarding. The
@@ -34,10 +34,7 @@ public sealed record UserRowDto(
     bool IsActive,
     bool OnboardingPending);
 
-/// <summary>A page of users plus the pagination facts.</summary>
-public sealed record UserListPageDto(IReadOnlyList<UserRowDto> Users, int Page, int PageSize, int TotalItems);
-
-/// <summary>What staff provisioning needs (mirrors the frozen createStaffUser shape).</summary>
+/// <summary>What staff provisioning needs.</summary>
 public sealed record NewStaffUserDto(
     string Username,
     string Email,

@@ -38,11 +38,11 @@ builder.Services.AddScoped<ICurrentPrincipal>(sp => sp.GetRequiredService<Ambien
 // is in the keys this host reads.
 builder.Services.AddHsmJobProcessing();
 
-// Recurring work, declared in one place and EMPTY on purpose: the frozen
-// application had no cron, so there is nothing to carry over. A schedule fires
-// once across N workers because each tick is claimed through Redis (see
-// Scheduler); durable exactly-once scheduling is out of scope (see
-// ScheduleRegistry).
+// Recurring work, declared in one place and EMPTY on purpose: every
+// background job is enqueued by a request, not on a timer, so there is
+// nothing here yet. A schedule fires once across N workers because each tick
+// is claimed through Redis (see Scheduler); durable exactly-once scheduling
+// is out of scope (see ScheduleRegistry).
 var schedules = new ScheduleRegistry();
 
 // schedules.Add(new ScheduledJob(

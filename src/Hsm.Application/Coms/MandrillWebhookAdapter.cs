@@ -5,19 +5,18 @@ using Hsm.Domain.Coms;
 
 namespace Hsm.Application.Coms;
 
-/// <summary>A provider event normalized to the common shape (frozen NormalizedWebhookEvent).</summary>
+/// <summary>A provider event normalized to the common shape.</summary>
 public sealed record NormalizedWebhookEvent(
     string EventType,
     string RecipientEmail,
     string? ProviderMessageId);
 
 /// <summary>
-/// The frozen Mandrill adapter (mandrill-webhook.adapter.ts): normalizes a
-/// JSON array of Mandrill events into the common event shape.
+/// Normalizes a JSON array of Mandrill events into the common event shape.
 /// </summary>
 public static class MandrillWebhookAdapter
 {
-    /// <summary>The only provider the frozen factory supported (matched case-insensitively).</summary>
+    /// <summary>The only supported provider (matched case-insensitively).</summary>
     public const string Provider = "mandrill";
 
     public static IReadOnlyList<NormalizedWebhookEvent> Normalize(JsonNode? rawPayload)
@@ -42,7 +41,7 @@ public static class MandrillWebhookAdapter
             string.IsNullOrEmpty(messageId) ? null : messageId);
     }
 
-    /// <summary>The frozen provider-event → common-event map.</summary>
+    /// <summary>The provider-event → common-event map.</summary>
     private static string MapEventType(string providerEvent) => providerEvent switch
     {
         "send" => EmailWebhookEventTypes.Delivered,

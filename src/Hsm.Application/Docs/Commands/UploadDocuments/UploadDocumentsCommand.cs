@@ -3,9 +3,9 @@ using Hsm.Application.Abstractions;
 namespace Hsm.Application.Docs.Commands.UploadDocuments;
 
 /// <summary>
-/// POST /v1/docs/upload (frozen uploadDocuments): filename-matched multipart
+/// POST /v1/docs/upload: filename-matched multipart
 /// files, blob uploads first, then ONE transaction for the whole document
-/// graph — the frozen guarantee that a mid-loop failure cannot leave a
+/// graph — guaranteeing that a mid-loop failure cannot leave a
 /// half-written graph. Authenticated only; the creator is not carried on the
 /// command — read from <see cref="ICurrentPrincipal"/> (self-scoped, same as
 /// <see cref="Hsm.Application.Docs.Commands.GenerateDocument.GenerateDocumentCommand"/>).

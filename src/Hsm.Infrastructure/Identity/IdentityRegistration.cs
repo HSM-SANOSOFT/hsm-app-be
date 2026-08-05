@@ -1,0 +1,253 @@
+using System.Text;
+using Hsm.Application.Identity;
+using Hsm.Domain.Identity;
+using Hsm.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Tokens;
+
+namespace Hsm.Infrastructure.Identity;
+
+/// <summary>
+/// Identity's core services: UserManager, RoleManager, the token providers used
+/// by password reset, and the EF stores — plus, for the two HTTP hosts,
+/// <see cref="AddHsmIdentityAuthentication"/>: the cookie/bearer schemes and
+/// the antiforgery posture. <see cref="AddHsmIdentity"/> alone stays usable
+/// from a bare <c>ServiceCollection</c> (the integration tests) because
+/// nothing in it needs an <c>HttpContext</c>.
+/// </summary>
+public static class IdentityRegistration
+{
+    public static IServiceCollection AddHsmIdentity(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        // The reset-token provider protects its payload with the data-protection
+        // stack. A web host wires that up itself; a bare ServiceCollection (the
+        // integration tests) does not, and the failure would be a resolution
+        // error far from its cause. AddDataProtection uses TryAdd, so a host's
+        // own configuration still wins.
+        services.AddDataProtection();
+
+        services
+            .AddIdentityCore<HsmUser>(options =>
+            {
+                options.User.RequireUniqueEmail = true;
+
+                // Deliberately modest: length is the only requirement that
+                // measurably helps, and character-class rules push users toward
+                // predictable substitutions. Identity's default hasher (PBKDF2,
+                // v3 format) is left alone.
+                options.Password.RequiredLength = 8;
+                options.Password.RequireDigit = false;
+                options.Password.RequireLowercase = false;
+                options.Password.RequireUppercase = false;
+                options.Password.RequireNonAlphanumeric = false;
+
+                options.Lockout.MaxFailedAccessAttempts = 10;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+                options.Lockout.AllowedForNewUsers = true;
+            })
+            .AddRoles<IdentityRole<Guid>>()
+            .AddEntityFrameworkStores<HsmDbContext>()
+            .AddDefaultTokenProviders();
+
+        services.AddScoped<IUserDirectory, UserDirectory>();
+        return services;
+    }
+
+    /// <summary>
+    /// Two authentication handlers behind one adaptive scheme: browsers carry
+    /// the Identity application cookie, integrations carry a JWT. The selector
+    /// reproduces the cookie-then-bearer resolution the hand-rolled RequestAuth
+    /// did, with framework middleware instead — and the ORDER matters: a caller
+    /// who sent a bearer token gets the bearer handler's answer, so a stale
+    /// cookie can never silently rescue a bad token.
+    ///
+    /// <para>Both hosts call this, which is what makes one sign-in serve both
+    /// doors: the cookie's name, path, SameSite mode and lifetime are stated
+    /// once here, where two hand-rolled writers used to each state them
+    /// separately. Each host still owns its own cookie EVENTS — a 401
+    /// and a redirect to a sign-in page are both correct answers to the same
+    /// situation on different doors.</para>
+    /// </summary>
+    public static IServiceCollection AddHsmIdentityAuthentication(
+        this IServiceCollection services, IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        // Defaults to TRUE — the session cookie and the antiforgery cookie that
+        // guards it are both HTTPS-only unless a deployment says otherwise.
+        // A default of false meant every environment that never thought about
+        // this setting shipped SameAsRequest, i.e. a session cookie a plain-HTTP
+        // hop would happily carry in the clear. The environments that genuinely
+        // cannot do TLS are the ones that know it: appsettings.Development.json
+        // sets it false on both hosts, and the in-memory test hosts set it false
+        // in ApiHostFactory.
+        var cookieSecure = configuration.GetValue("Auth:CookieSecure", defaultValue: true);
+
+        // COOKIE_DOMAIN. It is not decoration: with Hsm.Api and
+        // Hsm.Web on sibling subdomains, a host-only cookie is scoped to the
+        // door that issued it and "one sign-in serves both doors" quietly stops
+        // being true — invisibly, because a single-origin test host can never
+        // see it. Null (the default) keeps the cookie host-only, which is right
+        // for a single-origin deployment.
+        var cookieDomain = configuration["Auth:CookieDomain"];
+
+        // Read at COMPOSITION time, not inside AddJwtBearer's lazy callback: a
+        // deployment that forgot the secret should fail to boot, not fail on
+        // the first integration call with a 500 nobody is watching for.
+        var accessSecret = configuration["Auth:JwtAccessSecret"];
+        if (string.IsNullOrEmpty(accessSecret))
+        {
+            throw new InvalidOperationException(
+                "Auth:JwtAccessSecret is required — it is the key integration bearer tokens are verified with.");
+        }
+
+        var authentication = services.AddAuthentication(HsmAuthenticationSchemes.Adaptive);
+
+        authentication.AddPolicyScheme(
+            HsmAuthenticationSchemes.Adaptive,
+            displayName: "Cookie or bearer",
+            options => options.ForwardDefaultSelector = context =>
+                context.Request.Headers.Authorization.ToString()
+                    .StartsWith("Bearer ", StringComparison.Ordinal)
+                        ? JwtBearerDefaults.AuthenticationScheme
+                        : IdentityConstants.ApplicationScheme);
+
+        authentication.AddIdentityCookies();
+
+        authentication.AddJwtBearer(options =>
+        {
+            // Inbound claim MAPPING is off on purpose. The JWT layout is
+            // IIntegrationTokenCodec's (sub/id/roles/name/…);
+            // with the map on, whether "roles" reaches ClaimTypes.Role depends
+            // on a framework lookup table rather than on anything stated here,
+            // and an integration whose roles silently vanish authenticates
+            // successfully and then 403s on every route. Off, the claims are
+            // exactly what was signed and the two type names below say so.
+            options.MapInboundClaims = false;
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(accessSecret)),
+                ValidateIssuer = false,
+                ValidateAudience = false,
+                ValidateLifetime = true,
+                // No clock skew: a five-minute default would be five extra
+                // minutes of life for a revoked integration token.
+                ClockSkew = TimeSpan.Zero,
+                RoleClaimType = "roles",
+                NameClaimType = "username",
+            };
+        });
+
+        services.ConfigureApplicationCookie(options =>
+        {
+            options.Cookie.Name = "hsm.session";
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SameSite = SameSiteMode.Strict;
+            options.Cookie.SecurePolicy =
+                cookieSecure ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
+            options.Cookie.Path = "/";
+            options.Cookie.Domain = cookieDomain;
+            options.ExpireTimeSpan = SessionPolicy.Lifetime;
+            options.SlidingExpiration = true;
+
+            // Per-SESSION revocation, chained after Identity's own
+            // security-stamp check rather than replacing it. This is what makes
+            // POST /api/v1/identity/logout mean something: an Identity cookie is
+            // self-contained, so deleting it from the browser leaves any copy
+            // taken beforehand working for the rest of the sliding window. The
+            // server now holds the other half of every session and sign-out
+            // deletes it. See HsmSessionValidator.
+            HsmSessionValidator.ChainOnto(options);
+        });
+
+        // The security stamp is this system's ONLY session-revocation channel:
+        // a role change, a password change or a forced sign-out all work by
+        // bumping it, and the cookie's OnValidatePrincipal is what notices. It
+        // notices only after this interval elapses — and a revocation honoured
+        // "within 30 minutes" (the framework default) is not a revocation.
+        //
+        // Zero means every cookie-authenticated request revalidates, and the
+        // cost is not one query. Rebuilding the principal runs roughly half a
+        // dozen: the user lookup, its claims, its roles, and then each role's
+        // own row and claims. It also sets ShouldRenew, so every validated
+        // response carries a fresh Set-Cookie (which is why the test seam needs
+        // a cookie jar rather than an append) — and because that renewal slides
+        // the cookie a full Lifetime forward every time, HsmSessionValidator
+        // must slide the session row on the same request or the two disagree
+        // about when the session ends, which adds one indexed UPDATE (see
+        // SessionPolicy). That is an accepted trade HERE —
+        // an internal hospital application, indexed lookups, no public
+        // high-QPS surface — bought in exchange for role and password changes
+        // taking effect on the NEXT request instead of half an hour later. On a
+        // hotter surface the honest alternatives are a short interval or a
+        // cached stamp, not leaving revocation unenforced.
+        //
+        // It buys a second thing for free. When the stamp still matches, the
+        // validator rebuilds the principal from the row, so a caller's role
+        // claims are re-read rather than trusted for the cookie's whole
+        // lifetime — the same property a short-lived access token would buy,
+        // without the short expiry.
+        services.Configure<SecurityStampValidatorOptions>(options =>
+        {
+            options.ValidationInterval = TimeSpan.Zero;
+
+            // When the stamp still matches, the validator REBUILDS the principal
+            // from the claims factory — which knows about the user row and
+            // nothing about the session this cookie belongs to. Without carrying
+            // the claim across, the session id would survive exactly one request
+            // and every cookie caller would then be refused for having no
+            // session. This hook is the only place the framework offers to do
+            // it, and it is why the whole mechanism is not silently broken.
+            options.OnRefreshingPrincipal = context =>
+            {
+                if (context.CurrentPrincipal?.FindFirst(HsmClaims.SessionId) is { } session
+                    && context.NewPrincipal?.Identities.FirstOrDefault() is { } identity)
+                {
+                    identity.AddClaim(session);
+                }
+
+                return Task.CompletedTask;
+            };
+        });
+
+        services.AddScoped<IUserClaimsPrincipalFactory<HsmUser>, HsmUserClaimsPrincipalFactory>();
+
+        // The one way either door opens, renews or closes a session.
+        services.AddScoped<HsmSessionSignIn>();
+
+        // SignInManager is the only thing that writes the session cookie, and
+        // it needs the schemes above — which is why it registers here rather
+        // than in AddHsmIdentity. ISecurityStampValidator comes with it, and
+        // the application cookie's OnValidatePrincipal resolves that on every
+        // request: without this call every cookie-authenticated request throws.
+        services.AddScoped<SignInManager<HsmUser>>();
+        services.AddScoped<ISecurityStampValidator, SecurityStampValidator<HsmUser>>();
+        services.AddScoped<ITwoFactorSecurityStampValidator, TwoFactorSecurityStampValidator<HsmUser>>();
+        services.AddHttpContextAccessor();
+
+        services.AddAntiforgery(options =>
+        {
+            options.HeaderName = "X-XSRF-TOKEN";
+            options.Cookie.Name = "hsm.antiforgery";
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SameSite = SameSiteMode.Strict;
+            options.Cookie.SecurePolicy =
+                cookieSecure ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
+            // Same domain as the session it protects — the hand-rolled CSRF
+            // cookie it replaces set COOKIE_DOMAIN too, and a token scoped
+            // narrower than the session it guards refuses valid mutations on
+            // the other door.
+            options.Cookie.Domain = cookieDomain;
+        });
+
+        return services;
+    }
+}

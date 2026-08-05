@@ -23,6 +23,8 @@ public class TransactionBehaviorTests
             Opened++;
             return work(ct);
         }
+
+        public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
     }
 
     [Fact]

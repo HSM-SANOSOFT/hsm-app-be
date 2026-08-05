@@ -10,9 +10,9 @@ namespace Hsm.Infrastructure.Storage;
 /// credentials, and bucket come from configuration — RustFS in dev/CI, any
 /// S3-compatible store in production. SDK exceptions are translated to the
 /// port's typed failures at this boundary. Presigning can use a second
-/// client bound to an externally reachable endpoint (frozen
-/// STRG_S3_HOST_EXTERNAL) so minted URLs resolve outside the container
-/// network; when none is configured the main client signs.
+/// client bound to an externally reachable endpoint (STRG_S3_HOST_EXTERNAL)
+/// so minted URLs resolve outside the container network; when none is
+/// configured the main client signs.
 /// </summary>
 public sealed class S3ObjectStorage(IAmazonS3 client, string bucketName, IAmazonS3? presignClient = null)
     : IObjectStorage
@@ -23,7 +23,7 @@ public sealed class S3ObjectStorage(IAmazonS3 client, string bucketName, IAmazon
     /// <summary>Multipart part size (the S3 minimum for non-final parts).</summary>
     public const long PartSize = 5 * 1024 * 1024;
 
-    /// <summary>The frozen presign default (@aws-sdk/s3-request-presigner): 900 seconds.</summary>
+    /// <summary>Default presign expiry: 900 seconds.</summary>
     public static readonly TimeSpan DefaultPresignExpiry = TimeSpan.FromSeconds(900);
 
     public async Task<ObjectPutResult> PutAsync(

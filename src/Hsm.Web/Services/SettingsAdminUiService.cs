@@ -3,6 +3,7 @@ using Hsm.Application.Settings;
 using Hsm.Application.Settings.Commands.UpdateSettings;
 using Hsm.Application.Settings.Queries.GetSettings;
 using Hsm.Application.Settings.Queries.ListSettingsAudit;
+using Hsm.Contracts;
 using Hsm.Contracts.Ui;
 using Hsm.Web.Auth;
 
@@ -10,9 +11,9 @@ namespace Hsm.Web.Services;
 
 /// <summary>
 /// Host-side settings administration (plan U18, screen 4): publish the actor,
-/// then dispatch the same command/query slices the frozen /v1/settings
-/// endpoints do — masking and the transactional write+audit guarantee live in
-/// the handlers, not here, and the admin requirement lives on the requests.
+/// then dispatch the same command/query slices the /v1/settings endpoints
+/// do — masking and the transactional write+audit guarantee live in the
+/// handlers, not here, and the admin requirement lives on the requests.
 /// The authenticated admin is also the audit actor, read from ICurrentPrincipal
 /// rather than passed as a parameter.
 /// </summary>
@@ -38,14 +39,14 @@ public sealed class SettingsAdminUiService(ShellActor shellActor, IDispatcher di
         return ToDto(view);
     }
 
-    public async Task<IReadOnlyList<SettingAuditEntryDto>> GetAuditTrailAsync(
-        string category, CancellationToken cancellationToken = default)
+    public async Task<PagedResult<SettingAuditEntryDto>> GetAuditTrailAsync(
+        string category, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         await shellActor.InstallAsync(cancellationToken);
         RequireKnownCategory(category);
-        var entries = await dispatcher.Send(new ListSettingsAuditQuery(category), cancellationToken);
-        return [.. entries.Select(entry => new SettingAuditEntryDto(
-            entry.Key, entry.ChangedBy, entry.OldValue, entry.NewValue, entry.ChangedAt))];
+        var result = await dispatcher.Send(new ListSettingsAuditQuery(category, page, pageSize), cancellationToken);
+        return result.Map(entry => new SettingAuditEntryDto(
+            entry.Key, entry.ChangedBy, entry.OldValue, entry.NewValue, entry.ChangedAt));
     }
 
     private static void RequireKnownCategory(string category)

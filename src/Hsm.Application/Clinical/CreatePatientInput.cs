@@ -4,10 +4,9 @@ namespace Hsm.Application.Clinical;
 public sealed record PatientIdentifierInput(string System, string Value, string? Use);
 
 /// <summary>
-/// A validated inbound FHIR Patient reduced to the frozen persisted fields
-/// (patient.translator.ts fromFhir): valid-but-unmapped R4 fields are
-/// deliberately dropped, and identifiers lacking system or value are already
-/// filtered out by the caller.
+/// A validated inbound FHIR Patient reduced to the persisted fields:
+/// valid-but-unmapped R4 fields are deliberately dropped, and identifiers
+/// lacking system or value are already filtered out by the caller.
 /// </summary>
 public sealed record CreatePatientInput(
     bool Active,

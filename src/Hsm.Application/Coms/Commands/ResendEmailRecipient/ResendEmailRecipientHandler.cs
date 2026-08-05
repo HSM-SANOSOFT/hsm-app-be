@@ -7,8 +7,8 @@ namespace Hsm.Application.Coms.Commands.ResendEmailRecipient;
 
 /// <summary>
 /// The one enqueue that stays INSIDE its handler, deliberately: this handler
-/// persists nothing (the frozen behavior is "no status reset here"), so there is
-/// no antecedent write for the enqueue to race — the recipient row it names was
+/// persists nothing (there is no status reset here), so there is no antecedent
+/// write for the enqueue to race — the recipient row it names was
 /// committed by an earlier request. Every other enqueue in this module moved to
 /// its endpoint for exactly the reason this one did not have to.
 /// </summary>

@@ -1,5 +1,5 @@
 using Hsm.Application.Abstractions;
-using Hsm.Infrastructure.Jobs;
+using Hsm.Infrastructure.Queue;
 using StackExchange.Redis;
 
 namespace Hsm.Worker.Scheduling;

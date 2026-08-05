@@ -5,13 +5,33 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- ASP.NET Core Identity's DataProtectorTokenProvider — the thing that
+         makes a password-reset token a signed, expiring, single-use blob
+         instead of a row — ships ONLY in the Microsoft.AspNetCore.App shared
+         framework; Microsoft.Extensions.Identity.Core carries the six-digit
+         TOTP providers and nothing else. Rather than hand-roll a token format,
+         the composition root takes the framework reference. Task 12 needs it
+         anyway (cookie + JwtBearer schemes register here), and Hsm.Worker's
+         runtime image moves to dotnet/aspnet with it. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="AWSSDK.S3" />
-    <PackageReference Include="BCrypt.Net-Next" />
     <PackageReference Include="Handlebars.Net" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <!-- The bearer half of the adaptive scheme (AddHsmIdentityAuthentication).
+         It sits HERE rather than in the two hosts because the scheme
+         registration does — one configuration, both doors — and it flows to
+         Hsm.Api/Hsm.Web transitively. It is a NuGet package, not part of the
+         Microsoft.AspNetCore.App shared framework referenced above. -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <!-- The EF Core Identity stores HsmDbContext (an IdentityDbContext) backs. -->
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
     <PackageReference Include="MeiliSearch" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
-    <PackageReference Include="Microsoft.Extensions.Configuration.Binder" />
+    <!-- Microsoft.Extensions.{Hosting.Abstractions,Configuration.Binder} are
+         gone: the shared framework above already carries them, and NuGet
+         refuses (NU1510) to keep a package reference it will prune. -->
     <!-- Design-time only (migrations scaffolding); never flows to consumers
          or ships in the published output. -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">

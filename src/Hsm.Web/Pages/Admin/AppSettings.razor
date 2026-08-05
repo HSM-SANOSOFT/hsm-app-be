@@ -7,7 +7,7 @@
    Secrets never arrive in plaintext — the handler masks them on read and in
    the audit rows — so this screen renders the mask and only sends a secret
    when the admin types a replacement (a blank secret input means "leave it
-   unchanged", the frozen semantics). *@
+   unchanged"). *@
 
 <PageTitle>Configuración — HSM</PageTitle>
 
@@ -118,7 +118,13 @@ else
             Original = item.IsSecret ? string.Empty : item.Value ?? string.Empty,
             Input = item.IsSecret ? string.Empty : item.Value ?? string.Empty,
         })];
-        _audit = await SettingsAdmin.GetAuditTrailAsync(_category);
+        // This screen has no pagination UI — pageSize: 50 approximates the old
+        // unpaged read (Task 4 dropped it to the paging default's 20, which
+        // under-showed the trail on a screen with no next-page control; Task 9
+        // is where the audit trail became a real paged route, so this is where
+        // that regression gets fixed).
+        var audit = await SettingsAdmin.GetAuditTrailAsync(_category, page: 1, pageSize: 50);
+        _audit = audit.Items;
     }
 
     private async Task SaveAsync()

@@ -14,33 +14,34 @@ transliterate it.
 - **Anchor branch:** `rewrite/dotnet`. All rewrite branches fork from and merge
   into it. It is unprotected (no ruleset matches it); `development`, `main`, and
   `release/**` all require the `pr-gate` status check.
-- **Frozen API contract:** `docs/reference/2026-07-27-frozen-api-contract.openapi.json`
-  (OpenAPI, 58 operations) and `docs/reference/2026-07-27-frozen-api-routes.txt`.
-  Contract tests for rebuilt endpoints are written from this snapshot.
+- **API contract:** the committed, generated OpenAPI document at
+  `docs/reference/openapi.json` governs the wire — regenerate it, never hand-edit it (see the
+  Commands section below). `/api` serves the Scalar UI against it in Development.
 - The .NET solution (`Hsm.sln`, `src/`, `tests/`) is standing up incrementally.
   If `Hsm.sln` does not exist yet, the solution-foundation units of the plan have
   not landed — check the plan before assuming structure.
 - **Conventions:** `docs/reference/dotnet-conventions.md` — one-page reference for exactly which
   project and folder a given kind of code (entity, command, query, validator, port, adapter,
-  endpoint, Blazor page, UI service, each test kind) belongs in, the dependency arrows between
-  projects, and the pipeline behavior order. Read it before adding a new module slice.
+  endpoint, resource record, Blazor page, UI service, each test kind) belongs in, the dependency
+  arrows between projects, and the pipeline behavior order. Read it before adding a new module
+  slice.
 
 ### Projects
 
 Libraries, named by layer — `Hsm.Domain` (entities), `Hsm.Application` (CQRS
-commands/queries/handlers, ports, the pipeline), `Hsm.Contracts` (UI service interfaces; the
-client-isolation leaf — no `Hsm.*` references), `Hsm.Infrastructure` (adapters: EF Core/Npgsql,
-S3, Meilisearch, Redis, job queue).
+commands/queries/handlers, ports, the pipeline), `Hsm.Contracts` (UI service interfaces +
+`PagedResult<T>`; the client-isolation leaf — no `Hsm.*` references), `Hsm.Infrastructure`
+(adapters: EF Core/Npgsql, S3, Meilisearch, Redis, job queue).
 
 Deployables, named by the door they open onto that same core — `Hsm.Api` (REST + FHIR,
 stateless), `Hsm.Web` (the staff Blazor Server shell, dispatching in-process), `Hsm.Worker` (the
 durable Redis Streams job consumer + scheduled work). None of the three talks to another over
 HTTP; each can be built, deployed, and restarted independently.
 
-Four test projects — `Hsm.Tests` (unit + architecture/boundary tests), `Hsm.Contract.Tests`
-(pinned to the frozen HTTP contract, exercises HTTP and never names a handler class),
-`Hsm.Integration.Tests` (real Postgres/Redis/RustFS containers), `Hsm.Web.Tests` (bUnit component
-tests against `.razor` pages).
+Four test projects — `Hsm.Tests` (unit + architecture/boundary tests), `Hsm.Api.Tests` (pins the
+REST/FHIR wire surface, exercises HTTP and never names a handler class), `Hsm.Integration.Tests`
+(real Postgres/Redis/RustFS containers), `Hsm.Web.Tests` (bUnit component tests against `.razor`
+pages).
 
 ## Commands (inside the dev container)
 
@@ -52,12 +53,15 @@ docker compose -f docker/docker-compose.yaml up -d postgres redis rustfs meilise
 dotnet build Hsm.sln
 dotnet test tests/Hsm.Tests && dotnet test tests/Hsm.Web.Tests   # fast, no infra (CI's unit-tests job)
 dotnet test tests/Hsm.Integration.Tests                          # real Postgres/Redis/RustFS/Meilisearch
-dotnet test tests/Hsm.Contract.Tests                             # same infra; needs a live Postgres too
+dotnet test tests/Hsm.Api.Tests                                  # same infra; needs a live Postgres too
 dotnet test Hsm.sln                                              # full gate, all four test projects
 dotnet format Hsm.sln --verify-no-changes                        # lint gate
 
 # Apply the schema — an explicit step, never done on host boot
 dotnet run --project src/Hsm.Api -- --migrate
+
+# Regenerate the committed OpenAPI spec after any surface change
+HSM_OPENAPI_UPDATE=1 dotnet test tests/Hsm.Api.Tests --filter OpenApiSpecTests
 
 # Run the hosts (three doors onto one core — any subset runs without the others)
 dotnet run --project src/Hsm.Web        # staff shell on :5000 (published to host)
@@ -109,7 +113,7 @@ to any tooling or session that reaches it.
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **hsm-app** (4012 symbols, 9523 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **hsm-app** (4746 symbols, 9988 relationships, 288 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 

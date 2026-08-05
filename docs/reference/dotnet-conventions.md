@@ -1,25 +1,26 @@
 # .NET conventions — where things go
 
-One page. For "why", see `docs/ARCHITECTURE-DECISIONS.md`. For behavior, the frozen contract
-(`docs/reference/2026-07-27-frozen-api-contract.openapi.json`) and its tests govern, not this
-document.
+One page. For "why", see `docs/ARCHITECTURE-DECISIONS.md`. For behavior, the committed OpenAPI
+document (`docs/reference/openapi.json`) governs, not this document — regenerate it, never
+hand-edit it (see the last rule under "Rules learned the hard way").
 
 ## Where each kind of code goes
 
 | Kind of code | Project | Folder | Example |
 |---|---|---|---|
-| Entity | `Hsm.Domain` | `{Module}/` | `Hsm.Domain/Identity/User.cs` |
+| Entity | `Hsm.Domain` | `{Module}/` | `Hsm.Domain/Identity/HsmUser.cs` |
 | Command | `Hsm.Application` | `{Module}/Commands/{Verb}/` | `Users/Commands/CreateStaffUser/CreateStaffUserCommand.cs` |
 | Query | `Hsm.Application` | `{Module}/Queries/{Verb}/` | `Users/Queries/GetUser/GetUserQuery.cs` |
-| Validator | `Hsm.Application` | same folder as the command/query it validates | `IValidator<TRequest>` implementation next to the request record — see the Validator rule below before adding one |
+| Validator | `Hsm.Application` | same folder as the command/query it validates | `AbstractValidator<TRequest>` (FluentValidation) beside the request record — see the Validator rule below before adding one |
 | Module port (owned by one slice) | `Hsm.Application` | `{Module}/` (top level, not under Commands/Queries) | `Users/IStaffWelcomeEmailer.cs` |
 | Infrastructure-wide port (a store role, §6 of the architecture doc) | `Hsm.Application` | `Ports/` | `Ports/IObjectStorage.cs` |
-| Adapter (implements a port) | `Hsm.Infrastructure` | `{Module}/` or `{Role}/` matching the port's home | `Identity/BcryptPasswordHasher.cs`, `Persistence/EfUnitOfWork.cs`, `Jobs/RedisStreamJobConsumer.cs` |
+| Adapter (implements a port) | `Hsm.Infrastructure` | `{Module}/` or `{Role}/` matching the port's home | `Identity/UserDirectory.cs`, `Persistence/EfUnitOfWork.cs`, `Queue/RedisStreamJobConsumer.cs` |
 | REST/FHIR endpoint | `Hsm.Api` | `{Module}/{Module}Endpoints.cs` | `Users/UserEndpoints.cs` |
+| Resource record | `Hsm.Api` | `{Module}/{Module}Resource.cs` | `Users/UserResource.cs` — see "allow-list" below |
 | Blazor page (admin screen) | `Hsm.Web` | `Pages/Admin/` | `Pages/Admin/Users.razor` |
 | UI service | interface in `Hsm.Contracts` (`Ui/`), implementation in `Hsm.Web` (`Services/`) | — | `Hsm.Contracts/Ui/IUsersAdminUiService.cs` + `Hsm.Web/Services/UsersAdminUiService.cs` |
 | Unit test | `Hsm.Tests` | `{Module}/` (or `Architecture/` for boundary/purity tests) | `Hsm.Tests/Architecture/ScreenIsolationTests.cs` |
-| Contract test | `Hsm.Contract.Tests` | `{Module}/` | `Hsm.Contract.Tests/Users/…` |
+| API surface test | `Hsm.Api.Tests` | `{Module}/` | `Hsm.Api.Tests/Users/…` |
 | Integration test | `Hsm.Integration.Tests` | flat, one file per concern, runs against real Postgres/Redis/RustFS containers | `Hsm.Integration.Tests/JobQueueDurabilityTests.cs` |
 | Component test (bUnit, renders a `.razor` page) | `Hsm.Web.Tests` | flat, one file per page | `Hsm.Web.Tests/UsersPageTests.cs` |
 
@@ -41,7 +42,7 @@ which layer they're in, because each of them pulls in multiple layers.
 
 ```
 Hsm.Domain   (entities only, no project references)
-Hsm.Contracts (leaf: UI service interfaces + wire-shared constants — no Hsm.* references, ever)
+Hsm.Contracts (leaf: UI service interfaces + PagedResult<T> + wire-shared constants — no Hsm.* references, ever)
 
 Hsm.Application ──> Hsm.Domain, Hsm.Contracts
 Hsm.Infrastructure ──> Hsm.Application            (implements its ports)
@@ -54,7 +55,21 @@ Hsm.Worker ──> Hsm.Application, Hsm.Infrastructure
 `Hsm.Contracts` staying a leaf **and** never referencing another `Hsm.*` assembly is what makes
 the client-isolation boundary possible at all (`ContractsPurityTests`). Within `Hsm.Web`, the
 `.razor` components themselves are held to a narrower rule than the project as a whole — see
-"Client isolation is test-enforced" below.
+"Client isolation is test-enforced" below. `PagedResult<T>` lives here rather than in
+`Hsm.Application` because both `Hsm.Web`'s UI services and `Hsm.Api`'s endpoints need to name the
+same paged shape, and `Hsm.Contracts` is the one project both can see without pulling in
+`Hsm.Application`.
+
+**`Hsm.Domain` has no project references, and exactly one framework package:
+`Microsoft.Extensions.Identity.Stores`** (for `IdentityUser<TKey>`, which `HsmUser` extends). The
+"entities only, no project references" rule is unchanged — nothing in `Hsm.Domain` points at
+another assembly of ours — but a genuine domain entity has to derive from Identity's base class to
+be the type `UserManager<HsmUser>` operates on directly. The alternative is a domain `User`, a
+separate Identity-owned `HsmUser`, and a mapper that has to be right in both directions on every
+write; the one framework package is cheaper than the second entity. See the doc comment on
+`Hsm.Domain/Hsm.Domain.csproj` for the same reasoning in place. If this package reference is ever
+removed, remove it *with* a mapped persistence user and a mapper, not by adding a second entity
+that can drift from the first.
 
 ## Behavior order — load-bearing
 
@@ -78,27 +93,35 @@ commits — see "NoAmbientTransaction is not a general escape hatch" below.
 
 ## Rules learned the hard way
 
-- **Validator rule.** A guard moves into an `IValidator<TRequest>` only if the frozen envelope's
-  refusal already has the `ValidationBehavior` shape (`issue.message` an array, `issue.errors`
-  present). If the frozen response for that refusal is a plain 400 (`issue.message` a string), the
-  guard stays as a throw inside the handler — do not force it into `IValidator` just because a
-  validator "feels" like the right place. `CreateStaffUserHandler`'s patient-role guard is the
-  worked example; the doc comment there explains the mismatch this rule prevents.
+- **Validator rule.** There is no general 400, so there is no third option: a rule either checks
+  the request's own shape, or it checks the resource's current state against the database. A
+  request-shape or field rule (required, format, range, "these two fields are mutually exclusive")
+  is an `AbstractValidator<TRequest>` in the pipeline. A rule that needs the database or the
+  resource's current state — "this email is already taken", "onboarding is already complete",
+  "this template is still in use" — is a `ConflictException` or `NotFoundException` thrown from the
+  handler, because a validator that queries the database to decide pass/fail is doing the handler's
+  job one layer too early and outside the transaction. If a guard doesn't fit either bucket, it is
+  misdiagnosed, not a sign that a third mechanism is needed.
 
-- **Exact-403-message lesson.** Before dropping or rewriting an edge-level auth check, grep the
-  contract tests for an exact message or exception-type assertion first
-  (`tests/Hsm.Contract.Tests/Shell/PipelineAuthorizationTests.cs`,
-  `tests/Hsm.Contract.Tests/Shell/AdminScreensTests.cs`). Several of these pins were themselves
-  authorized to change during this refactor (2026-07-31 user decision, see the architecture
-  decision log) — but that was a deliberate call after inspection, not a side effect of an
-  unrelated edit.
+- **Slice results are domain entities, not DTOs.** `CreateTemplateHandler` returns a `Template`
+  (`Hsm.Domain.Templates.Template`), not a `TemplateResponseDto`; the wire shape is produced at the
+  endpoint by projecting into a `*Resource` record (`TemplateResource`), which is what keeps
+  internal-only fields off the wire without a parallel DTO type per slice. The `*Resource` record
+  is an **allow-list**: it names every field that goes on the wire, so a new column added to the
+  entity later cannot leak by being forgotten — it has to be added to the resource record on
+  purpose to ever reach a caller. **New slices follow the same shape** — return the entity from the
+  handler, project it into a `*Resource` record at the endpoint (or UI service) boundary. Do not
+  add a DTO layer beyond the resource record preemptively.
 
-- **Slice results are domain entities, not DTOs.** `CreateStaffUserHandler` returns a `User`, not
-  a `UserResponseDto`; the wire shape is produced at the endpoint by a projection function
-  (`UserEndpoints.UserJson`), which is what keeps `PasswordHash` and other sensitive fields off
-  the wire without a parallel DTO type per slice. This is deliberate deferred work, not an
-  oversight: **new slices follow the same shape** — return the entity from the handler, shape it
-  at the endpoint (or UI service) boundary. Do not add a DTO layer preemptively.
+  The sanctioned exception is a handler that must carry more than the entity alone: `HsmUser` has
+  no `Roles` navigation (Identity keeps role assignments in their own join table, reached through
+  `UserManager` — an eager collection on the entity would be a second, drifting source of truth),
+  so `CreateStaffUserHandler` and its siblings return `UserWithRoles` (`Hsm.Application.Users`), an
+  application-layer pair of `(HsmUser User, IReadOnlyList<string> Roles)` — explicitly documented
+  in its own file as "not an entity." `UserResource.From` projects that pair, not a bare `HsmUser`,
+  into the wire shape. Reach for a result type like this only when a genuine relationship the
+  entity itself cannot carry needs to travel with it — it is still one projection at the endpoint
+  boundary, not a DTO layer duplicating the entity's own fields.
 
 - **Never serialize a request payload into a span, log, or queue envelope blindly.**
   `TelemetryBehavior` records only the request's type name — nothing about its field values —
@@ -106,14 +129,10 @@ commits — see "NoAmbientTransaction is not a general escape hatch" below.
   invariant, not an oversight to "improve" later: any new telemetry or queue-envelope code that
   wants more than the type name must justify it field-by-field, not by dumping the object.
 
-- **Ambient-transaction join rule.** `EfUnitOfWork` and `AuthUnitOfWork` **join** an already-open
-  ambient transaction instead of nesting one (logged at Debug when this happens). A caller that
-  needs an independent transaction — an audit row, an outbox write, a compensating action that
-  must survive an outer rollback — must not go through either of these; it will be silently
-  absorbed into the outer unit of work. Known debt: `IAuthUnitOfWork` is a historically-named
-  duplicate of `IUnitOfWork` used for `SaveChangesAsync`-only flushes across the Users, Templates,
-  Coms, Settings and Auth handlers — retire it in favor of a flush method on `IUnitOfWork` when
-  convenient; it is not a second transaction boundary, just a second name for the same one.
+- **Ambient-transaction join rule.** `EfUnitOfWork` **joins** an already-open ambient transaction
+  instead of nesting one (logged at Debug when this happens). A caller that needs an independent
+  transaction — an audit row, an outbox write, a compensating action that must survive an outer
+  rollback — must not go through it; it will be silently absorbed into the outer unit of work.
 
 - **`[NoAmbientTransaction]` is not a general escape hatch.** It exists for exactly two commands,
   both queued jobs whose handlers persist a failure status and then re-throw so the queue's retry
@@ -136,12 +155,12 @@ commits — see "NoAmbientTransaction is not a general escape hatch" below.
   removed (2026-07-31 user decision): a developer account in a dev environment is authorized by
   the same pipeline, the same role checks, as production. Do not reintroduce a dev-only bypass.
 
-- **`RefreshTokensCommand` may only be constructed at the refresh edge.** It carries a
-  caller-supplied `AuthPrincipal` and is `[AllowAnonymousRequest]` — the refresh token is the
-  credential, not a session, so the pipeline cannot authorize the principal the usual way. Only
-  `Hsm.Api.Auth.AuthEndpoints` (which validates the refresh token's signature and expiry before
-  constructing it) may build one; never dispatch it from a new call site without that same
-  validation in front of it.
+- **`RefreshIntegrationTokensCommand` may only be constructed at the refresh edge.** It carries
+  the raw opaque refresh token and nothing else, and is `[AllowAnonymousRequest]` — the token
+  itself is the credential, not a session, so there is no principal for the pipeline to authorize
+  the usual way; the handler learns which integration account it belongs to only by finding a
+  stored digest that matches. Only `Hsm.Api.Identity.IdentityEndpoints` builds one; never dispatch
+  it from a new call site.
 
 - **`onboardingCompletedAt` is rebuilt per request, not cached.** `RequestActorFactory` derives
   onboarding completion from the claim when present and non-empty, and otherwise falls back to the
@@ -161,27 +180,72 @@ commits — see "NoAmbientTransaction is not a general escape hatch" below.
   request. This is a known, accepted exposure — not an oversight — documented here rather than
   given its own query slice.
 
-- **Accepted contract drift from removing the edge gates (Task 15).** Two observable behavior
-  changes vs. the frozen system are deliberate and permanent, not defects:
-  - Every 403 across the whole API is now message-less (`ApiException.Forbidden()`), where the
-    frozen system's message was `"Insufficient permissions"` on some routes. One authorizer, one
-    shape.
-  - On routes that used to be role- or onboarding-gated at the edge, authorization now runs
-    *behind* body-shape validation (e.g. a non-clinical caller against a FHIR route now sees parse
-    diagnostics before a 403, not instead of one). No PHI or write exposure results — the request
-    is still refused — but the ordering of *which* refusal a caller sees changed.
+- **Two antiforgery mechanisms, because they protect two different things.** The Blazor
+  static-SSR login form (`Pages/Login.razor`) is antiforgery-protected via `EditForm`'s
+  `FormName` plus `app.UseAntiforgery()` — that protects a browser form post. The REST door is
+  protected by `Hsm.Api.Identity.HsmAntiforgery`, which validates the `X-XSRF-TOKEN` header on
+  unsafe *cookie-authenticated* methods only — that protects a JSON request made with the session
+  cookie. Both are standard `IAntiforgery`; a request authenticated with a bearer token instead of
+  a cookie needs neither, because there is no ambient credential for a hostile page to ride.
 
-- **Two more documented deltas from the frozen system, both side effects of splitting
-  `Hsm.Api` out of `Hsm.Web` (Task 17):**
-  - An unrouted path under `/v1` or `/fhir` hit on `Hsm.Web` re-executes to the Blazor not-found
-    page (`app.UseStatusCodePagesWithReExecute("/not-found")` in `Hsm.Web/Program.cs`); the same
-    unrouted path on `Hsm.Api` gets a bare 404 instead — each host handles an unknown route its own
-    way, and neither is wrong, but they no longer match.
-  - The Blazor static-SSR login form (`Pages/Login.razor`) is antiforgery-protected via `EditForm`'s
-    `FormName` plus `app.UseAntiforgery()`, not by the frozen `/v1` double-submit CSRF middleware —
-    that middleware no longer applies to `Hsm.Web` at all (see the "No CsrfSecret here" comment in
-    `Hsm.Web/Program.cs`); CSRF protection for the REST surface and the Blazor shell are now two
-    different mechanisms, not one shared one.
+- **Unknown JSON fields and unknown query parameters are ignored, not refused.**
+  `forbidNonWhitelisted` was a NestJS behavior this project was reproducing during the freeze;
+  System.Text.Json's default (ignore what it doesn't recognize) is the standard .NET behavior now,
+  and nothing re-enables strict rejection. A client sending an extra field gets it silently
+  dropped, not a 400.
+
+- **Paging is `page`/`pageSize`, and an oversized `pageSize` is refused, not clamped.** Defaults
+  are `page=1`, `pageSize=20`; the cap is 100. A caller who asks for `pageSize=5000` gets a
+  validation error, not 100 rows delivered silently — see `PagingRules`
+  (`Hsm.Application/Abstractions/PagingRules.cs`), which every paged query's validator calls so the
+  numbers cannot drift between modules.
+
+- **Both hosts must share one data-protection key ring and one `SetApplicationName`.** The session
+  cookie is encrypted; a browser signed in at one door (`Hsm.Web`) must be recognized at the other
+  (`Hsm.Api`), and vice versa. Left to defaults, each host generates its own ephemeral keys and the
+  sibling sees an undecryptable blob — i.e. an anonymous request, which looks exactly like a bad
+  password, not a configuration problem. `Hsm.Api.Tests`' shared `TestKeyRing`
+  (`tests/Hsm.Api.Tests/Support/ApiFactory.cs`) proves the pattern for the in-memory test hosts; a
+  real multi-instance deployment needs the same fix — a persisted, shared key ring and one
+  application discriminator both hosts agree on.
+
+- **Recovery email has no delivery implementation — the feature does not work in any
+  environment.** `POST /api/v1/identity/password/forgot` and `POST /api/v1/identity/username/recover`
+  both answer `202 Accepted` and both are lying: the only `IRecoveryEmailer` registered anywhere in
+  `src/` is `Hsm.Infrastructure.Identity.LoggingRecoveryEmailer`, which writes a log line and
+  returns. There is no SMTP/provider adapter behind it and — unlike `LoggingEmailTransport` and
+  `LoggingStaffWelcomeEmailer`, which are the development stand-ins for adapters that exist — no
+  configuration switch that turns a real one on, because there is no real one to turn on. A user who
+  asks for a password reset receives a valid, one-hour token that nobody ever sends them. Before this
+  feature is usable anywhere, a real `IRecoveryEmailer` has to be implemented and registered in
+  `Hsm.Infrastructure.DependencyInjection`; note also that the reset link must URL-encode the
+  Base64 token (it contains `+` and `=`). Treat the two routes as unshipped until then.
+
+- **`HsmUser.IsActive`/`DeletedAt` are enforced on the credential, not on the actor.** Both fields
+  gate sign-in (`LoginHandler`), the two recovery handlers, the integration token handlers, and —
+  for a session already in hand — `HsmSessionValidator`, which folds "this account is still live and
+  active" into the session-row read it already makes on every cookie-authenticated request. What
+  does *not* re-check them is `RequestActorFactory`: for an already-onboarded caller it trusts the
+  `onboardingCompletedAt` claim and reads no row, deliberately. That is sound only because no
+  credential survives deactivation long enough to reach it — which is a composition property, so if
+  a third credential kind is ever added, it owes the same check on its own path. One residual gap
+  is real and known: a live Blazor circuit in `Hsm.Web` holds its principal for the circuit's
+  lifetime, so deactivating a user does not tear down a page they already have open until its next
+  HTTP request or reconnect. Same limitation as the security-stamp channel, same fix if it ever
+  matters (a periodic circuit-side revalidation).
+
+- **`/health` is liveness-only and probes nothing.** `app.MapHealthChecks("/health")`
+  (`Hsm.Api/Program.cs`) answers "is the process up", not "can it reach Postgres/Redis/RustFS".
+  Dependency state is a separate, deliberately different endpoint: `GET /api/v1/system/status`
+  (`Hsm.Api/System/SystemEndpoints.cs`), which dispatches a query and reports what it actually
+  checked. Do not fold dependency checks into `/health` — a liveness probe that can fail because a
+  downstream store is slow causes exactly the restart-loop it exists to prevent.
+
+- **The committed OpenAPI document is generated, never hand-edited.**
+  `docs/reference/openapi.json` is produced by
+  `HSM_OPENAPI_UPDATE=1 dotnet test tests/Hsm.Api.Tests --filter OpenApiSpecTests` and reviewed as
+  a diff like any other generated artifact. A hand edit will be silently overwritten the next time
+  the generator runs, and will not have been reviewed as a real surface change in the meantime.
 
 - **Telemetry destination is `Telemetry:*` configuration, not collector config.**
   `Telemetry:Exporters` sets the default exporter list for every signal;

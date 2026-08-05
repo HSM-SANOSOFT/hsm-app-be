@@ -5,10 +5,10 @@ using Hsm.Domain.Clinical;
 namespace Hsm.Application.Clinical.Queries.GetPatient;
 
 /// <summary>
-/// Frozen PatientService.getByIdAsFhir: read by logical id, 404 with the
-/// frozen message when absent. A non-uuid id is not-found here too — the
-/// frozen implementation surfaced a raw database error as a 500 for that
-/// input; a deliberate, documented divergence.
+/// Read by logical id, 404 when absent. A non-uuid id is not-found here too,
+/// rather than surfacing a raw database error as a 500 for that input — a
+/// deliberate, documented choice so a malformed identifier never leaks
+/// internal error detail.
 /// </summary>
 public sealed class GetPatientHandler(IPatientStore patients) : IRequestHandler<GetPatientQuery, Patient>
 {
@@ -17,6 +17,6 @@ public sealed class GetPatientHandler(IPatientStore patients) : IRequestHandler<
         var patient = Guid.TryParse(request.Id, out var parsed)
             ? await patients.FindByIdAsync(parsed, ct)
             : null;
-        return patient ?? throw new ApiException(404, $"Patient '{request.Id}' not found", errorLabel: "Not Found");
+        return patient ?? throw new NotFoundException("Patient", request.Id);
     }
 }

@@ -1,21 +1,19 @@
+using FluentValidation;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Abstractions.Behaviors;
-using Hsm.Application.Errors;
 
 namespace Hsm.Tests.Abstractions;
 
 public class ValidationBehaviorTests
 {
-    private sealed record Create(string Name) : ICommand<string>;
+    private sealed record Create(string Name, int Page) : ICommand<string>;
 
-    private sealed class CreateValidator : IValidator<Create>
+    private sealed class CreateValidator : AbstractValidator<Create>
     {
-        public IEnumerable<ValidationFailure> Validate(Create request)
+        public CreateValidator()
         {
-            if (string.IsNullOrWhiteSpace(request.Name))
-            {
-                yield return new ValidationFailure("name", "isNotEmpty", "name should not be empty");
-            }
+            RuleFor(x => x.Name).NotEmpty().WithMessage("Name is required.");
+            RuleFor(x => x.Page).ValidPage();
         }
     }
 
@@ -25,25 +23,37 @@ public class ValidationBehaviorTests
         var behavior = new ValidationBehavior<Create, string>([new CreateValidator()]);
 
         var result = await behavior.HandleAsync(
-            new Create("ok"), () => Task.FromResult("done"), CancellationToken.None);
+            new Create("ok", 1), () => Task.FromResult("done"), CancellationToken.None);
 
         Assert.Equal("done", result);
     }
 
     [Fact]
-    public async Task Invalid_request_throws_before_the_handler_with_field_detail()
+    public async Task Invalid_request_throws_before_the_handler_naming_every_bad_field()
     {
         var behavior = new ValidationBehavior<Create, string>([new CreateValidator()]);
         var reached = false;
 
-        var ex = await Assert.ThrowsAsync<ApiException>(() => behavior.HandleAsync(
-            new Create("  "),
+        var exception = await Assert.ThrowsAsync<ValidationException>(() => behavior.HandleAsync(
+            new Create("  ", 0),
             () => { reached = true; return Task.FromResult("done"); },
             CancellationToken.None));
 
-        Assert.Equal(400, ex.StatusCode);
         Assert.False(reached);
-        Assert.Contains("name", ex.Message, StringComparison.Ordinal);
+        Assert.Contains(exception.Errors, e => e.PropertyName == "Name");
+        Assert.Contains(exception.Errors, e => e.PropertyName == "Page");
+    }
+
+    [Fact]
+    public async Task Every_registered_validator_runs_and_failures_are_merged()
+    {
+        var behavior = new ValidationBehavior<Create, string>(
+            [new CreateValidator(), new CreateValidator()]);
+
+        var exception = await Assert.ThrowsAsync<ValidationException>(() => behavior.HandleAsync(
+            new Create(string.Empty, 1), () => Task.FromResult("done"), CancellationToken.None));
+
+        Assert.Equal(2, exception.Errors.Count(e => e.PropertyName == "Name"));
     }
 
     [Fact]
@@ -52,7 +62,7 @@ public class ValidationBehaviorTests
         var behavior = new ValidationBehavior<Create, string>([]);
 
         var result = await behavior.HandleAsync(
-            new Create(""), () => Task.FromResult("done"), CancellationToken.None);
+            new Create(string.Empty, 0), () => Task.FromResult("done"), CancellationToken.None);
 
         Assert.Equal("done", result);
     }

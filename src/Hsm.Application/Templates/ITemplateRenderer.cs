@@ -4,13 +4,13 @@ namespace Hsm.Application.Templates;
 
 /// <summary>
 /// Raised by <see cref="ITemplateRenderer"/> when Handlebars compilation or
-/// rendering fails; the message is the engine's own diagnostic (surfaced in
-/// the frozen "Invalid Handlebars template: ..." error).
+/// rendering fails; the message is the engine's own diagnostic, surfaced in
+/// the "Invalid Handlebars template: ..." error.
 /// </summary>
 public sealed class TemplateRenderException(string message) : Exception(message);
 
 /// <summary>
-/// Handlebars rendering port (frozen composeTemplate): HTML escaping on, no
+/// Handlebars rendering port: HTML escaping on, no
 /// custom helpers, and base-template inheritance by injecting the rendered
 /// child as <c>body</c> into the base.
 /// </summary>

@@ -1,27 +1,33 @@
 using System.Security.Claims;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 
 namespace Hsm.Web.Auth;
 
 /// <summary>
-/// Bridges the application-layer principal (validated by <see cref="RequestAuth"/>
-/// machinery) into the ClaimsPrincipal ASP.NET Core authentication and Blazor
-/// authorization consume.
+/// Bridges the application-layer <see cref="AuthPrincipal"/> into the
+/// ClaimsPrincipal ASP.NET Core authentication and Blazor authorization
+/// consume.
+///
+/// <para>Since Task 12 no request path uses this: the session principal is
+/// built by Identity's own claims factory from the user row. What is left is
+/// the ability to MAKE a shell session principal without an HTTP round trip,
+/// which the in-process shell suites need in order to prove that the pipeline
+/// — and not an edge — is what refuses a wrong-role dispatch. It emits the
+/// same claim types Identity does, so those suites exercise the real reader.</para>
 /// </summary>
 public static class AuthPrincipalClaims
 {
-    /// <summary>Authentication type carried by shell sessions.</summary>
+    /// <summary>Authentication type carried by a hand-built shell session.</summary>
     public const string AuthenticationType = "HsmCookie";
 
     /// <summary>
-    /// The token's onboardingCompletedAt, carried onto the shell principal so
-    /// <see cref="ShellActor"/> can derive onboarding state the same way the
-    /// REST edge does. Emitted ONLY when the principal is actually onboarded:
-    /// the frozen guard treated an absent claim and a null claim identically
-    /// (both defer to the user row), so absence is the faithful encoding of
-    /// "pending or unknown" rather than a lost signal.
+    /// The onboarding cache claim, by the one name both doors read
+    /// (<see cref="HsmClaims.OnboardingCompletedAt"/>). Emitted ONLY when the
+    /// principal is actually onboarded: an absent claim and a null claim are
+    /// treated identically (both defer to the user row), so absence is the
+    /// faithful encoding of "pending or unknown" rather than a lost signal.
     /// </summary>
-    public const string OnboardingCompletedAtClaim = "hsm:onboarding_completed_at";
+    public const string OnboardingCompletedAtClaim = HsmClaims.OnboardingCompletedAt;
 
     public static ClaimsPrincipal ToClaimsPrincipal(this AuthPrincipal principal)
     {

@@ -5,9 +5,8 @@ using Hsm.Domain.Docs;
 namespace Hsm.Application.Docs.Commands.GenerateDocument;
 
 /// <summary>
-/// <b>Does not enqueue the render job itself</b> — unlike the frozen handler
-/// and the pre-slicing port, which enqueued right after persisting the
-/// document row. <c>TransactionBehavior</c> now wraps this whole handler in
+/// <b>Does not enqueue the render job itself.</b>
+/// <c>TransactionBehavior</c> now wraps this whole handler in
 /// one transaction that commits only after <c>HandleAsync</c> returns, so
 /// enqueuing here would race the commit: the consumer runs in another process
 /// and could try to render a document it cannot see yet. The job id IS minted
@@ -23,7 +22,7 @@ public sealed class GenerateDocumentHandler(IDocumentStore store, ICurrentPrinci
     public async Task<GenerateDocumentResult> HandleAsync(GenerateDocumentCommand request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var actor = principal.Actor ?? throw ApiException.Unauthorized();
+        var actor = principal.Actor ?? throw new UnauthorizedException();
         var userId = Guid.Parse(actor.Id);
 
         // Minted (no I/O), not enqueued — see class doc comment.

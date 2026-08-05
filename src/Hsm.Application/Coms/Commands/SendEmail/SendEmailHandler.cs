@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
+using FluentValidation;
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Application.Errors;
 using Hsm.Application.Templates;
 using Hsm.Domain.Coms;
@@ -8,12 +9,11 @@ using Hsm.Domain.Coms;
 namespace Hsm.Application.Coms.Commands.SendEmail;
 
 /// <summary>
-/// <b>Does not enqueue the send-email job itself</b> — unlike the frozen
-/// handler and the pre-slicing port, which enqueued right after
-/// <c>SaveChangesAsync</c>. <c>TransactionBehavior</c> wraps this whole handler
-/// in one transaction that commits only after <c>HandleAsync</c> returns, so
-/// enqueuing here would race the commit: the consumer runs in another process
-/// entirely and could look up the new batch before this transaction commits it.
+/// <b>Does not enqueue the send-email job itself.</b> <c>TransactionBehavior</c>
+/// wraps this whole handler in one transaction that commits only after
+/// <c>HandleAsync</c> returns, so enqueuing here would race the commit: the
+/// consumer runs in another process entirely and could look up the new batch
+/// before this transaction commits it.
 /// <c>ComsEndpoints.SendEmail</c> enqueues after <c>dispatcher.Send</c>
 /// returns, which is a real post-commit point. See
 /// <see cref="Commands.ReceiveWebhook.ReceiveWebhookCommand"/>'s handler for
@@ -24,14 +24,14 @@ public sealed class SendEmailHandler(
     ITemplateStore templates,
     IEmailBatchStore batches,
     IEmailSuppressionStore suppressions,
-    IAuthUnitOfWork unitOfWork,
+    IUnitOfWork unitOfWork,
     ICurrentPrincipal principal) : IRequestHandler<SendEmailCommand, SendEmailResult>
 {
     public async Task<SendEmailResult> HandleAsync(SendEmailCommand request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var actor = principal.Actor ?? throw ApiException.Unauthorized();
+        var actor = principal.Actor ?? throw new UnauthorizedException();
         var userId = Guid.Parse(actor.Id);
 
         var template = await templates.FindByIdentifierAsync(request.EmailTemplate, ct: ct)
@@ -40,9 +40,11 @@ public sealed class SendEmailHandler(
         var issues = TemplateSchema.Validate(JsonNode.Parse(template.SchemaJson), request.Data);
         if (issues.Count > 0)
         {
-            // Frozen envelope: the issue carries only the message (the frozen
-            // filter dropped the issues array from the thrown payload).
-            throw new ApiException(400, "Template data validation failed");
+            // The schema issues already carry paths — they become per-field
+            // errors instead of one prose string.
+            throw new ValidationException(
+                issues.Select(i => new FluentValidation.Results.ValidationFailure(
+                    $"data.{i.Path}", $"expected {i.Expected}, got {i.Received}")));
         }
 
         var suppressed = await suppressions.SuppressedAmongAsync([.. request.ToEmails], ct);

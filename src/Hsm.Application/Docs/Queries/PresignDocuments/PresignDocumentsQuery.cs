@@ -3,7 +3,7 @@ using Hsm.Application.Abstractions;
 namespace Hsm.Application.Docs.Queries.PresignDocuments;
 
 /// <summary>
-/// POST /v1/docs/url + the frozen S3Service.generatePresignedUrls shapes.
+/// POST /v1/docs/url.
 /// A QUERY, not a command: signing is local (HMAC over the request), no round
 /// trip, no persistence — nothing here mutates state. Authenticated only.
 /// </summary>

@@ -6,7 +6,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The closed exception set's ValidationException/ValidationFailure vehicle
+         (Hsm.Application.Errors.HsmException family) and the per-field failures
+         FluentValidation validators report (Task 3). -->
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <!-- UserManager<HsmUser>/IdentityResult: handlers speak Identity's
+         membership API directly rather than through a port that would only
+         restate it. Core only — no store, no EF. -->
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" />
   </ItemGroup>
 
   <PropertyGroup>

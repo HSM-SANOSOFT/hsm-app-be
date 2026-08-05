@@ -6,7 +6,7 @@ namespace Hsm.Application.Ports;
 /// (RustFS today; SeaweedFS or Ceph would be a config change, not a code
 /// change). Failures surface as <see cref="ObjectStorageException"/>
 /// subtypes — infrastructure exception types must not cross this boundary.
-/// Every method takes an optional bucket because the frozen document contract
+/// Every method takes an optional bucket because the document contract
 /// carries bucket names in request payloads; null means the configured
 /// default bucket.
 /// </summary>
@@ -32,10 +32,9 @@ public interface IObjectStorage
 
     /// <summary>
     /// Generates a time-limited presigned GET URL. Signing is a local
-    /// operation — no round-trip, and no existence check (frozen behavior:
-    /// URLs are minted even for absent keys; the grant fails on use).
-    /// Defaults mirror the frozen stack: 900 seconds, inline disposition
-    /// only when explicitly requested.
+    /// operation — no round-trip, and no existence check: URLs are minted
+    /// even for absent keys, and the grant fails on use. Default expiry is
+    /// 900 seconds; inline disposition only when explicitly requested.
     /// </summary>
     Task<Uri> PresignGetAsync(
         string key,

@@ -4,11 +4,11 @@ using System.Text.Json.Nodes;
 
 namespace Hsm.Application.Templates;
 
-/// <summary>One schema-validation finding (frozen TemplateSchemaIssue).</summary>
+/// <summary>One schema-validation finding.</summary>
 public sealed record TemplateSchemaIssue(string Path, string Expected, string Received);
 
 /// <summary>
-/// The frozen mini-schema language (template-schema.util.ts): leaves are the
+/// The mini-schema language: leaves are the
 /// type tags string/number/boolean/date/any (suffix "?" marks optional),
 /// objects are sub-schemas, and single-element arrays are lists of the element
 /// sub-schema. Extra data keys are ignored; missing non-optional values fail.
@@ -55,7 +55,7 @@ public static class TemplateSchema
             var tag = StripOptional(raw);
             if (!PrimitiveTags.Contains(tag, StringComparer.Ordinal))
             {
-                // Frozen behavior: an unknown tag degrades to "any".
+                // An unknown tag degrades to "any".
                 tag = "any";
             }
 

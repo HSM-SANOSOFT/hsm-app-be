@@ -1,5 +1,5 @@
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Application.Coms;
 using Hsm.Domain.Coms;
 
@@ -13,7 +13,7 @@ namespace Hsm.Application.Coms.Commands.ResendEmailBatch;
 /// enqueues after <c>dispatcher.Send</c> returns.
 /// </summary>
 public sealed class ResendEmailBatchHandler(
-    IEmailBatchStore store, IAuthUnitOfWork unitOfWork)
+    IEmailBatchStore store, IUnitOfWork unitOfWork)
     : IRequestHandler<ResendEmailBatchCommand, string>
 {
     public async Task<string> HandleAsync(ResendEmailBatchCommand request, CancellationToken ct)

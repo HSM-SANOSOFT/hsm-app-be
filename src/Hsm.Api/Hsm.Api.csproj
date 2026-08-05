@@ -7,9 +7,27 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- FHIR R4 validation/parsing at the API edge only (frozen @medplum/core
-         validateResource replacement). Application/Domain never see it. -->
+    <!-- Hsm.Api.Tests calls HsmExceptionHandler.Map directly (internal) to
+         prove the closed-exception-set → status-code mapping without a
+         borrowed HTTP route — see ProblemDetailsTests' history: Task 8
+         (Templates) closed the last route that still bare-Guid.Parse'd a
+         route parameter, so no HTTP vehicle for an unmapped-exception 500
+         remained. -->
+    <InternalsVisibleTo Include="Hsm.Api.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- FHIR R4 validation/parsing at the API edge only.
+         Application/Domain never see it. -->
     <PackageReference Include="Hl7.Fhir.R4" />
+    <!-- HsmExceptionHandler maps FluentValidation.ValidationException (the
+         closed set's 400 vehicle) to problem+json. -->
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <!-- Direct reference, pinned above Microsoft.AspNetCore.OpenApi's own
+         transitive minimum, so restore resolves the patched version rather
+         than the vulnerable one (see the Directory.Packages.props comment). -->
+    <PackageReference Include="Microsoft.OpenApi" />
     <!-- Design-time only. `dotnet ef` requires the STARTUP project to
          reference this package: the migrations live in Hsm.Infrastructure but
          the host that composes the DbContext from configuration is this one,
@@ -27,6 +45,7 @@
          cannot live in the shared assembly: Hsm.Worker's runtime image has no
          ASP.NET Core shared framework). -->
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="Scalar.AspNetCore" />
   </ItemGroup>
 
 </Project>

@@ -1,139 +1,90 @@
-using System.Text.Json;
-using System.Text.Json.Nodes;
-using Hsm.Api.Auth;
-using Hsm.Api.Http;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Settings;
 using Hsm.Application.Settings.Commands.UpdateSettings;
 using Hsm.Application.Settings.Queries.GetSettings;
-using Hsm.Domain.Settings;
+using Hsm.Application.Settings.Queries.ListSettingsAudit;
+using Hsm.Contracts;
 
 namespace Hsm.Api.Settings;
 
 /// <summary>
-/// The two frozen /v1/settings operations (settings.controller.ts), both
-/// admin-only. Role policy rides on the request types (AuthorizationBehavior);
-/// GET and PUT return 200 with the fresh category read-back.
+/// The settings resource, plus the audit trail that used to be a UI-service-only
+/// call and now gets a real route. Every delegate does transport work only —
+/// bind, dispatch, project, choose a status. There is no authentication call
+/// and no role check here — the actor is installed by middleware and every
+/// request type below is admin-only via <c>[RequireRole(Roles.Admin)]</c> on
+/// the request record, enforced once by <c>AuthorizationBehavior</c>.
 /// </summary>
 public static class SettingsEndpoints
 {
     public static void MapSettingsEndpoints(this IEndpointRouteBuilder app)
     {
-        var settings = app.MapGroup("/v1/settings");
-        settings.MapGet("", (Delegate)GetSettings);
-        settings.MapPut("", (Delegate)UpdateSettings);
+        ArgumentNullException.ThrowIfNull(app);
+        var settings = app.MapGroup("/api/v1/settings").WithTags("Settings");
+
+        // All three dispatch a request with an AbstractValidator that can fail —
+        // an unknown or missing category on any of them, an empty key or an
+        // oversized page on the other two — so 400 is part of every route's
+        // contract here.
+        settings.MapGet("/", GetSettings)
+            .WithSummary("Read a settings category (one of four known categories), values masked for secrets.")
+            .Produces<SettingsResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesValidationProblem();
+
+        settings.MapPut("/", UpdateSettings)
+            .WithSummary("Update a settings category and return the fresh read-back.")
+            .Produces<SettingsResource>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesValidationProblem();
+
+        // Registered before no route below could ever shadow it — the group
+        // has no other path segment, so ordering is not actually load-bearing
+        // here, unlike Templates' {id} vs /validate; kept for readability.
+        settings.MapGet("/audit", ListSettingsAudit)
+            .WithSummary("Read the settings audit trail for a category, newest first, paged.")
+            .Produces<PagedResult<SettingAuditResource>>()
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesValidationProblem();
     }
 
-    private static async Task<IResult> GetSettings(HttpContext ctx, IDispatcher dispatcher)
+    private static async Task<IResult> GetSettings(
+        IDispatcher dispatcher, CancellationToken ct, string? category = null)
     {
-        await RequestAuth.GateAsync(ctx);
-
-        var query = QueryValidator.Read(ctx);
-        var category = query.RequiredEnum("category", SettingsCategories.All);
-        query.RejectUnknownParams();
-        query.ThrowIfInvalid();
-
-        var view = await dispatcher.Send(new GetSettingsQuery(category), ctx.RequestAborted);
-        return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, SettingsJson(view));
+        var view = await dispatcher.Send(new GetSettingsQuery(category ?? string.Empty), ct);
+        return Results.Ok(SettingsResource.From(view));
     }
 
-    private static async Task<IResult> UpdateSettings(HttpContext ctx, IDispatcher dispatcher)
+    private static async Task<IResult> UpdateSettings(
+        UpdateSettingsRequest request, IDispatcher dispatcher, CancellationToken ct)
     {
-        await RequestAuth.GateAsync(ctx);
+        // Built BEFORE dispatcher.Send: a well-formed body can still carry a
+        // null "settings" array or a null entry inside it (System.Text.Json
+        // does not enforce this record's non-nullable annotations at
+        // deserialization time), and that must degrade to an empty update /
+        // an empty key — which UpdateSettingsValidator then turns into a
+        // field-keyed 400 — rather than NRE into a bare 500 ahead of the
+        // pipeline ever getting a chance to answer.
+        var updates = (request.Settings ?? [])
+            .Select(item => new SettingUpdate(item?.Key ?? string.Empty, item?.Value))
+            .ToList();
 
-        var body = await BodyValidator.ReadAsync(ctx);
-        var category = body.RequiredEnum("category", SettingsCategories.All);
-        var items = body.RequiredObjectArray("settings");
-        var updates = new List<SettingUpdate>();
-        if (items is not null)
-        {
-            for (var index = 0; index < items.Count; index++)
-            {
-                var item = ValidateItem(body, items[index], index);
-                if (item is not null)
-                {
-                    updates.Add(item);
-                }
-            }
-        }
-
-        body.RejectUnknownFields();
-        body.ThrowIfInvalid();
-
-        var view = await dispatcher.Send(new UpdateSettingsCommand(category, updates), ctx.RequestAborted);
-        return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, SettingsJson(view));
+        var view = await dispatcher.Send(new UpdateSettingsCommand(request.Category, updates), ct);
+        return Results.Ok(SettingsResource.From(view));
     }
 
-    /// <summary>Frozen nested item validation (@ValidateNested over UpdateSettingItemDto).</summary>
-    private static SettingUpdate? ValidateItem(BodyValidator body, JsonNode? node, int index)
+    private static async Task<IResult> ListSettingsAudit(
+        IDispatcher dispatcher,
+        CancellationToken ct,
+        string? category = null,
+        int page = PagingRules.DefaultPage,
+        int pageSize = PagingRules.DefaultPageSize)
     {
-        if (node is not JsonObject item)
-        {
-            body.AddFailure(
-                $"settings.{index}", "nestedValidation",
-                "each value in nested property settings must be either object or array");
-            return null;
-        }
-
-        string? key = null;
-        var keyNode = item["key"];
-        if (keyNode is null
-            || keyNode.GetValueKind() != JsonValueKind.String
-            || keyNode.GetValue<string>().Length == 0)
-        {
-            body.AddFailure($"settings.{index}.key", "isNotEmpty", $"settings.{index}.key should not be empty");
-        }
-        else
-        {
-            key = keyNode.GetValue<string>();
-        }
-
-        string? value = null;
-        var valueNode = item["value"];
-        if (valueNode is not null)
-        {
-            if (valueNode.GetValueKind() == JsonValueKind.String)
-            {
-                value = valueNode.GetValue<string>();
-            }
-            else if (valueNode.GetValueKind() != JsonValueKind.Null)
-            {
-                body.AddFailure($"settings.{index}.value", "isString", $"settings.{index}.value must be a string");
-            }
-        }
-
-        foreach (var property in item)
-        {
-            if (property.Key is not ("key" or "value"))
-            {
-                body.AddFailure(
-                    $"settings.{index}.{property.Key}", "whitelistValidation",
-                    $"property {property.Key} should not exist");
-            }
-        }
-
-        return key is null ? null : new SettingUpdate(key, value);
-    }
-
-    private static JsonObject SettingsJson(SettingsView view)
-    {
-        var settings = new JsonArray();
-        foreach (var item in view.Settings)
-        {
-            settings.Add(new JsonObject
-            {
-                ["key"] = item.Key,
-                ["category"] = item.Category,
-                ["isSecret"] = item.IsSecret,
-                ["isSet"] = item.IsSet,
-                ["value"] = item.Value,
-            });
-        }
-
-        return new JsonObject
-        {
-            ["category"] = view.Category,
-            ["settings"] = settings,
-        };
+        var result = await dispatcher.Send(
+            new ListSettingsAuditQuery(category ?? string.Empty, page, pageSize), ct);
+        return Results.Ok(result.Map(SettingAuditResource.From));
     }
 }

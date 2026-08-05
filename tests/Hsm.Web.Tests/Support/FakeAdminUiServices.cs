@@ -1,3 +1,4 @@
+using Hsm.Contracts;
 using Hsm.Contracts.Ui;
 
 namespace Hsm.Web.Tests;
@@ -23,9 +24,9 @@ public sealed class FakeUsersAdminUiService : IUsersAdminUiService
     public List<NewStaffUserDto> CreateCalls { get; } = [];
     public List<(string UserId, string Role)> ChangeRoleCalls { get; } = [];
 
-    public Task<UserListPageDto> ListUsersAsync(
+    public Task<PagedResult<UserRowDto>> ListUsersAsync(
         int page, int pageSize, CancellationToken cancellationToken = default) =>
-        Task.FromResult(new UserListPageDto(Users, page, pageSize, Users.Count));
+        Task.FromResult(new PagedResult<UserRowDto>(Users, page, pageSize, Users.Count));
 
     public Task<UserRowDto> CreateStaffAsync(
         NewStaffUserDto command, CancellationToken cancellationToken = default)
@@ -119,10 +120,12 @@ public sealed class FakeSettingsAdminUiService : ISettingsAdminUiService
         return GetSettingsAsync(category, cancellationToken);
     }
 
-    public Task<IReadOnlyList<SettingAuditEntryDto>> GetAuditTrailAsync(
-        string category, CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<SettingAuditEntryDto>>(
-            AuditByCategory.GetValueOrDefault(category) ?? []);
+    public Task<PagedResult<SettingAuditEntryDto>> GetAuditTrailAsync(
+        string category, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var entries = AuditByCategory.GetValueOrDefault(category) ?? [];
+        return Task.FromResult(new PagedResult<SettingAuditEntryDto>(entries, page, pageSize, entries.Count));
+    }
 }
 
 /// <summary>Contracts-level double for the documents screen.</summary>
@@ -134,9 +137,9 @@ public sealed class FakeDocumentsAdminUiService : IDocumentsAdminUiService
     public List<string> DeleteCalls { get; } = [];
     public string PresignedUrl { get; set; } = "http://storage.local/presigned";
 
-    public Task<DocumentListPageDto> ListDocumentsAsync(
+    public Task<PagedResult<DocumentRowDto>> ListDocumentsAsync(
         int page, int pageSize, CancellationToken cancellationToken = default) =>
-        Task.FromResult(new DocumentListPageDto([.. Documents], page, pageSize, Documents.Count));
+        Task.FromResult(new PagedResult<DocumentRowDto>([.. Documents], page, pageSize, Documents.Count));
 
     public Task<IReadOnlyList<string>> UploadAsync(
         IReadOnlyList<UploadFileDto> files, CancellationToken cancellationToken = default)

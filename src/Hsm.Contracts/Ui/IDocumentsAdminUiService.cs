@@ -3,12 +3,13 @@ namespace Hsm.Contracts.Ui;
 /// <summary>
 /// Document management (plan U18, screen 5): list, upload, retrieve via
 /// presigned URL, delete. The host implementation calls the docs handlers in
-/// process; the listing keeps the frozen createdBy scoping, so the screen
-/// shows the documents the signed-in admin owns.
+/// process; the listing scopes by createdBy, so the screen shows the
+/// documents the signed-in admin owns.
 /// </summary>
 public interface IDocumentsAdminUiService
 {
-    Task<DocumentListPageDto> ListDocumentsAsync(int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<PagedResult<DocumentRowDto>> ListDocumentsAsync(
+        int page, int pageSize, CancellationToken cancellationToken = default);
 
     /// <summary>Uploads the files and returns the created document ids.</summary>
     Task<IReadOnlyList<string>> UploadAsync(
@@ -27,10 +28,6 @@ public sealed record DocumentRowDto(
     string Type,
     string Status,
     DateTimeOffset CreatedAt);
-
-/// <summary>A page of documents plus the pagination facts.</summary>
-public sealed record DocumentListPageDto(
-    IReadOnlyList<DocumentRowDto> Documents, int Page, int PageSize, int TotalItems);
 
 /// <summary>One file to upload; <paramref name="Content"/> is read once.</summary>
 public sealed record UploadFileDto(string FileName, string ContentType, long Size, Stream Content);

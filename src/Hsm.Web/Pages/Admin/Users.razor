@@ -1,5 +1,6 @@
 @page "/usuarios"
 @attribute [Authorize(Roles = UiRoles.Admin)]
+@using Hsm.Contracts
 @inject IUsersAdminUiService UsersAdmin
 @inject ISnackbar Snackbar
 
@@ -83,7 +84,7 @@
 }
 else
 {
-    <MudTable T="UserRowDto" Items="_page.Users" Hover="true" Dense="true" data-testid="users-table">
+    <MudTable T="UserRowDto" Items="_page.Items" Hover="true" Dense="true" data-testid="users-table">
         <HeaderContent>
             <MudTh>Usuario</MudTh>
             <MudTh>Nombre</MudTh>
@@ -143,16 +144,14 @@ else
 @code {
     private const int PageSize = 10;
 
-    private UserListPageDto? _page;
+    private PagedResult<UserRowDto>? _page;
     private IReadOnlyList<string> _roles = [];
     private int _pageNumber = 1;
     private bool _showCreate;
     private NewUserInput _newUser = new();
     private readonly Dictionary<string, string> _pendingRoles = new(StringComparer.Ordinal);
 
-    private int TotalPages => _page is null || _page.TotalItems == 0
-        ? 1
-        : (_page.TotalItems + PageSize - 1) / PageSize;
+    private int TotalPages => _page is null || _page.TotalPages == 0 ? 1 : _page.TotalPages;
 
     protected override async Task OnInitializedAsync()
     {

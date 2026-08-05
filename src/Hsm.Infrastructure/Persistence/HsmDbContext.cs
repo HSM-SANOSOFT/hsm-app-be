@@ -5,20 +5,29 @@ using Hsm.Domain.Identity;
 using Hsm.Domain.Proving;
 using Hsm.Domain.Settings;
 using Hsm.Domain.Templates;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hsm.Infrastructure.Persistence;
 
-public class HsmDbContext(DbContextOptions<HsmDbContext> options) : DbContext(options)
+/// <summary>
+/// One context for the whole schema, and an <see cref="IdentityDbContext{TUser, TRole, TKey}"/>
+/// so ASP.NET Core Identity's stores write through the SAME DbContext — and
+/// therefore the same connection and the same ambient transaction — as every
+/// other adapter in the scope.
+/// </summary>
+public class HsmDbContext(DbContextOptions<HsmDbContext> options)
+    : IdentityDbContext<HsmUser, IdentityRole<Guid>, Guid>(options)
 {
     public DbSet<ProvingRoot> ProvingRoots => Set<ProvingRoot>();
 
-    public DbSet<User> Users => Set<User>();
-    public DbSet<UserRole> UserRoles => Set<UserRole>();
+    // Users, Roles, UserRoles, UserClaims, UserLogins, UserTokens and
+    // RoleClaims all come from IdentityDbContext; only the non-Identity
+    // membership tables are declared here.
     public DbSet<IntegrationAccount> IntegrationAccounts => Set<IntegrationAccount>();
-    public DbSet<UserRefreshToken> UserRefreshTokens => Set<UserRefreshToken>();
     public DbSet<IntegrationRefreshToken> IntegrationRefreshTokens => Set<IntegrationRefreshToken>();
-    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<UserSession> UserSessions => Set<UserSession>();
 
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<AppSettingAudit> AppSettingAudits => Set<AppSettingAudit>();
@@ -41,8 +50,12 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options) : DbContext(op
     public DbSet<EmailSuppression> EmailSuppressions => Set<EmailSuppression>();
     public DbSet<EmailWebhookEvent> EmailWebhookEvents => Set<EmailWebhookEvent>();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder builder)
     {
+        // FIRST: Identity's own configuration has to be in place before any of
+        // it is overridden below.
+        base.OnModelCreating(builder);
+        var modelBuilder = builder;
         ConfigureIdentity(modelBuilder);
         ConfigureClinical(modelBuilder);
         ConfigureSettings(modelBuilder);
@@ -79,36 +92,62 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options) : DbContext(op
     }
 
     /// <summary>
-    /// Identity tables mirror the frozen schema's semantics: case-insensitive
-    /// unique username/email (citext), one-active refresh-token rows in TWO
-    /// separate stores (users vs integrations), and hashed single-use
-    /// password-reset tokens.
+    /// Identity's tables, mapped onto this repository's snake_case names, with
+    /// the two properties the hospital schema adds to the default: citext
+    /// login/email columns and unique indexes filtered on DeletedAt, so a
+    /// soft-deleted account frees its username and email for reuse.
+    ///
+    /// <para>The refresh-token tables are NOT Identity types. Integration
+    /// accounts cannot hold a browser cookie and keep JWTs (Task 14); the user
+    /// refresh-token table survives only until Task 12 replaces browser
+    /// sessions with the Identity cookie, which is what retires it.</para>
     /// </summary>
     private static void ConfigureIdentity(ModelBuilder modelBuilder)
     {
         modelBuilder.HasPostgresExtension("citext");
 
-        modelBuilder.Entity<User>(user =>
+        modelBuilder.Entity<HsmUser>(user =>
         {
             user.ToTable("users");
-            user.HasKey(u => u.Id);
-            user.Property(u => u.Username).HasColumnType("citext");
-            user.Property(u => u.Email).HasColumnType("citext");
-            user.HasIndex(u => u.Username).IsUnique().HasFilter("\"DeletedAt\" IS NULL");
-            user.HasIndex(u => u.Email).IsUnique().HasFilter("\"DeletedAt\" IS NULL");
-            user.HasMany(u => u.Roles)
-                .WithOne()
-                .HasForeignKey(r => r.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+            user.Property(u => u.UserName).HasColumnType("citext").HasMaxLength(256);
+            user.Property(u => u.NormalizedUserName).HasColumnType("citext").HasMaxLength(256);
+            user.Property(u => u.Email).HasColumnType("citext").HasMaxLength(256);
+            user.Property(u => u.NormalizedEmail).HasColumnType("citext").HasMaxLength(256);
+
+            // Identity declares these two indexes unique and unfiltered; the
+            // filter is what makes soft delete free the name.
+            user.HasIndex(u => u.NormalizedUserName)
+                .IsUnique()
+                .HasFilter("\"DeletedAt\" IS NULL")
+                .HasDatabaseName("ix_users_normalized_user_name");
+            user.HasIndex(u => u.NormalizedEmail)
+                .IsUnique()
+                .HasFilter("\"DeletedAt\" IS NULL")
+                .HasDatabaseName("ix_users_normalized_email");
         });
 
-        modelBuilder.Entity<UserRole>(role =>
+        modelBuilder.Entity<IdentityRole<Guid>>(role =>
         {
-            role.ToTable("user_roles");
-            role.HasKey(r => r.Id);
-            role.HasIndex(r => new { r.UserId, r.Domain, r.Role }).IsUnique();
+            role.ToTable("roles");
+            role.HasData(RoleCatalog.All.Select(name => new IdentityRole<Guid>
+            {
+                Id = RoleCatalog.IdFor(name),
+                Name = name,
+                NormalizedName = name.ToUpperInvariant(),
+                // A fixed stamp, because a random one per model build would make
+                // every `migrations add` produce a spurious update.
+                ConcurrencyStamp = RoleCatalog.IdFor(name).ToString(),
+            }));
         });
 
+        modelBuilder.Entity<IdentityUserRole<Guid>>().ToTable("user_roles");
+        modelBuilder.Entity<IdentityUserClaim<Guid>>().ToTable("user_claims");
+        modelBuilder.Entity<IdentityUserLogin<Guid>>().ToTable("user_logins");
+        modelBuilder.Entity<IdentityUserToken<Guid>>().ToTable("user_tokens");
+        modelBuilder.Entity<IdentityRoleClaim<Guid>>().ToTable("role_claims");
+
+        // Integration accounts and their refresh tokens are NOT Identity types;
+        // they keep their own tables (see IdentityStores).
         modelBuilder.Entity<IntegrationAccount>(account =>
         {
             account.ToTable("users_integration");
@@ -116,15 +155,19 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options) : DbContext(op
             account.Property(a => a.Name).HasColumnType("citext");
         });
 
-        modelBuilder.Entity<UserRefreshToken>(token =>
+        modelBuilder.Entity<UserSession>(session =>
         {
-            token.ToTable("refresh_token_users");
-            token.HasKey(t => t.Id);
-            token.HasIndex(t => t.TokenHash).IsUnique();
-            token.HasIndex(t => new { t.UserId, t.IsActive });
-            token.HasOne<User>()
+            session.ToTable("user_sessions");
+            session.HasKey(s => s.Id);
+
+            // The validation path looks a session up BY ID, so the primary key
+            // is the whole index it needs. The second index serves the other two
+            // accesses, both of which are per user: reclaiming expired rows at
+            // sign-in, and cascading when an account is deleted.
+            session.HasIndex(s => new { s.UserId, s.ExpiresAt });
+            session.HasOne<HsmUser>()
                 .WithMany()
-                .HasForeignKey(t => t.UserId)
+                .HasForeignKey(s => s.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -139,25 +182,13 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options) : DbContext(op
                 .HasForeignKey(t => t.IntegrationAccountId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
-
-        modelBuilder.Entity<PasswordResetToken>(token =>
-        {
-            token.ToTable("password_reset_tokens");
-            token.HasKey(t => t.Id);
-            token.HasIndex(t => t.TokenHash);
-            token.HasOne<User>()
-                .WithMany()
-                .HasForeignKey(t => t.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
     }
 
     /// <summary>
-    /// Clinical patient tables mirror the frozen schema's semantics
-    /// (patient.entity.ts / patient-identifier.entity.ts): searchable scalars
-    /// as real columns, complex FHIR datatypes as jsonb, and the normalized
-    /// identifier child table with the unique (system, value) index whose
-    /// frozen name the 409 path referenced.
+    /// Clinical patient tables: searchable scalars as real columns, complex
+    /// FHIR datatypes as jsonb, and the normalized identifier child table
+    /// with the unique (system, value) index that backs the handler's 409
+    /// duplicate-identifier response.
     /// </summary>
     private static void ConfigureClinical(ModelBuilder modelBuilder)
     {
@@ -174,8 +205,8 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options) : DbContext(op
                 .HasForeignKey(i => i.PatientId)
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Cascade);
-            // The frozen relation was eager — identifier rows always travel
-            // with the patient.
+            // Identifier rows always travel with the patient, so the
+            // relation is eager-loaded.
             patient.Navigation(p => p.Identifiers).AutoInclude();
         });
 
@@ -190,13 +221,13 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options) : DbContext(op
     }
 
     /// <summary>
-    /// Template tables mirror the frozen schema (templates.* in Postgres):
-    /// one parent row plus at most one shape row (email/sms/doc) sharing the
-    /// parent's key, a nullable self-reference to the BASE template that
-    /// RESTRICTS delete (the domain 409 fires first; the constraint is the
-    /// backstop), and a parse log whose FK nulls on template deletion so the
-    /// audit trail survives. Frozen enum columns are plain strings here — the
-    /// catalogs are the source of truth, observably identical via the API.
+    /// Template tables (templates.* in Postgres): one parent row plus at
+    /// most one shape row (email/sms/doc) sharing the parent's key, a
+    /// nullable self-reference to the BASE template that RESTRICTS delete
+    /// (the domain 409 fires first; the constraint is the backstop), and a
+    /// parse log whose FK nulls on template deletion so the audit trail
+    /// survives. Enum columns are plain strings here — the catalogs are the
+    /// source of truth, observably identical via the API.
     /// </summary>
     private static void ConfigureTemplates(ModelBuilder modelBuilder)
     {
@@ -265,10 +296,10 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options) : DbContext(op
     }
 
     /// <summary>
-    /// Communications tables mirror the frozen coms.* schema. The
-    /// batch→recipient relationship is the aggregate the stack was chosen
-    /// for: required FK plus cascade, so a recipient removed from the batch's
-    /// collection is DELETED (orphan removal), proven by integration test.
+    /// Communications tables. The batch→recipient relationship is the
+    /// aggregate the stack was chosen for: required FK plus cascade, so a
+    /// recipient removed from the batch's collection is DELETED (orphan
+    /// removal), proven by integration test.
     /// </summary>
     private static void ConfigureComs(ModelBuilder modelBuilder)
     {
@@ -321,13 +352,13 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options) : DbContext(op
     }
 
     /// <summary>
-    /// Document tables mirror the frozen docs.* schema (table names included,
-    /// hyphens and all): metadata rows only — the binary itself lives in the
-    /// blob store, and a schema-inspection test proves no binary-capable
-    /// column exists on any of these tables. Versions are relational (one
-    /// blob key per version row); links and audits hang off the document and
-    /// cascade with the ROW's hard delete only — the API soft-deletes, so in
-    /// practice they survive (frozen semantics).
+    /// Document tables (note the hyphenated table names): metadata rows
+    /// only — the binary itself lives in the blob store, and a
+    /// schema-inspection test proves no binary-capable column exists on any
+    /// of these tables. Versions are relational (one blob key per version
+    /// row); links and audits hang off the document and cascade with the
+    /// ROW's hard delete only — the API soft-deletes, so in practice they
+    /// survive.
     /// </summary>
     private static void ConfigureDocs(ModelBuilder modelBuilder)
     {
@@ -403,11 +434,10 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options) : DbContext(op
     }
 
     /// <summary>
-    /// Settings tables mirror the frozen schema's semantics: one row per key
-    /// (unique), and an append-only audit table whose rows never store secret
-    /// plaintext. The frozen category column was a Postgres enum; a plain
-    /// string is used here — observably identical through the API, and the
-    /// catalog (not the column type) is the source of truth for valid values.
+    /// Settings tables: one row per key (unique), and an append-only audit
+    /// table whose rows never store secret plaintext. The category column is
+    /// a plain string rather than a Postgres enum — the catalog (not the
+    /// column type) is the source of truth for valid values.
     /// </summary>
     private static void ConfigureSettings(ModelBuilder modelBuilder)
     {

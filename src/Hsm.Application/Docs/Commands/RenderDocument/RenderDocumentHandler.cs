@@ -7,9 +7,9 @@ using Hsm.Domain.Docs;
 namespace Hsm.Application.Docs.Commands.RenderDocument;
 
 /// <summary>
-/// The queued generation job (frozen worker docs-processor.service.ts), with
+/// The queued generation job, with
 /// QuestPDF standing in for Puppeteer behind <see cref="IDocumentPdfRenderer"/>.
-/// The observable persistence is the frozen flow exactly: PENDING →
+/// The observable persistence follows this flow: PENDING →
 /// PROCESSING → blob upload → one transaction (version max+1, storage object,
 /// provenance, optional link + entity fields) → COMPLETED; on any failure the
 /// uploaded blob is best-effort removed and the document row is marked FAILED
@@ -55,10 +55,10 @@ public sealed class RenderDocumentHandler(
                     $"Template '{request.TemplateIdentifier}' is not a DOCS category template");
             }
 
-            // Frozen formats: PDF via the renderer port; EXCEL/WORD are not
+            // Supported formats: PDF via the renderer port; EXCEL/WORD are not
             // carried into the minor (see the U15 report) — they fail the job
-            // exactly as the frozen WORD path did ("Unsupported document
-            // format"), leaving the document FAILED.
+            // with "Unsupported document format", leaving the document
+            // FAILED.
             if (template.Doc.Format != "PDF")
             {
                 throw new TemplateParseException($"Unsupported document format: {template.Doc.Format}");
@@ -97,7 +97,7 @@ public sealed class RenderDocumentHandler(
         }
         catch
         {
-            // Frozen cleanup: remove the orphaned blob if the work failed
+            // Best-effort cleanup: remove the orphaned blob if the work failed
             // after upload, then FAILED — each guarded so a cleanup failure
             // never masks the original error.
             if (uploadedKey is not null)

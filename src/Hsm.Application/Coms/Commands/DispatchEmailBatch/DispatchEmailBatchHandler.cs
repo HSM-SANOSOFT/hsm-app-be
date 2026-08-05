@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Application.Coms;
 using Hsm.Application.Templates;
 using Hsm.Domain.Coms;
@@ -8,28 +8,28 @@ using Hsm.Domain.Coms;
 namespace Hsm.Application.Coms.Commands.DispatchEmailBatch;
 
 /// <summary>
-/// The frozen worker 'send-email' job processor (worker EmailService.sendEmail):
-/// batch → PROCESSING, target selection (one recipient on a recipient resend,
-/// otherwise every PENDING/FAILED row — SUPPRESSED rows are never targeted),
-/// template render (failures leave recipient rows untouched and fail the job
-/// for retry), one transport send, then SENT/FAILED bulk updates and the
-/// aggregate overall-status recomputation.
+/// The 'send-email' job processor: batch → PROCESSING, target selection (one
+/// recipient on a recipient resend, otherwise every PENDING/FAILED row —
+/// SUPPRESSED rows are never targeted), template render (failures leave
+/// recipient rows untouched and fail the job for retry), one transport send,
+/// then SENT/FAILED bulk updates and the aggregate overall-status
+/// recomputation.
 ///
 /// <para>Dispatched through <c>IDispatcher</c> — telemetry, authorization
 /// against the enqueuing actor, validation — but NOT under a pipeline-owned
 /// transaction: the command carries
 /// <see cref="NoAmbientTransactionAttribute"/>. Each <c>SaveChangesAsync</c>
-/// below commits independently, exactly as the frozen worker's two separate
-/// writes did (PROCESSING, then the final SENT/FAILED write), and the failure
-/// write below survives the re-throw that carries the attempt back to the
-/// queue. Under one pipeline transaction it would not: the same re-throw would
-/// roll it back. See the attribute for the full reasoning.</para>
+/// below commits independently — two separate writes (PROCESSING, then the
+/// final SENT/FAILED write) — and the failure write below survives the
+/// re-throw that carries the attempt back to the queue. Under one pipeline
+/// transaction it would not: the same re-throw would roll it back. See the
+/// attribute for the full reasoning.</para>
 /// </summary>
 public sealed class DispatchEmailBatchHandler(
     IEmailBatchStore batches,
     TemplateParser parser,
     IEmailTransport transport,
-    IAuthUnitOfWork unitOfWork) : IRequestHandler<DispatchEmailBatchCommand, Unit>
+    IUnitOfWork unitOfWork) : IRequestHandler<DispatchEmailBatchCommand, Unit>
 {
     public async Task<Unit> HandleAsync(DispatchEmailBatchCommand request, CancellationToken ct)
     {
@@ -49,11 +49,11 @@ public sealed class DispatchEmailBatchHandler(
             return Unit.Value;
         }
 
-        // Frozen: attachment resolution consulted the documents module, which
-        // arrives with U15 — documentIds round-trip untouched until then.
+        // Attachment resolution from the documents module is not implemented
+        // yet — documentIds round-trip untouched until then.
 
         // Render BEFORE the failure-marking scope: a template problem retries
-        // the job without touching recipient rows (frozen behavior).
+        // the job without touching recipient rows.
         var data = JsonNode.Parse(batch.DataJson) as JsonObject ?? [];
         var render = await parser.ParseEmailAsync(
             batch.TemplateId?.ToString() ?? string.Empty, data, userId: null, ct);
@@ -81,13 +81,13 @@ public sealed class DispatchEmailBatchHandler(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            // The frozen failure write: these recipients settle FAILED with the
+            // The failure write: these recipients settle FAILED with the
             // transport's message, and the batch's overall status follows —
             // then the error propagates so the queue counts the attempt. Both
             // halves matter, which is why this command opts out of the
             // pipeline's transaction. Note this catch covers the TRANSPORT send
             // only: a template render failure is thrown above, outside the try,
-            // and leaves recipient rows untouched (frozen behavior).
+            // and leaves recipient rows untouched.
             foreach (var target in targets)
             {
                 target.Status = EmailRecipientStatus.Failed;
@@ -102,7 +102,7 @@ public sealed class DispatchEmailBatchHandler(
         return Unit.Value;
     }
 
-    /// <summary>The frozen computeOverallStatus (SENT and DELIVERED both count as sent).</summary>
+    /// <summary>SENT and DELIVERED both count as sent.</summary>
     internal static string ComputeOverallStatus(IReadOnlyCollection<EmailRecipient> recipients)
     {
         var sent = recipients.Count(r =>

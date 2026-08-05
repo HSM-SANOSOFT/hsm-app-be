@@ -8,12 +8,12 @@ namespace Hsm.Infrastructure.Docs;
 
 /// <summary>
 /// QuestPDF adapter for <see cref="IDocumentPdfRenderer"/> — the U15
-/// replacement for the frozen Puppeteer/headless-Chrome path (the reason the
-/// Chrome dependencies left the devcontainer in U5). The frozen page setup is
-/// mirrored where it maps (A4, ~20px margins — Puppeteer hardcoded A4
-/// regardless of the template's size/orientation metadata); the HTML itself
-/// is rendered as text content, not a pixel-parity browser layout (plan:
-/// inputs/outputs/persistence must match, layout need not).
+/// replacement for the prior Puppeteer/headless-Chrome path (the reason the
+/// Chrome dependencies left the devcontainer in U5). Page size is fixed at
+/// A4 with ~15px margins regardless of the template's size/orientation
+/// metadata; the HTML itself is rendered as text content, not a
+/// pixel-parity browser layout (plan: inputs/outputs/persistence must
+/// match, layout need not).
 /// </summary>
 public sealed partial class QuestPdfDocumentRenderer : IDocumentPdfRenderer
 {

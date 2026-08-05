@@ -1,22 +1,21 @@
 using Amazon.Runtime;
 using Amazon.S3;
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
-using Hsm.Application.Auth.Commands.CompleteOnboarding;
-using Hsm.Application.Auth.Commands.ForgotPassword;
-using Hsm.Application.Auth.Commands.GeneratePin;
-using Hsm.Application.Auth.Commands.IssueIntegrationTokens;
-using Hsm.Application.Auth.Commands.Login;
-using Hsm.Application.Auth.Commands.Logout;
-using Hsm.Application.Auth.Commands.LogoutIntegration;
-using Hsm.Application.Auth.Commands.RecoverUsername;
-using Hsm.Application.Auth.Commands.RefreshTokens;
-using Hsm.Application.Auth.Commands.ResetPassword;
-using Hsm.Application.Auth.Commands.RevokeIntegrationTokens;
-using Hsm.Application.Auth.Commands.Signup;
-using Hsm.Application.Auth.Commands.SignupIntegration;
-using Hsm.Application.Auth.Commands.ValidatePin;
-using Hsm.Application.Auth.Queries.ListIntegrationAccounts;
+using Hsm.Application.Identity;
+using Hsm.Contracts;
+using Hsm.Application.Identity.Commands.CompleteOnboarding;
+using Hsm.Application.Identity.Commands.ForgotPassword;
+using Hsm.Application.Identity.Commands.IssueIntegrationTokens;
+using Hsm.Application.Identity.Commands.Login;
+using Hsm.Application.Identity.Commands.LogoutIntegration;
+using Hsm.Application.Identity.Commands.RecoverUsername;
+using Hsm.Application.Identity.Commands.RefreshIntegrationTokens;
+using Hsm.Application.Identity.Commands.Register;
+using Hsm.Application.Identity.Commands.RegisterIntegration;
+using Hsm.Application.Identity.Commands.ResetPassword;
+using Hsm.Application.Identity.Commands.RevokeIntegrationTokens;
+using Hsm.Application.Identity.Queries.GetMe;
+using Hsm.Application.Identity.Queries.ListIntegrationAccounts;
 using Hsm.Application.Clinical;
 using Hsm.Application.Clinical.Commands.CreatePatient;
 using Hsm.Application.Clinical.Queries.GetPatient;
@@ -30,10 +29,10 @@ using Hsm.Application.Coms.Commands.ResendEmailRecipient;
 using Hsm.Application.Coms.Commands.SendEmail;
 using Hsm.Application.Coms.Queries.GetEmailBatch;
 using Hsm.Application.Coms.Queries.GetEmailRecipient;
-using Hsm.Application.Coms.Queries.ListEmailBatches;
-using Hsm.Application.Coms.Queries.ListEmailRecipients;
+using Hsm.Application.Coms.Queries.ListEmails;
 using Hsm.Application.Docs;
 using Hsm.Application.Docs.Commands.DeleteDocument;
+using Hsm.Application.Docs.Commands.DeleteDocumentBlobs;
 using Hsm.Application.Docs.Commands.GenerateDocument;
 using Hsm.Application.Docs.Commands.RenderDocument;
 using Hsm.Application.Docs.Commands.UploadDocuments;
@@ -47,6 +46,7 @@ using Hsm.Application.Settings;
 using Hsm.Application.Settings.Commands.UpdateSettings;
 using Hsm.Application.Settings.Queries.GetSettings;
 using Hsm.Application.Settings.Queries.ListSettingsAudit;
+using Hsm.Application.System.Queries.GetSystemStatus;
 using Hsm.Application.Templates;
 using Hsm.Application.Templates.Commands.CreateTemplate;
 using Hsm.Application.Templates.Commands.DeleteTemplate;
@@ -62,6 +62,7 @@ using Hsm.Application.Users.Commands.CreateStaffUser;
 using Hsm.Application.Users.Commands.UpdateOwnProfile;
 using Hsm.Application.Users.Queries.GetUser;
 using Hsm.Application.Users.Queries.ListUsers;
+using Hsm.Contracts.Ui;
 using Hsm.Domain.Clinical;
 using Hsm.Domain.Coms;
 using Hsm.Domain.Docs;
@@ -72,7 +73,7 @@ using Hsm.Infrastructure.Clinical;
 using Hsm.Infrastructure.Coms;
 using Hsm.Infrastructure.Docs;
 using Hsm.Infrastructure.Identity;
-using Hsm.Infrastructure.Jobs;
+using Hsm.Infrastructure.Queue;
 using Hsm.Infrastructure.Persistence;
 using Hsm.Infrastructure.Search;
 using Hsm.Infrastructure.Settings;
@@ -124,7 +125,7 @@ public static class DependencyInjection
                 AuthenticationRegion = configuration["Storage:S3:Region"] ?? "us-east-1",
             }));
         // Presigned URLs may sign against a second, externally reachable
-        // endpoint (frozen STRG_S3_HOST_EXTERNAL) so browsers outside the
+        // endpoint (STRG_S3_HOST_EXTERNAL) so browsers outside the
         // container network can use them; unset means the main client signs.
         services.AddSingleton<IObjectStorage>(sp =>
         {
@@ -161,6 +162,7 @@ public static class DependencyInjection
         AddIdentity(services, configuration);
         AddClinical(services);
         AddUsersAndSettings(services);
+        AddSystem(services);
         AddTemplatesAndComs(services, configuration);
         AddDocs(services, configuration);
 
@@ -169,7 +171,7 @@ public static class DependencyInjection
 
     /// <summary>
     /// Documents adapters and handlers (plan U15). Generation runs as a queued
-    /// RenderDocumentCommand on the 'docs' queue — frozen retry posture (3
+    /// RenderDocumentCommand on the 'docs' queue — retry posture (3
     /// attempts, 1s first-attempt delay, 2s exponential backoff) configured in
     /// JobQueueRegistration — with QuestPDF instead of headless Chrome.
     /// </summary>
@@ -187,12 +189,15 @@ public static class DependencyInjection
         // including RenderDocumentCommand, which the queue consumer dispatches
         // through the same pipeline as everything else.
         services.AddScoped<
-            IRequestHandler<ListDocumentsQuery, ListDocumentsResult>, ListDocumentsHandler>();
+            IRequestHandler<ListDocumentsQuery, PagedResult<Document>>, ListDocumentsHandler>();
         services.AddScoped<
             IRequestHandler<GenerateDocumentCommand, GenerateDocumentResult>, GenerateDocumentHandler>();
         services.AddScoped<IRequestHandler<GetDocumentQuery, Document>, GetDocumentHandler>();
         services.AddScoped<IRequestHandler<GetDocumentUrlQuery, string>, GetDocumentUrlHandler>();
-        services.AddScoped<IRequestHandler<DeleteDocumentCommand, Unit>, DeleteDocumentHandler>();
+        services.AddScoped<
+            IRequestHandler<DeleteDocumentCommand, DeleteDocumentResult>, DeleteDocumentHandler>();
+        services.AddScoped<
+            IRequestHandler<DeleteDocumentBlobsCommand, Unit>, DeleteDocumentBlobsHandler>();
         services.AddScoped<
             IRequestHandler<PresignDocumentsQuery, IReadOnlyList<PresignedItem>>, PresignDocumentsHandler>();
         services.AddScoped<
@@ -203,7 +208,7 @@ public static class DependencyInjection
     /// <summary>
     /// Template + communications adapters and handlers (plan U14). Sending runs
     /// as a queued DispatchEmailBatchCommand on the strictly serial 'coms'
-    /// queue (frozen resend ordering); SMTP delivery stays a port with a
+    /// queue (to preserve resend ordering); SMTP delivery stays a port with a
     /// logging adapter — real relays are deployment configuration.
     /// </summary>
     private static void AddTemplatesAndComs(IServiceCollection services, IConfiguration configuration)
@@ -235,11 +240,9 @@ public static class DependencyInjection
         // through the same pipeline as everything else.
         services.AddScoped<IRequestHandler<SendEmailCommand, SendEmailResult>, SendEmailHandler>();
         services.AddScoped<
-            IRequestHandler<ListEmailBatchesQuery, IReadOnlyList<EmailBatch>>, ListEmailBatchesHandler>();
+            IRequestHandler<ListEmailsQuery, PagedResult<EmailBatchSummary>>, ListEmailsHandler>();
         services.AddScoped<IRequestHandler<GetEmailBatchQuery, EmailBatch>, GetEmailBatchHandler>();
         services.AddScoped<IRequestHandler<ResendEmailBatchCommand, string>, ResendEmailBatchHandler>();
-        services.AddScoped<
-            IRequestHandler<ListEmailRecipientsQuery, IReadOnlyList<EmailRecipient>>, ListEmailRecipientsHandler>();
         services.AddScoped<IRequestHandler<GetEmailRecipientQuery, EmailRecipient>, GetEmailRecipientHandler>();
         services.AddScoped<
             IRequestHandler<ResendEmailRecipientCommand, string>, ResendEmailRecipientHandler>();
@@ -265,7 +268,7 @@ public static class DependencyInjection
 
     /// <summary>
     /// User-administration and settings adapters plus their use-case handlers
-    /// (plan U13). The settings seed source binds the frozen envValue()
+    /// (plan U13). The settings seed source binds the deploy-environment
     /// fallbacks from configuration (Settings:Seed:&lt;KEY&gt;).
     /// </summary>
     private static void AddUsersAndSettings(IServiceCollection services)
@@ -277,69 +280,92 @@ public static class DependencyInjection
         // Users: command/query slices behind the dispatcher (reference slice).
         // Policy rides on the request type, so there is nothing to register for
         // authorization — only the handler and its validators.
-        services.AddScoped<IRequestHandler<UpdateOwnProfileCommand, User>, UpdateOwnProfileHandler>();
-        services.AddScoped<IRequestHandler<ChangeOwnPasswordCommand, Unit>, ChangeOwnPasswordHandler>();
-        services.AddScoped<IRequestHandler<CreateStaffUserCommand, User>, CreateStaffUserHandler>();
-        services.AddScoped<IRequestHandler<ChangeUserRoleCommand, User>, ChangeUserRoleHandler>();
-        services.AddScoped<IRequestHandler<ListUsersQuery, ListUsersResult>, ListUsersHandler>();
-        services.AddScoped<IRequestHandler<GetUserQuery, User>, GetUserHandler>();
+        services.AddScoped<IRequestHandler<UpdateOwnProfileCommand, UserWithRoles>, UpdateOwnProfileHandler>();
+        services.AddScoped<IRequestHandler<ChangeOwnPasswordCommand, HsmUser>, ChangeOwnPasswordHandler>();
+        services.AddScoped<IRequestHandler<CreateStaffUserCommand, UserWithRoles>, CreateStaffUserHandler>();
+        services.AddScoped<IRequestHandler<ChangeUserRoleCommand, UserWithRoles>, ChangeUserRoleHandler>();
+        services.AddScoped<
+            IRequestHandler<ListUsersQuery, PagedResult<UserWithRoles>>, ListUsersHandler>();
+        services.AddScoped<IRequestHandler<GetUserQuery, UserWithRoles>, GetUserHandler>();
 
         services.AddScoped<IRequestHandler<GetSettingsQuery, SettingsView>, GetSettingsHandler>();
         services.AddScoped<IRequestHandler<UpdateSettingsCommand, SettingsView>, UpdateSettingsHandler>();
         services.AddScoped<
-            IRequestHandler<ListSettingsAuditQuery, IReadOnlyList<AppSettingAudit>>, ListSettingsAuditHandler>();
+            IRequestHandler<ListSettingsAuditQuery, PagedResult<AppSettingAudit>>, ListSettingsAuditHandler>();
     }
 
     /// <summary>
-    /// Identity adapters and auth use-case handlers (plan U12). Two refresh
-    /// token stores on purpose: browser sessions and integration tokens never
-    /// share persistence.
+    /// The U8 boundary-proving query, dispatched from both doors — Hsm.Web's
+    /// Blazor UI service in process, and Hsm.Api's GET /api/v1/system/status
+    /// over HTTP (Task 10). Previously only Hsm.Web registered this handler
+    /// for itself; it moved here so every host that composes
+    /// AddHsmInfrastructure can dispatch it, matching every other handler's
+    /// registration site — its own method rather than folded into
+    /// AddUsersAndSettings, since it has nothing to do with either.
+    /// </summary>
+    private static void AddSystem(IServiceCollection services) =>
+        services.AddScoped<IRequestHandler<GetSystemStatusQuery, SystemStatusDto>, GetSystemStatusHandler>();
+
+    /// <summary>
+    /// Identity adapters and auth use-case handlers (plan U12). Sessions and
+    /// integration tokens have separate stores on purpose: a browser session is
+    /// a cookie backed by a revocable row, an integration credential is a signed
+    /// access token plus an opaque refresh digest, and the two never share
+    /// persistence.
     /// </summary>
     private static void AddIdentity(IServiceCollection services, IConfiguration configuration)
     {
-        services.AddScoped<IUserStore, UserStore>();
-        services.AddScoped<IUserRefreshTokenStore, UserRefreshTokenStore>();
+        // ASP.NET Core Identity's membership core (UserManager, RoleManager,
+        // the EF stores, the reset-token providers) plus IUserDirectory, the
+        // three reads UserManager cannot do.
+        services.AddHsmIdentity();
+
+        services.AddScoped<IUserSessionStore, UserSessionStore>();
         services.AddScoped<IIntegrationRefreshTokenStore, IntegrationRefreshTokenStore>();
         services.AddScoped<IIntegrationAccountStore, IntegrationAccountStore>();
-        services.AddScoped<IPasswordResetTokenStore, PasswordResetTokenStore>();
-        services.AddScoped<IAuthUnitOfWork, AuthUnitOfWork>();
-        services.AddSingleton<IPasswordHasher, BcryptPasswordHasher>();
         services.AddSingleton<IRecoveryEmailer, LoggingRecoveryEmailer>();
 
-        services.AddSingleton(new AuthTokenOptions
+        // ONE secret. The refresh JWT and its own key are gone: a refresh token
+        // is opaque now, so there is nothing left to sign it with.
+        services.AddSingleton(new IntegrationTokenOptions
         {
             AccessSecret = configuration["Auth:JwtAccessSecret"] ?? string.Empty,
-            RefreshSecret = configuration["Auth:JwtRefreshSecret"] ?? string.Empty,
         });
-        services.AddSingleton<IAuthTokenCodec, JwtAuthTokenCodec>();
+        services.AddSingleton<IIntegrationTokenCodec, IntegrationTokenCodec>();
 
-        // Frozen envs.ENVIRONMENT gate for the developer role.
+        // Environment gate for the developer role.
         var environment = configuration["Auth:Environment"] ?? "dev";
         services.AddSingleton<IEnvironmentPolicy>(new EnvironmentPolicy(environment == "dev"));
 
-        services.AddScoped<TokenIssuer>();
+        services.AddScoped<IntegrationTokenIssuer>();
 
         // Auth: command/query slices behind the dispatcher. Policy rides on the
         // request type (see each command's attributes), so nothing here grants
         // access — this is only handler wiring.
-        services.AddScoped<IRequestHandler<LoginCommand, TokenPair>, LoginHandler>();
-        services.AddScoped<IRequestHandler<SignupCommand, TokenPair>, SignupHandler>();
-        services.AddScoped<IRequestHandler<RefreshTokensCommand, TokenPair>, RefreshTokensHandler>();
-        services.AddScoped<IRequestHandler<LogoutCommand, Unit>, LogoutHandler>();
-        services.AddScoped<IRequestHandler<SignupIntegrationCommand, TokenPair>, SignupIntegrationHandler>();
-        services.AddScoped<IRequestHandler<LogoutIntegrationCommand, Unit>, LogoutIntegrationHandler>();
-        services.AddScoped<IRequestHandler<CompleteOnboardingCommand, TokenPair>, CompleteOnboardingHandler>();
+        services.AddScoped<IRequestHandler<LoginCommand, HsmUser>, LoginHandler>();
+        services.AddScoped<IRequestHandler<RegisterCommand, HsmUser>, RegisterHandler>();
+        services.AddScoped<IRequestHandler<GetMeQuery, HsmUser>, GetMeHandler>();
+        services.AddScoped<IRequestHandler<CompleteOnboardingCommand, HsmUser>, CompleteOnboardingHandler>();
         services.AddScoped<IRequestHandler<ForgotPasswordCommand, Unit>, ForgotPasswordHandler>();
         services.AddScoped<IRequestHandler<ResetPasswordCommand, Unit>, ResetPasswordHandler>();
         services.AddScoped<IRequestHandler<RecoverUsernameCommand, Unit>, RecoverUsernameHandler>();
-        services.AddScoped<IRequestHandler<GeneratePinCommand, Unit>, GeneratePinHandler>();
-        services.AddScoped<IRequestHandler<ValidatePinCommand, Unit>, ValidatePinHandler>();
 
-        // In-process UI surface only (plan U18): no /v1 routes map to these.
+        // Integration accounts. The three that carry a REST route:
+        // POST /api/v1/identity/integrations/register, .../logout and
+        // POST /api/v1/identity/refresh.
+        services.AddScoped<
+            IRequestHandler<RefreshIntegrationTokensCommand, IntegrationTokens>,
+            RefreshIntegrationTokensHandler>();
+        services.AddScoped<
+            IRequestHandler<RegisterIntegrationCommand, IntegrationTokens>, RegisterIntegrationHandler>();
+        services.AddScoped<IRequestHandler<LogoutIntegrationCommand, Unit>, LogoutIntegrationHandler>();
+
+        // In-process admin-screen surface only: no REST route maps to these.
         services.AddScoped<
             IRequestHandler<ListIntegrationAccountsQuery, IReadOnlyList<IntegrationAccountListItem>>,
             ListIntegrationAccountsHandler>();
-        services.AddScoped<IRequestHandler<IssueIntegrationTokensCommand, TokenPair>, IssueIntegrationTokensHandler>();
+        services.AddScoped<
+            IRequestHandler<IssueIntegrationTokensCommand, IntegrationTokens>, IssueIntegrationTokensHandler>();
         services.AddScoped<IRequestHandler<RevokeIntegrationTokensCommand, int>, RevokeIntegrationTokensHandler>();
     }
 

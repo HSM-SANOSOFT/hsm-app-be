@@ -1,4 +1,5 @@
 using Hsm.Application.Coms;
+using Hsm.Contracts;
 using Hsm.Domain.Coms;
 using Hsm.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -20,8 +21,8 @@ public sealed class EmailBatchStore(HsmDbContext db) : IEmailBatchStore
         return await query.FirstOrDefaultAsync(b => b.Id == id, ct);
     }
 
-    public async Task<IReadOnlyList<EmailBatch>> ListAsync(
-        BatchListFilter filter, CancellationToken ct = default)
+    public async Task<PagedResult<EmailBatchSummary>> ListEmailsAsync(
+        EmailListFilter filter, int page, int pageSize, CancellationToken ct = default)
     {
         IQueryable<EmailBatch> query = db.EmailBatches.AsNoTracking();
         if (filter.TemplateId is not null)
@@ -41,15 +42,31 @@ public sealed class EmailBatchStore(HsmDbContext db) : IEmailBatchStore
 
         if (filter.FromDate is not null && filter.ToDate is not null)
         {
-            // Frozen: the date range filters only when BOTH bounds are given.
+            // The date range filters only when BOTH bounds are given.
             query = query.Where(b => b.CreatedAt >= filter.FromDate && b.CreatedAt <= filter.ToDate);
         }
 
-        return await query
+        var totalItems = await query.CountAsync(ct);
+
+        // The three counts EmailResource reports, computed as correlated SQL
+        // aggregates over email_recipients rather than by loading the rows and
+        // counting them in memory. The status rule is EmailBatchSummary.From's,
+        // restated here because EF Core has to see the predicate inline to
+        // translate it;
+        // EmailsEndpointTests.The_lists_recipient_counts_are_the_details_own_counts
+        // pins the two forms against each other.
+        var items = await query
             .OrderByDescending(b => b.CreatedAt)
-            .Skip((filter.Page - 1) * filter.Limit)
-            .Take(filter.Limit)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(b => new EmailBatchSummary(
+                b,
+                b.Recipients.Count,
+                b.Recipients.Count(r =>
+                    r.Status == EmailRecipientStatus.Sent || r.Status == EmailRecipientStatus.Delivered),
+                b.Recipients.Count(r => r.Status == EmailRecipientStatus.Failed)))
             .ToListAsync(ct);
+        return new PagedResult<EmailBatchSummary>(items, page, pageSize, totalItems);
     }
 
     public async Task AddAsync(EmailBatch batch, CancellationToken ct = default) =>
@@ -58,37 +75,11 @@ public sealed class EmailBatchStore(HsmDbContext db) : IEmailBatchStore
     public async Task<EmailRecipient?> FindRecipientAsync(Guid id, CancellationToken ct = default) =>
         await db.EmailRecipients.FirstOrDefaultAsync(r => r.Id == id, ct);
 
-    public async Task<IReadOnlyList<EmailRecipient>> ListRecipientsAsync(
-        RecipientListFilter filter, CancellationToken ct = default)
-    {
-        IQueryable<EmailRecipient> query = db.EmailRecipients.AsNoTracking();
-        if (filter.BatchId is not null)
-        {
-            query = query.Where(r => r.BatchId == filter.BatchId);
-        }
-
-        if (filter.ToEmail is not null)
-        {
-            query = query.Where(r => r.ToEmail == filter.ToEmail);
-        }
-
-        if (filter.Status is not null)
-        {
-            query = query.Where(r => r.Status == filter.Status);
-        }
-
-        return await query
-            .OrderBy(r => r.Id)
-            .Skip((filter.Page - 1) * filter.Limit)
-            .Take(filter.Limit)
-            .ToListAsync(ct);
-    }
-
     public async Task<EmailRecipient?> FindLatestRecipientByEmailAsync(
         string email, CancellationToken ct = default) =>
-        // The frozen match rule: the most recent recipient row for the
-        // address (its "id DESC" over uuid keys was an accidental proxy for
-        // recency; the batch's creation time is the real signal).
+        // The match rule: the most recent recipient row for the address
+        // (id DESC over uuid keys would be an accidental proxy for recency;
+        // the batch's creation time is the real signal).
         await db.EmailRecipients
             .Where(r => r.ToEmail == email)
             .Join(db.EmailBatches, r => r.BatchId, b => b.Id, (r, b) => new { Recipient = r, b.CreatedAt })
@@ -112,7 +103,7 @@ public sealed class EmailSuppressionStore(HsmDbContext db) : IEmailSuppressionSt
 
     public async Task AddIfMissingAsync(EmailSuppression suppression, CancellationToken ct = default)
     {
-        // The frozen orIgnore upsert: first suppression wins.
+        // orIgnore-style upsert: first suppression wins.
         if (await db.EmailSuppressions.AnyAsync(s => s.Email == suppression.Email, ct))
         {
             return;

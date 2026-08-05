@@ -6,9 +6,10 @@ using Microsoft.EntityFrameworkCore;
 namespace Hsm.Infrastructure.Clinical;
 
 /// <summary>
-/// EF Core adapter for the patient port. Identifier rows auto-include (the
-/// frozen entity was eager), and every search parameter binds — the unique
-/// (system, value) index is the database backstop behind the handler's 409.
+/// EF Core adapter for the patient port. Identifier rows auto-include
+/// (identifier rows always travel with the patient), and every search
+/// parameter binds — the unique (system, value) index is the database
+/// backstop behind the handler's 409.
 /// </summary>
 public sealed class PatientStore(HsmDbContext db) : IPatientStore
 {

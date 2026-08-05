@@ -1,10 +1,10 @@
 namespace Hsm.Domain.Docs;
 
 /// <summary>
-/// A stored document (frozen documents.entity.ts, docs schema): metadata only
-/// — the binary lives in the blob store, never in a database column (proven
-/// by schema-inspection test). Soft-deleted via <see cref="DeletedAt"/>; the
-/// frozen list/get surface filters deleted rows out.
+/// A stored document: metadata only — the binary lives in the blob store,
+/// never in a database column (proven by schema-inspection test).
+/// Soft-deleted via <see cref="DeletedAt"/>; the list/get surface filters
+/// deleted rows out.
 /// </summary>
 public class Document
 {
@@ -43,10 +43,9 @@ public class Document
 }
 
 /// <summary>
-/// One version of a document (frozen documents-version): versions are
-/// relational — each points at its own blob-store object under a distinct
-/// key; S3 object versioning is not how document history is modelled (frozen
-/// decision, preserved). Unique per (document, version).
+/// One version of a document: versions are relational — each points at its
+/// own blob-store object under a distinct key; S3 object versioning is not
+/// how document history is modelled. Unique per (document, version).
 /// </summary>
 public class DocumentVersion
 {
@@ -70,9 +69,9 @@ public class DocumentVersion
 }
 
 /// <summary>
-/// The blob-store coordinates of one version (frozen
-/// document-storage-object): the id IS the blob-store file id (the key's
-/// final segment), assigned at upload time — not database-generated.
+/// The blob-store coordinates of one version: the id IS the blob-store file
+/// id (the key's final segment), assigned at upload time — not
+/// database-generated.
 /// </summary>
 public class DocumentStorageObject
 {
@@ -95,10 +94,10 @@ public class DocumentStorageObject
 }
 
 /// <summary>
-/// A link from a document to another record (frozen document-link). Frozen
-/// deletion semantics, preserved: deleting a linked document soft-deletes the
-/// document and leaves the link rows in place — neither rejected nor
-/// cascaded (the document row survives, so links stay resolvable).
+/// A link from a document to another record. Deleting a linked document
+/// soft-deletes the document and leaves the link rows in place — neither
+/// rejected nor cascaded (the document row survives, so links stay
+/// resolvable).
 /// </summary>
 public class DocumentLink
 {
@@ -112,8 +111,8 @@ public class DocumentLink
 }
 
 /// <summary>
-/// Generation provenance of one version (frozen documents-generated): the
-/// template name and the raw substitution data (jsonb) it was rendered with.
+/// Generation provenance of one version: the template name and the raw
+/// substitution data (jsonb) it was rendered with.
 /// </summary>
 public class DocumentGenerated
 {
@@ -129,9 +128,8 @@ public class DocumentGenerated
 }
 
 /// <summary>
-/// Audit row (frozen document-audit-log). The frozen schema defines this
-/// table but NO frozen code path ever writes to it (verified across the
-/// frozen tree) — it is carried as-is: present, empty, ready for rows.
+/// Audit row. This table exists and nothing writes to it: present, empty,
+/// ready for rows.
 /// </summary>
 public class DocumentAuditLog
 {

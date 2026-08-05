@@ -6,15 +6,15 @@ namespace Hsm.Application.Abstractions;
 ///
 /// <para><b>Why it exists.</b> "Commit only if the handler returns normally" is
 /// the right rule for a request. It is the wrong rule for a job whose contract
-/// is <i>record what happened and then fail</i>. The frozen worker's send-email
-/// and document-render processors persist a FAILED status, a per-recipient
-/// error message and a template parse-log row and THEN re-throw, so the queue
-/// counts the attempt and backs off — under a pipeline-owned transaction the
-/// re-throw rolls back every one of those writes, and the job's own retry
-/// accounting reads state that never existed. That is not a status row this
-/// system could special-case: it is a general property of a handler whose
-/// failure path is observable. The boundary is what has to move, not the
-/// individual writes.</para>
+/// is <i>record what happened and then fail</i>. The send-email and
+/// document-render handlers persist a FAILED status, a per-recipient error
+/// message and a template parse-log row and THEN re-throw, so the queue counts
+/// the attempt and backs off — under a pipeline-owned transaction the re-throw
+/// rolls back every one of those writes, and the job's own retry accounting
+/// reads state that never existed. That is not a status row this system could
+/// special-case: it is a general property of a handler whose failure path is
+/// observable. The boundary is what has to move, not the individual
+/// writes.</para>
 ///
 /// <para>The rest of the pipeline still applies — telemetry, authorization
 /// against the enqueuing actor, validation. Only the transaction is the
