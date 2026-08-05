@@ -5,7 +5,6 @@ using FluentValidation;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Coms;
 using Hsm.Application.Errors;
-using Hsm.Application.Identity;
 using Hsm.Application.Settings;
 using Hsm.Domain.Coms;
 

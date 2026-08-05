@@ -17,8 +17,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- FHIR R4 validation/parsing at the API edge only (frozen @medplum/core
-         validateResource replacement). Application/Domain never see it. -->
+    <!-- FHIR R4 validation/parsing at the API edge only.
+         Application/Domain never see it. -->
     <PackageReference Include="Hl7.Fhir.R4" />
     <!-- HsmExceptionHandler maps FluentValidation.ValidationException (the
          closed set's 400 vehicle) to problem+json. -->

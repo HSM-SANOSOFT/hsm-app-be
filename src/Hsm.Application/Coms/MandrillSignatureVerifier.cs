@@ -30,8 +30,8 @@ public static class MandrillSignatureVerifier
 
         var computedBytes = Encoding.UTF8.GetBytes(computed);
         var signatureBytes = Encoding.UTF8.GetBytes(signature);
-        // FixedTimeEquals is length-guarded internally, but the explicit guard
-        // returns false on a length mismatch instead of throwing.
+        // FixedTimeEquals is length-guarded internally; the explicit guard
+        // makes the length check visible at the call site.
         if (computedBytes.Length != signatureBytes.Length)
         {
             return false;

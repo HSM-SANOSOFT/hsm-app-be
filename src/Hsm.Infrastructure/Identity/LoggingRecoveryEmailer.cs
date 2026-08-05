@@ -22,9 +22,9 @@ public sealed partial class LoggingRecoveryEmailer(ILogger<LoggingRecoveryEmaile
         return Task.CompletedTask;
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Password reset email queued (delivery pending coms module)")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Password reset email not sent — delivery is not yet wired up")]
     private static partial void LogReset(ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Username recovery email queued (delivery pending coms module)")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Username recovery email not sent — delivery is not yet wired up")]
     private static partial void LogUsername(ILogger logger);
 }

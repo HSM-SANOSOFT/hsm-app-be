@@ -182,7 +182,7 @@ public static class IdentityRegistration
         // validator rebuilds the principal from the row, so a caller's role
         // claims are re-read rather than trusted for the cookie's whole
         // lifetime — the same property a short-lived access token would buy,
-        // without ever expiring.
+        // without the short expiry.
         services.Configure<SecurityStampValidatorOptions>(options =>
         {
             options.ValidationInterval = TimeSpan.Zero;
