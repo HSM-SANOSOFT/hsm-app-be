@@ -5,18 +5,16 @@ using Hsm.Application.Auth;
 using Hsm.Contracts;
 using Hsm.Application.Auth.Commands.CompleteOnboarding;
 using Hsm.Application.Auth.Commands.ForgotPassword;
-using Hsm.Application.Auth.Commands.GeneratePin;
 using Hsm.Application.Auth.Commands.IssueIntegrationTokens;
 using Hsm.Application.Auth.Commands.Login;
-using Hsm.Application.Auth.Commands.Logout;
 using Hsm.Application.Auth.Commands.LogoutIntegration;
 using Hsm.Application.Auth.Commands.RecoverUsername;
 using Hsm.Application.Auth.Commands.RefreshTokens;
 using Hsm.Application.Auth.Commands.ResetPassword;
 using Hsm.Application.Auth.Commands.RevokeIntegrationTokens;
-using Hsm.Application.Auth.Commands.Signup;
+using Hsm.Application.Auth.Commands.Register;
 using Hsm.Application.Auth.Commands.SignupIntegration;
-using Hsm.Application.Auth.Commands.ValidatePin;
+using Hsm.Application.Auth.Queries.GetMe;
 using Hsm.Application.Auth.Queries.ListIntegrationAccounts;
 using Hsm.Application.Clinical;
 using Hsm.Application.Clinical.Commands.CreatePatient;
@@ -320,7 +318,6 @@ public static class DependencyInjection
         // three reads UserManager cannot do.
         services.AddHsmIdentity();
 
-        services.AddScoped<IUserRefreshTokenStore, UserRefreshTokenStore>();
         services.AddScoped<IIntegrationRefreshTokenStore, IntegrationRefreshTokenStore>();
         services.AddScoped<IIntegrationAccountStore, IntegrationAccountStore>();
         services.AddScoped<IAuthUnitOfWork, AuthUnitOfWork>();
@@ -343,17 +340,21 @@ public static class DependencyInjection
         // request type (see each command's attributes), so nothing here grants
         // access — this is only handler wiring.
         services.AddScoped<IRequestHandler<LoginCommand, HsmUser>, LoginHandler>();
-        services.AddScoped<IRequestHandler<SignupCommand, TokenPair>, SignupHandler>();
-        services.AddScoped<IRequestHandler<RefreshTokensCommand, TokenPair>, RefreshTokensHandler>();
-        services.AddScoped<IRequestHandler<LogoutCommand, Unit>, LogoutHandler>();
-        services.AddScoped<IRequestHandler<SignupIntegrationCommand, TokenPair>, SignupIntegrationHandler>();
-        services.AddScoped<IRequestHandler<LogoutIntegrationCommand, Unit>, LogoutIntegrationHandler>();
-        services.AddScoped<IRequestHandler<CompleteOnboardingCommand, TokenPair>, CompleteOnboardingHandler>();
+        services.AddScoped<IRequestHandler<RegisterCommand, HsmUser>, RegisterHandler>();
+        services.AddScoped<IRequestHandler<GetMeQuery, HsmUser>, GetMeHandler>();
+        services.AddScoped<IRequestHandler<CompleteOnboardingCommand, HsmUser>, CompleteOnboardingHandler>();
         services.AddScoped<IRequestHandler<ForgotPasswordCommand, Unit>, ForgotPasswordHandler>();
         services.AddScoped<IRequestHandler<ResetPasswordCommand, Unit>, ResetPasswordHandler>();
         services.AddScoped<IRequestHandler<RecoverUsernameCommand, Unit>, RecoverUsernameHandler>();
-        services.AddScoped<IRequestHandler<GeneratePinCommand, Unit>, GeneratePinHandler>();
-        services.AddScoped<IRequestHandler<ValidatePinCommand, Unit>, ValidatePinHandler>();
+
+        // Integration accounts. RefreshTokensCommand is the LAST consumer of
+        // the frozen /v1/auth surface (GET /v1/auth/refresh): Task 14 replaces
+        // it with POST /api/v1/identity/refresh over an opaque token, and
+        // deleting it here first would strand every refresh token the
+        // integration-accounts screen has already handed out.
+        services.AddScoped<IRequestHandler<RefreshTokensCommand, TokenPair>, RefreshTokensHandler>();
+        services.AddScoped<IRequestHandler<SignupIntegrationCommand, TokenPair>, SignupIntegrationHandler>();
+        services.AddScoped<IRequestHandler<LogoutIntegrationCommand, Unit>, LogoutIntegrationHandler>();
 
         // In-process UI surface only (plan U18): no /v1 routes map to these.
         services.AddScoped<

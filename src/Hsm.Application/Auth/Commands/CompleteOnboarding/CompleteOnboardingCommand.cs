@@ -1,12 +1,19 @@
 using Hsm.Application.Abstractions;
+using Hsm.Domain.Identity;
 
 namespace Hsm.Application.Auth.Commands.CompleteOnboarding;
 
 /// <summary>
 /// First-login onboarding completion for a pending staff account (frozen
 /// completeOnboarding): confirm the email, set password + phone atomically,
-/// clear the pending flag, and reissue tokens so the pre-onboarding refresh
-/// token cannot be replayed.
+/// and clear the pending flag.
+///
+/// <para>It returns the UPDATED USER rather than a fresh token pair. Setting
+/// the password rotates the account's security stamp, which is what actually
+/// retires every session opened before onboarding — including the caller's, so
+/// the door that owns a session is the one that must reissue it
+/// (<c>RefreshSignInAsync</c>). A command cannot do that, and after this change
+/// there is no user refresh token left to replay in the first place.</para>
 ///
 /// <see cref="AllowPendingOnboardingAttribute"/> is load-bearing: without it a
 /// pending user could never stop being pending — the only route out of the
@@ -18,4 +25,4 @@ namespace Hsm.Application.Auth.Commands.CompleteOnboarding;
 /// </summary>
 [AllowPendingOnboarding]
 public sealed record CompleteOnboardingCommand(string NewPassword, string PhoneNumber, string ConfirmEmail)
-    : ICommand<TokenPair>;
+    : ICommand<HsmUser>;

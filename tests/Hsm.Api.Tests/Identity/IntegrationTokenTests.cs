@@ -1,13 +1,63 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Hsm.Application.Abstractions;
+using Hsm.Application.Auth;
+using Hsm.Application.Auth.Commands.SignupIntegration;
 using Hsm.Domain.Identity;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Hsm.Api.Tests.Identity;
 
 public sealed class IntegrationTokenFactory : ApiFactory
 {
     protected override string DatabaseName => "hsm_api_tests_integration_tokens";
+
+    /// <summary>
+    /// Provisions an integration account and returns its issued pair.
+    ///
+    /// <para>In process, through the handler, because Task 13 retired
+    /// <c>POST /v1/auth/signup/integration</c> and Task 14 has not yet added
+    /// <c>POST /api/v1/identity/integrations/register</c>. That is not a loss
+    /// of coverage for the capability: the admin screen provisions accounts
+    /// exactly this way (<c>IntegrationAccountsUiService.ProvisionAsync</c>
+    /// dispatches the same command in the shell's own process), and
+    /// <c>AuthRequestPolicyTests</c> pins the command's admin-only policy
+    /// separately.</para>
+    /// </summary>
+    public async Task<TokenPair> ProvisionIntegrationAsync()
+    {
+        using var scope = Services.CreateScope();
+        var handler = scope.ServiceProvider
+            .GetRequiredService<IRequestHandler<SignupIntegrationCommand, TokenPair>>();
+        return await handler.HandleAsync(
+            new SignupIntegrationCommand($"machine_{Guid.NewGuid():N}", "refresh test", "dev"),
+            CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Signs a refresh token for a HUMAN account — a credential no route hands
+    /// out any more, and the point of the test that uses it.
+    /// </summary>
+    public async Task<string> HumanRefreshTokenAsync()
+    {
+        var username = $"s{Guid.NewGuid():N}"[..20];
+        var id = await SeedUserAsync(username, SeedPassword, Roles.Doctor, DateTimeOffset.UtcNow);
+
+        using var scope = Services.CreateScope();
+        var codec = scope.ServiceProvider.GetRequiredService<IAuthTokenCodec>();
+        return codec.Sign(
+            new AuthPrincipal
+            {
+                Id = id.ToString(),
+                Username = username,
+                Roles = [Roles.Doctor],
+                OnboardingCompletedAt = DateTimeOffset.UtcNow.ToString("O"),
+                HasOnboardingClaim = true,
+            },
+            TokenKind.Refresh,
+            TokenLifetimes.UserRefresh);
+    }
 }
 
 /// <summary>
@@ -19,7 +69,8 @@ public sealed class IntegrationTokenFactory : ApiFactory
 /// <para>These tests exist because Task 12 nearly deleted
 /// <c>GET /v1/auth/refresh</c> as "browser machinery". It was not: the shell's
 /// integration-accounts screen hands the operator a refresh token, and this is
-/// the only route that redeems one.</para>
+/// the only route that redeems one. Task 13 kept the route alive on the same
+/// reasoning — see <c>IntegrationRefreshEndpoint</c>.</para>
 /// </summary>
 public class IntegrationTokenTests(IntegrationTokenFactory factory)
     : IClassFixture<IntegrationTokenFactory>, IAsyncLifetime
@@ -31,7 +82,7 @@ public class IntegrationTokenTests(IntegrationTokenFactory factory)
     [Fact]
     public async Task An_integration_refresh_token_rotates_into_a_fresh_pair()
     {
-        var issued = await ProvisionAsync();
+        var issued = await factory.ProvisionIntegrationAsync();
         using var client = factory.CreateApiClient();
 
         var refreshed = await RefreshAsync(client, issued.RefreshToken);
@@ -50,19 +101,35 @@ public class IntegrationTokenTests(IntegrationTokenFactory factory)
     [Fact]
     public async Task A_rotated_access_token_still_authenticates_the_integration()
     {
-        var issued = await ProvisionAsync();
+        var issued = await factory.ProvisionIntegrationAsync();
         using var client = factory.CreateApiClient();
         var refreshed = await RefreshAsync(client, issued.RefreshToken);
 
         using var bearerClient = factory.CreateApiClient();
         bearerClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {refreshed.AccessToken}");
-        var profile = await bearerClient.GetAsync("/v1/auth/profile", CancellationToken.None);
 
-        Assert.Equal(HttpStatusCode.OK, profile.StatusCode);
-        var body = await profile.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
-        Assert.Contains(
-            Roles.Integration,
-            body.GetProperty("data").GetProperty("roles").EnumerateArray().Select(r => r.GetString()));
+        // An authenticated, non-role-gated read: 200 proves the rotated token
+        // carried an id, a role and the integration's onboarding exemption all
+        // the way through the pipeline.
+        var response = await bearerClient.GetAsync("/api/v1/templates", CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task An_integration_has_no_user_profile_to_read()
+    {
+        // GET /api/v1/identity/me reads the USER row, and an integration's
+        // subject is an integration row. 404 rather than a synthesised profile:
+        // the frozen /v1/auth/profile answered off the token's claims and would
+        // have made a machine account look like a person.
+        var issued = await factory.ProvisionIntegrationAsync();
+        using var client = factory.CreateApiClient();
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {issued.AccessToken}");
+
+        var response = await client.GetAsync("/api/v1/identity/me", CancellationToken.None);
+
+        await ProblemAssert.ProblemAsync(response, 404);
     }
 
     [Fact]
@@ -81,41 +148,21 @@ public class IntegrationTokenTests(IntegrationTokenFactory factory)
         // The escalation this closes: rotation re-signs the presented token's
         // OWN claims without reading the user row, so a doctor demoted to nurse
         // — whose cookie session the security-stamp bump correctly kills —
-        // could otherwise trade a refresh token kept from onboarding for a
-        // fresh access token still claiming `doctor`, indefinitely.
-        var humanRefreshToken = await OnboardedStaffRefreshTokenAsync();
+        // could otherwise trade a refresh token for a fresh access token still
+        // claiming `doctor`, indefinitely.
+        //
+        // Task 13 narrowed the exposure further: registering and completing
+        // onboarding return the user row now, so NO route hands a human one of
+        // these any more. The token below is signed directly for that reason —
+        // the handler's refusal must not quietly depend on there being no way
+        // to obtain the credential.
+        var humanRefreshToken = await factory.HumanRefreshTokenAsync();
         using var client = factory.CreateApiClient();
 
         var response = await RefreshAsync(client, humanRefreshToken);
 
-        // 403, not 401: the token is valid and was verified: what is refused is
+        // 403, not 401: the token is valid and was verified; what is refused is
         // the capability, so a client must not retry by re-authenticating.
-        await ProblemAssert.ProblemAsync(response.Response, 403);
-    }
-
-    [Fact]
-    public async Task A_public_signups_refresh_token_is_refused_too()
-    {
-        // The second route that still hands a human a redeemable refresh token.
-        var username = $"p{Guid.NewGuid():N}"[..20];
-        using var anonymous = factory.CreateApiClient();
-        var signup = await anonymous.PostAsJsonAsync(
-            "/v1/auth/signup",
-            new
-            {
-                username,
-                email = $"{username}@signup.test",
-                password = "Signup-Passw0rd",
-                firstName = "Public",
-                firstLastName = "Patient",
-            },
-            CancellationToken.None);
-        Assert.Equal(HttpStatusCode.Created, signup.StatusCode);
-        var body = await signup.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
-
-        var response = await RefreshAsync(
-            anonymous, body.GetProperty("data").GetProperty("refresh_token").GetString()!);
-
         await ProblemAssert.ProblemAsync(response.Response, 403);
     }
 
@@ -124,53 +171,12 @@ public class IntegrationTokenTests(IntegrationTokenFactory factory)
     {
         // The two families are signed with different secrets, and the refresh
         // route validates against the refresh one only.
-        var issued = await ProvisionAsync();
+        var issued = await factory.ProvisionIntegrationAsync();
         using var client = factory.CreateApiClient();
 
         var response = await RefreshAsync(client, issued.AccessToken);
 
         await ProblemAssert.ProblemAsync(response.Response, 401);
-    }
-
-    /// <summary>
-    /// Drives a pending staff account through first-login onboarding and
-    /// returns the refresh token that route still hands out — the exact
-    /// credential a demoted user would otherwise redeem.
-    /// </summary>
-    private async Task<string> OnboardedStaffRefreshTokenAsync()
-    {
-        var username = $"s{Guid.NewGuid():N}"[..20];
-        using var pending = await factory.AuthenticatedClientAsync(
-            Roles.Doctor, onboarded: false, username: username);
-
-        var response = await pending.PostAsJsonAsync(
-            "/v1/auth/onboarding",
-            new
-            {
-                newPassword = "Onboarded-Passw0rd",
-                phoneNumber = "+34600111222",
-                confirmEmail = $"{username}@api.test",
-            },
-            CancellationToken.None);
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-
-        var body = await response.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
-        return body.GetProperty("data").GetProperty("refresh_token").GetString()!;
-    }
-
-    /// <summary>Provisions an integration account through the admin route.</summary>
-    private async Task<(string AccessToken, string RefreshToken)> ProvisionAsync()
-    {
-        using var admin = await factory.AuthenticatedClientAsync(Roles.Admin);
-        var response = await admin.PostAsJsonAsync(
-            "/v1/auth/signup/integration",
-            new { name = $"machine_{Guid.NewGuid():N}", description = "refresh test", functionality = "dev" },
-            CancellationToken.None);
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-
-        var body = await response.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
-        var data = body.GetProperty("data");
-        return (data.GetProperty("access_token").GetString()!, data.GetProperty("refresh_token").GetString()!);
     }
 
     private static async Task<RefreshOutcome> RefreshAsync(HttpClient client, string refreshToken)
@@ -183,12 +189,12 @@ public class IntegrationTokenTests(IntegrationTokenFactory factory)
             return new RefreshOutcome(response, string.Empty, string.Empty);
         }
 
+        // Flat, un-enveloped: the frozen response envelope is gone.
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
-        var data = body.GetProperty("data");
         return new RefreshOutcome(
             response,
-            data.GetProperty("access_token").GetString()!,
-            data.GetProperty("refresh_token").GetString()!);
+            body.GetProperty("access_token").GetString()!,
+            body.GetProperty("refresh_token").GetString()!);
     }
 
     private sealed record RefreshOutcome(

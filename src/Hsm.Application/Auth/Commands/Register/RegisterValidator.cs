@@ -1,6 +1,6 @@
 using FluentValidation;
 
-namespace Hsm.Application.Auth.Commands.Signup;
+namespace Hsm.Application.Auth.Commands.Register;
 
 /// <summary>
 /// Minimal stopgap (Task 3's fix round): only the two rules the deleted edge
@@ -10,9 +10,9 @@ namespace Hsm.Application.Auth.Commands.Signup;
 /// validation (username/name requiredness, etc.); do not extend this
 /// validator ahead of that reshape.
 /// </summary>
-public sealed class SignupValidator : AbstractValidator<SignupCommand>
+public sealed class RegisterValidator : AbstractValidator<RegisterCommand>
 {
-    public SignupValidator()
+    public RegisterValidator()
     {
         RuleFor(x => x.Email).NotEmpty().EmailAddress();
         RuleFor(x => x.Password).NotEmpty().MinimumLength(8);

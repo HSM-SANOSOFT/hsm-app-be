@@ -208,12 +208,17 @@ public sealed class AdminScreensTests(AdminScreensFactory factory)
 
         Assert.False(string.IsNullOrEmpty(issued.AccessToken));
 
-        // The machine call: the issued bearer token reaches the frozen API.
-        var profile = await Api.GetAsync(Client, "/v1/auth/profile", bearer: issued.AccessToken);
-        Assert.Equal(200, profile.Status);
-        Assert.Contains(
-            "integration",
-            profile.Data.GetProperty("roles").EnumerateArray().Select(r => r.GetString()));
+        // The machine call: the issued bearer token reaches the REST door and
+        // authorizes there. An authenticated, non-role-gated read is the proof
+        // now that GET /v1/auth/profile is gone — /api/v1/identity/me replaced
+        // it and reads the USER row, which a machine account does not have.
+        var reached = await Api.GetAsync(Client, "/api/v1/templates", bearer: issued.AccessToken);
+        Assert.Equal(200, reached.Status);
+
+        // And the role really was weighed, rather than the token merely being
+        // accepted: the admin collection refuses this caller with a 403.
+        var refused = await Api.GetAsync(Client, "/api/v1/users", bearer: issued.AccessToken);
+        Assert.Equal(403, refused.Status);
 
         // The account shows in the listing with its active token; revoking
         // clears the active flag.

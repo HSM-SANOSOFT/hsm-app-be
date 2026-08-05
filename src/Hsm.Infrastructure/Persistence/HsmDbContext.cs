@@ -26,7 +26,6 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options)
     // RoleClaims all come from IdentityDbContext; only the non-Identity
     // membership tables are declared here.
     public DbSet<IntegrationAccount> IntegrationAccounts => Set<IntegrationAccount>();
-    public DbSet<UserRefreshToken> UserRefreshTokens => Set<UserRefreshToken>();
     public DbSet<IntegrationRefreshToken> IntegrationRefreshTokens => Set<IntegrationRefreshToken>();
 
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
@@ -153,18 +152,6 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options)
             account.ToTable("users_integration");
             account.HasKey(a => a.Id);
             account.Property(a => a.Name).HasColumnType("citext");
-        });
-
-        modelBuilder.Entity<UserRefreshToken>(token =>
-        {
-            token.ToTable("refresh_token_users");
-            token.HasKey(t => t.Id);
-            token.HasIndex(t => t.TokenHash).IsUnique();
-            token.HasIndex(t => new { t.UserId, t.IsActive });
-            token.HasOne<HsmUser>()
-                .WithMany()
-                .HasForeignKey(t => t.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<IntegrationRefreshToken>(token =>

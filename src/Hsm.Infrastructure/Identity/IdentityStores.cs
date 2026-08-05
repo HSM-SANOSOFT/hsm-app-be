@@ -6,38 +6,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Hsm.Infrastructure.Identity;
 
-/// <summary>EF Core adapter for the USER refresh-token store.</summary>
-public sealed class UserRefreshTokenStore(HsmDbContext db) : IUserRefreshTokenStore
-{
-    public Task<UserRefreshToken?> FindActiveAsync(Guid userId, CancellationToken ct = default) =>
-        db.UserRefreshTokens.FirstOrDefaultAsync(t => t.UserId == userId && t.IsActive, ct);
-
-    public Task<int> DeactivateActiveAsync(Guid userId, CancellationToken ct = default) =>
-        db.UserRefreshTokens
-            .Where(t => t.UserId == userId && t.IsActive)
-            .ExecuteUpdateAsync(
-                setters => setters
-                    .SetProperty(t => t.IsActive, false)
-                    .SetProperty(t => t.UpdatedAt, DateTimeOffset.UtcNow),
-                ct);
-
-    public async Task AddAsync(Guid userId, string tokenHash, CancellationToken ct = default)
-    {
-        var now = DateTimeOffset.UtcNow;
-        await db.UserRefreshTokens.AddAsync(
-            new UserRefreshToken
-            {
-                Id = Guid.NewGuid(),
-                UserId = userId,
-                TokenHash = tokenHash,
-                IsActive = true,
-                CreatedAt = now,
-                UpdatedAt = now,
-            },
-            ct);
-    }
-}
-
 /// <summary>EF Core adapter for the INTEGRATION refresh-token store.</summary>
 public sealed class IntegrationRefreshTokenStore(HsmDbContext db) : IIntegrationRefreshTokenStore
 {

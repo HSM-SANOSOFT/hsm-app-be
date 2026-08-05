@@ -6,13 +6,19 @@ using Hsm.Domain.Identity;
 namespace Hsm.Application.Auth;
 
 /// <summary>
-/// Issues token pairs and rotates the persisted refresh-token hash — the
-/// shared core of login/signup/refresh/onboarding (frozen
-/// AuthService.generateTokens + refreshToken).
+/// Issues token pairs and rotates the persisted refresh-token hash for
+/// INTEGRATION accounts — the shared core of integration provisioning,
+/// re-issue and refresh rotation.
+///
+/// <para>Humans no longer pass through here at all. Registering, signing in
+/// and completing onboarding all return the user row now and the door writes
+/// an Identity session cookie, so the user half of the frozen token story —
+/// <c>UserRefreshToken</c> and its store — has no writer left and was deleted
+/// with this task. Task 14 replaces the remaining JWT pair with an opaque
+/// integration token and this type goes with it.</para>
 /// </summary>
 public sealed class TokenIssuer(
     IAuthTokenCodec codec,
-    IUserRefreshTokenStore userTokens,
     IIntegrationRefreshTokenStore integrationTokens,
     IAuthUnitOfWork unitOfWork,
     IEnvironmentPolicy environment)
@@ -52,9 +58,9 @@ public sealed class TokenIssuer(
     }
 
     /// <summary>
-    /// Rotation: deactivate any active row for the principal and persist the
-    /// hash of the new refresh token, atomically. Routes to the store matching
-    /// the principal's mode — the stores are never mixed.
+    /// Rotation: deactivate any active row for the account and persist the hash
+    /// of the new refresh token, atomically. Exactly one row is active per
+    /// integration account, which is what makes the previous token stop working.
     /// </summary>
     private async Task RotateRefreshTokenAsync(AuthPrincipal principal, string refreshToken, CancellationToken ct = default)
     {
@@ -63,52 +69,39 @@ public sealed class TokenIssuer(
         await unitOfWork.ExecuteInTransactionAsync(
             async innerCt =>
             {
-                if (principal.IsIntegration)
-                {
-                    await integrationTokens.DeactivateActiveAsync(id, innerCt);
-                    await integrationTokens.AddAsync(id, hash, innerCt);
-                }
-                else
-                {
-                    await userTokens.DeactivateActiveAsync(id, innerCt);
-                    await userTokens.AddAsync(id, hash, innerCt);
-                }
-
+                await integrationTokens.DeactivateActiveAsync(id, innerCt);
+                await integrationTokens.AddAsync(id, hash, innerCt);
                 await unitOfWork.SaveChangesAsync(innerCt);
                 return true;
             },
             ct);
     }
 
-    /// <summary>Generate a pair and rotate the stored hash — the login path.</summary>
+    /// <summary>
+    /// Generate a pair and rotate the stored hash.
+    ///
+    /// <para>Integrations only, and the refusal is here rather than at a call
+    /// site so no future one can miss it: there is no store to rotate a human's
+    /// token in, and silently skipping the rotation would hand out a refresh
+    /// token that nothing could ever revoke.</para>
+    /// </summary>
     public async Task<TokenPair> IssueAsync(AuthPrincipal principal, CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(principal);
+        if (!principal.IsIntegration)
+        {
+            throw new ForbiddenException("Token pairs are issued to integration accounts only.");
+        }
+
         var tokens = GenerateTokens(principal);
         await RotateRefreshTokenAsync(principal, tokens.RefreshToken, ct);
         return tokens;
     }
 
-    /// <summary>The frozen serializeOnboarding: ISO string or null.</summary>
-    public static string? SerializeOnboarding(DateTimeOffset? value) => IsoTimestamp.Of(value);
-
-    /// <summary>
-    /// Builds the JWT principal for a user row. Roles are passed in rather than
-    /// read off the entity: Identity keeps assignments in their own table, so
-    /// the caller is the one that knows whether it already has them.
-    /// </summary>
-    public static AuthPrincipal PrincipalFor(HsmUser user, IReadOnlyList<string> roles)
-    {
-        ArgumentNullException.ThrowIfNull(user);
-        return new AuthPrincipal
-        {
-            Id = user.Id.ToString(),
-            Username = user.UserName,
-            Email = user.Email,
-            FirstName = user.FirstName,
-            FirstLastName = user.FirstLastName,
-            Roles = roles,
-            OnboardingCompletedAt = SerializeOnboarding(user.OnboardingCompletedAt),
-            HasOnboardingClaim = true,
-        };
-    }
+    // PrincipalFor(HsmUser, roles) and SerializeOnboarding lived here to build
+    // a JWT principal out of a user ROW. Nothing does that any more — a human's
+    // claims are minted by HsmUserClaimsPrincipalFactory into the session
+    // cookie, and this type only ever sees integration principals — so both
+    // went with the user refresh token rather than being left as a
+    // ready-to-hand way to sign a person a bearer token.
 }

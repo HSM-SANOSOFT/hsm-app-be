@@ -2,18 +2,16 @@ using System.Reflection;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Auth.Commands.CompleteOnboarding;
 using Hsm.Application.Auth.Commands.ForgotPassword;
-using Hsm.Application.Auth.Commands.GeneratePin;
 using Hsm.Application.Auth.Commands.IssueIntegrationTokens;
 using Hsm.Application.Auth.Commands.Login;
-using Hsm.Application.Auth.Commands.Logout;
 using Hsm.Application.Auth.Commands.LogoutIntegration;
 using Hsm.Application.Auth.Commands.RecoverUsername;
 using Hsm.Application.Auth.Commands.RefreshTokens;
 using Hsm.Application.Auth.Commands.ResetPassword;
 using Hsm.Application.Auth.Commands.RevokeIntegrationTokens;
-using Hsm.Application.Auth.Commands.Signup;
+using Hsm.Application.Auth.Commands.Register;
 using Hsm.Application.Auth.Commands.SignupIntegration;
-using Hsm.Application.Auth.Commands.ValidatePin;
+using Hsm.Application.Auth.Queries.GetMe;
 using Hsm.Application.Auth.Queries.ListIntegrationAccounts;
 using Hsm.Domain.Identity;
 
@@ -31,9 +29,8 @@ public class AuthRequestPolicyTests
 {
     public static TheoryData<Type> AnonymousRequests => new(
         typeof(LoginCommand),
-        typeof(SignupCommand),
+        typeof(RegisterCommand),
         typeof(RefreshTokensCommand),
-        typeof(LogoutCommand),
         typeof(ForgotPasswordCommand),
         typeof(ResetPasswordCommand),
         typeof(RecoverUsernameCommand));
@@ -79,13 +76,16 @@ public class AuthRequestPolicyTests
     }
 
     [Fact]
-    public void Signing_out_never_depends_on_a_usable_session()
+    public void Reading_your_own_account_is_reachable_by_a_pending_user()
     {
-        // The regression this guards: making LogoutCommand "authenticated"
-        // strands anyone whose access token has expired — the pipeline refuses
-        // before the handler, which is the only code that tolerates expiry.
-        Assert.NotNull(typeof(LogoutCommand).GetCustomAttribute<AllowAnonymousRequestAttribute>());
-        Assert.Null(typeof(LogoutCommand).GetCustomAttribute<RequireRoleAttribute>());
+        // The mirror of the rule above, and the reason GetMeQuery exists as a
+        // request type at all: a pending account has to be able to see that it
+        // is pending. Without the exemption, the one read that tells a client
+        // to show the onboarding screen would be refused by the onboarding
+        // gate — and the shell would have no way to know why.
+        Assert.NotNull(typeof(GetMeQuery).GetCustomAttribute<AllowPendingOnboardingAttribute>());
+        Assert.Null(typeof(GetMeQuery).GetCustomAttribute<AllowAnonymousRequestAttribute>());
+        Assert.Null(typeof(GetMeQuery).GetCustomAttribute<RequireRoleAttribute>());
     }
 
     [Fact]
@@ -107,18 +107,17 @@ public class AuthRequestPolicyTests
     }
 
     [Fact]
-    public void The_two_pin_stubs_refuse_a_pending_caller()
+    public void Refreshing_a_token_is_reachable_without_a_principal_and_gives_no_privilege()
     {
-        // The frozen PIN routes are NOT @AllowPending, and they dispatch the
-        // only requests in the module that exist purely to carry that policy —
-        // there is no state to command. Without these request types, deleting
-        // the edge onboarding gate would have silently opened both routes to
-        // pending users.
-        foreach (var type in new[] { typeof(GeneratePinCommand), typeof(ValidatePinCommand) })
-        {
-            Assert.Null(type.GetCustomAttribute<AllowAnonymousRequestAttribute>());
-            Assert.Null(type.GetCustomAttribute<AllowPendingOnboardingAttribute>());
-            Assert.Null(type.GetCustomAttribute<RequireRoleAttribute>());
-        }
+        // The last /v1/auth route (see IntegrationRefreshEndpoint). Anonymous
+        // because the refresh TOKEN is the credential — the request is
+        // reachable precisely when the access token is not. That makes the
+        // absence of a role requirement load-bearing rather than incidental:
+        // the handler's own integration-only refusal is what limits it, and a
+        // [RequireRole] here could not run at all, since there is no principal
+        // for the pipeline to weigh.
+        Assert.NotNull(
+            typeof(RefreshTokensCommand).GetCustomAttribute<AllowAnonymousRequestAttribute>());
+        Assert.Null(typeof(RefreshTokensCommand).GetCustomAttribute<RequireRoleAttribute>());
     }
 }

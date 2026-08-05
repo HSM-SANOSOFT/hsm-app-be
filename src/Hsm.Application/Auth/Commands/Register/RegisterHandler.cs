@@ -2,16 +2,12 @@ using Hsm.Application.Abstractions;
 using Hsm.Domain.Identity;
 using Microsoft.AspNetCore.Identity;
 
-namespace Hsm.Application.Auth.Commands.Signup;
+namespace Hsm.Application.Auth.Commands.Register;
 
-public sealed class SignupHandler(
-    UserManager<HsmUser> users,
-    TokenIssuer issuer,
-    IUserRefreshTokenStore userTokens,
-    IAuthUnitOfWork unitOfWork)
-    : IRequestHandler<SignupCommand, TokenPair>
+public sealed class RegisterHandler(UserManager<HsmUser> users)
+    : IRequestHandler<RegisterCommand, HsmUser>
 {
-    public async Task<TokenPair> HandleAsync(SignupCommand request, CancellationToken ct)
+    public async Task<HsmUser> HandleAsync(RegisterCommand request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -33,16 +29,13 @@ public sealed class SignupHandler(
             UpdatedAt = now,
         };
 
-        // TransactionBehavior owns the boundary the frozen handler opened here,
-        // and UserManager's store shares this scope's DbContext — so the user
-        // row, its role row and the refresh-token row commit or roll back as one.
+        // TransactionBehavior owns the boundary, and UserManager's store shares
+        // this scope's DbContext — so the user row and its role row commit or
+        // roll back as one. A duplicate username or a policy-failing password
+        // surfaces as a conflict or a field failure through ThrowIfFailed
+        // rather than as a unique-index violation.
         (await users.CreateAsync(user, request.Password)).ThrowIfFailed("password");
         (await users.AddToRoleAsync(user, Roles.Patient)).ThrowIfFailed("role");
-
-        var principal = TokenIssuer.PrincipalFor(user, [Roles.Patient]);
-        var tokens = issuer.GenerateTokens(principal);
-        await userTokens.AddAsync(user.Id, TokenIssuer.HashRefreshToken(tokens.RefreshToken), ct);
-        await unitOfWork.SaveChangesAsync(ct);
-        return tokens;
+        return user;
     }
 }

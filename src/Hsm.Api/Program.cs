@@ -5,7 +5,6 @@ using Hsm.Api.Documents;
 using Hsm.Api.Emails;
 using Hsm.Api.Errors;
 using Hsm.Api.Fhir;
-using Hsm.Api.Http;
 using Hsm.Api.Identity;
 using Hsm.Api.Settings;
 using Hsm.Api.SystemStatus;
@@ -124,11 +123,13 @@ builder.Services.AddExceptionHandler<HsmExceptionHandler>();
 builder.Services.Configure<Microsoft.AspNetCore.Routing.RouteHandlerOptions>(
     options => options.ThrowOnBadRequest = true);
 
-// Frozen per-IP throttle on the account-recovery routes: 10 per 60s per
-// route (auth.controller.ts @Throttle long).
+// Per-IP throttle on the three account-recovery routes: 10 per 60s per route.
+// It is one of TWO limits on that surface — the other, per ACCOUNT rather than
+// per caller, lives inside ForgotPasswordHandler. See
+// IdentityEndpoints.RecoveryRateLimitPolicy for why neither subsumes the other.
 builder.Services.AddRateLimiter(limiter =>
 {
-    limiter.AddPolicy(AuthEndpoints.RecoveryRateLimitPolicy, ctx =>
+    limiter.AddPolicy(IdentityEndpoints.RecoveryRateLimitPolicy, ctx =>
         RateLimitPartition.GetFixedWindowLimiter(
             $"{ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown"}:{ctx.Request.Path}",
             _ => new FixedWindowRateLimiterOptions
@@ -191,7 +192,11 @@ app.MapHealthChecks("/health");
 app.MapSystemEndpoints();
 app.MapFhirEndpoints();
 app.MapIdentityEndpoints();
-app.MapAuthEndpoints();
+
+// The one route left at a /v1 path, and the only reason this call exists —
+// see IntegrationRefreshEndpoint for why it outlives the rest of /v1/auth by
+// exactly one task.
+app.MapIntegrationRefreshEndpoint();
 app.MapUserEndpoints();
 app.MapSettingsEndpoints();
 app.MapTemplateEndpoints();

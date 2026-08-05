@@ -5,10 +5,7 @@ using Microsoft.AspNetCore.Identity;
 
 namespace Hsm.Application.Auth.Commands.ResetPassword;
 
-public sealed class ResetPasswordHandler(
-    UserManager<HsmUser> users,
-    IUserRefreshTokenStore userTokens,
-    IAuthUnitOfWork unitOfWork)
+public sealed class ResetPasswordHandler(UserManager<HsmUser> users)
     : IRequestHandler<ResetPasswordCommand, Unit>
 {
     private const string GenericFailure = "The password reset link is invalid or has expired.";
@@ -40,10 +37,12 @@ public sealed class ResetPasswordHandler(
             throw Refused();
         }
 
-        // Revoke sessions so a pre-reset stolen session cannot outlive the
-        // password change. TransactionBehavior owns the boundary.
-        await userTokens.DeactivateActiveAsync(user.Id, ct);
-        await unitOfWork.SaveChangesAsync(ct);
+        // Sessions opened before the reset are already dead: ResetPasswordAsync
+        // rotates the security stamp, and the cookie validator re-checks it on
+        // every request (ValidationInterval = Zero), so the next request any of
+        // them makes is a 401. That replaced the explicit refresh-token
+        // deactivation this handler used to do — a stronger revocation, because
+        // it also covers the sessions that never had a refresh token.
         return Unit.Value;
     }
 

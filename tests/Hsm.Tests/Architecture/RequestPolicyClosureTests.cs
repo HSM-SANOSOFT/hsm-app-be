@@ -14,7 +14,7 @@ namespace Hsm.Tests.Architecture;
 /// loudly, as a diff against <see cref="ExpectedPolicies"/> — rather than
 /// silently leaving a request unaccounted for. "Authenticated" (no attribute)
 /// is a valid, deliberate policy, not a gap: the point is that every one of the
-/// 52 current types is consciously listed, not that all must carry an
+/// 51 current types is consciously listed, not that all must carry an
 /// attribute. It also pins the <see cref="NoAmbientTransactionAttribute"/>
 /// carrier set, closing the Task 19 gap where that set was asserted per-module
 /// but never as a whole.
@@ -98,11 +98,11 @@ public class RequestPolicyClosureTests
         "DraftRenderQuery: Authenticated",
         "ForgotPasswordCommand: AllowAnonymousRequest",
         "GenerateDocumentCommand: Authenticated",
-        "GeneratePinCommand: Authenticated",
         "GetDocumentQuery: Authenticated",
         "GetDocumentUrlQuery: Authenticated",
         "GetEmailBatchQuery: Authenticated",
         "GetEmailRecipientQuery: Authenticated",
+        "GetMeQuery: AllowPendingOnboarding",
         "GetPatientQuery: RequireRole(doctor,nurse,technician,therapist,pharmacist,admin)",
         "GetSettingsQuery: RequireRole(admin)",
         "GetSystemStatusQuery: AllowAnonymousRequest",
@@ -116,13 +116,13 @@ public class RequestPolicyClosureTests
         "ListTemplatesQuery: Authenticated",
         "ListUsersQuery: RequireRole(admin)",
         "LoginCommand: AllowAnonymousRequest",
-        "LogoutCommand: AllowAnonymousRequest",
         "LogoutIntegrationCommand: RequireRole(admin)",
         "PresignDocumentsQuery: Authenticated",
         "ProcessWebhookEventCommand: AllowAnonymousRequest",
         "ReceiveWebhookCommand: AllowAnonymousRequest",
         "RecoverUsernameCommand: AllowAnonymousRequest",
         "RefreshTokensCommand: AllowAnonymousRequest",
+        "RegisterCommand: AllowAnonymousRequest",
         "RenderDocumentCommand: Authenticated",
         "ResendEmailBatchCommand: Authenticated",
         "ResendEmailRecipientCommand: Authenticated",
@@ -130,13 +130,11 @@ public class RequestPolicyClosureTests
         "RevokeIntegrationTokensCommand: RequireRole(admin)",
         "SearchPatientsQuery: RequireRole(doctor,nurse,technician,therapist,pharmacist,admin)",
         "SendEmailCommand: Authenticated",
-        "SignupCommand: AllowAnonymousRequest",
         "SignupIntegrationCommand: RequireRole(admin)",
         "UpdateOwnProfileCommand: Authenticated",
         "UpdateSettingsCommand: RequireRole(admin)",
         "UpdateTemplateCommand: Authenticated",
         "UploadDocumentsCommand: Authenticated",
-        "ValidatePinCommand: Authenticated",
         "ValidateTemplateQuery: Authenticated",
     ];
 }

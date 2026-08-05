@@ -8,11 +8,10 @@ namespace Hsm.Application.Auth.Commands.CompleteOnboarding;
 
 public sealed class CompleteOnboardingHandler(
     UserManager<HsmUser> users,
-    TokenIssuer issuer,
     ICurrentPrincipal principal)
-    : IRequestHandler<CompleteOnboardingCommand, TokenPair>
+    : IRequestHandler<CompleteOnboardingCommand, HsmUser>
 {
-    public async Task<TokenPair> HandleAsync(CompleteOnboardingCommand request, CancellationToken ct)
+    public async Task<HsmUser> HandleAsync(CompleteOnboardingCommand request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -51,7 +50,6 @@ public sealed class CompleteOnboardingHandler(
         user.UpdatedAt = DateTimeOffset.UtcNow;
         (await users.UpdateAsync(user)).ThrowIfFailed("phoneNumber");
 
-        return await issuer.IssueAsync(
-            TokenIssuer.PrincipalFor(user, [.. await users.GetRolesAsync(user)]), ct);
+        return user;
     }
 }
