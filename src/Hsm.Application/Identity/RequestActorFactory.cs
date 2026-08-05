@@ -14,8 +14,8 @@ namespace Hsm.Application.Identity;
 /// recorded as onboarded regardless of what their row says;</item>
 /// <item>a non-empty onboardingCompletedAt claim is trusted;</item>
 /// <item>an absent OR null claim defers to the authoritative user row and
-/// fails closed — a deleted account and a still-pending account both produce
-/// a pending actor, which every request that is not
+/// fails closed — a deleted account, a deactivated account and a still-pending
+/// account all produce a pending actor, which every request that is not
 /// <c>[AllowPendingOnboarding]</c> then refuses in the pipeline.</item>
 /// </list>
 ///
@@ -23,6 +23,18 @@ namespace Hsm.Application.Identity;
 /// <see cref="ICurrentPrincipal"/>'s synchronous property: the claim is a
 /// cache, the row is the truth, and this factory reads the row whenever the
 /// cache says "pending".
+///
+/// <para><b>What this factory does NOT decide.</b> Point 2 is a genuine
+/// short-circuit: for an already-onboarded caller the claim is trusted and no
+/// row is read, so this type never notices that the account behind it has since
+/// been deactivated or soft-deleted. That is deliberate, and it is enforced
+/// upstream rather than here, on the credential rather than on the actor —
+/// <c>HsmSessionValidator</c> refuses a cookie whose account is not live and
+/// active (folded into the session read that already happens on every request),
+/// <c>LoginHandler</c> refuses to issue one in the first place, and the
+/// integration token handlers make the same check on their own path. Repeating
+/// it here would be a second database round trip per request buying an answer
+/// the request could not have reached without.</para>
 ///
 /// <para><b>Why it lives in Hsm.Application rather than in a host.</b> Every
 /// edge that publishes an actor calls it — the REST door's token path

@@ -209,6 +209,31 @@ commits — see "NoAmbientTransaction is not a general escape hatch" below.
   real multi-instance deployment needs the same fix — a persisted, shared key ring and one
   application discriminator both hosts agree on.
 
+- **Recovery email has no delivery implementation — the feature does not work in any
+  environment.** `POST /api/v1/identity/password/forgot` and `POST /api/v1/identity/username/recover`
+  both answer `202 Accepted` and both are lying: the only `IRecoveryEmailer` registered anywhere in
+  `src/` is `Hsm.Infrastructure.Identity.LoggingRecoveryEmailer`, which writes a log line and
+  returns. There is no SMTP/provider adapter behind it and — unlike `LoggingEmailTransport` and
+  `LoggingStaffWelcomeEmailer`, which are the development stand-ins for adapters that exist — no
+  configuration switch that turns a real one on, because there is no real one to turn on. A user who
+  asks for a password reset receives a valid, one-hour token that nobody ever sends them. Before this
+  feature is usable anywhere, a real `IRecoveryEmailer` has to be implemented and registered in
+  `Hsm.Infrastructure.DependencyInjection`; note also that the reset link must URL-encode the
+  Base64 token (it contains `+` and `=`). Treat the two routes as unshipped until then.
+
+- **`HsmUser.IsActive`/`DeletedAt` are enforced on the credential, not on the actor.** Both fields
+  gate sign-in (`LoginHandler`), the two recovery handlers, the integration token handlers, and —
+  for a session already in hand — `HsmSessionValidator`, which folds "this account is still live and
+  active" into the session-row read it already makes on every cookie-authenticated request. What
+  does *not* re-check them is `RequestActorFactory`: for an already-onboarded caller it trusts the
+  `onboardingCompletedAt` claim and reads no row, deliberately. That is sound only because no
+  credential survives deactivation long enough to reach it — which is a composition property, so if
+  a third credential kind is ever added, it owes the same check on its own path. One residual gap
+  is real and known: a live Blazor circuit in `Hsm.Web` holds its principal for the circuit's
+  lifetime, so deactivating a user does not tear down a page they already have open until its next
+  HTTP request or reconnect. Same limitation as the security-stamp channel, same fix if it ever
+  matters (a periodic circuit-side revalidation).
+
 - **`/health` is liveness-only and probes nothing.** `app.MapHealthChecks("/health")`
   (`Hsm.Api/Program.cs`) answers "is the process up", not "can it reach Postgres/Redis/RustFS".
   Dependency state is a separate, deliberately different endpoint: `GET /api/v1/system/status`

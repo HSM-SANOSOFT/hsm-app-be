@@ -3,6 +3,7 @@ using Hsm.Application.Abstractions;
 using Hsm.Application.Identity.Commands.Login;
 using Hsm.Application.Identity.Commands.RefreshIntegrationTokens;
 using Hsm.Application.Coms.Commands.DispatchEmailBatch;
+using Hsm.Application.Docs.Commands.DeleteDocumentBlobs;
 using Hsm.Application.Docs.Commands.RenderDocument;
 
 namespace Hsm.Tests.Architecture;
@@ -34,15 +35,15 @@ public class RequestPolicyClosureTests
     }
 
     [Fact]
-    public void The_NoAmbientTransaction_carrier_set_is_exactly_the_four_known_commands()
+    public void The_NoAmbientTransaction_carrier_set_is_exactly_the_five_known_commands()
     {
         var carriers = RequestTypes()
             .Where(t => t.GetCustomAttribute<NoAmbientTransactionAttribute>() is not null)
             .Select(t => t.Name)
             .OrderBy(n => n, StringComparer.Ordinal);
 
-        // Every carrier is here for ONE reason: a refusal from its handler
-        // writes something that must survive being refused.
+        // Four carriers are here because a refusal from their handler writes
+        // something that must survive being refused:
         //
         // - Two queued jobs whose contract is to persist what went wrong and
         //   then throw.
@@ -52,9 +53,15 @@ public class RequestPolicyClosureTests
         //   revokes the account's whole chain and then throws; an ambient
         //   transaction would roll the revocation back with the exception,
         //   silently turning reuse detection into a no-op.
+        //
+        // The fifth is here for the opposite reason — it writes nothing at all:
+        // - DeleteDocumentBlobsCommand: its handler only calls IObjectStorage,
+        //   so an ambient transaction would hold a Postgres connection open
+        //   across a batch of concurrent S3 deletes and issue no statement on it.
         Assert.Equal(
             new[]
             {
+                nameof(DeleteDocumentBlobsCommand),
                 nameof(DispatchEmailBatchCommand),
                 nameof(LoginCommand),
                 nameof(RefreshIntegrationTokensCommand),

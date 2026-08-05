@@ -10,7 +10,7 @@ namespace Hsm.Api.Tests.Documents;
 /// <see cref="Hsm.Application.Ports.IObjectStorage"/>, so this module cannot
 /// be exercised against an in-memory fake.
 /// </summary>
-public sealed class DocumentsFactory : ApiFactory
+public class DocumentsFactory : ApiFactory
 {
     public const string Bucket = "hsm-api-tests-documents";
 

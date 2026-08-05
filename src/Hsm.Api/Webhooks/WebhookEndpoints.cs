@@ -1,3 +1,4 @@
+using Hsm.Api.OpenApi;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Coms;
 using Hsm.Application.Coms.Commands.ProcessWebhookEvent;
@@ -27,7 +28,8 @@ public static class WebhookEndpoints
             // anonymous by design (the signature IS the credential) — but a
             // bad/missing HMAC signature answers 401 all the same
             // (ReceiveWebhookHandler's own UnauthorizedException).
-            .ProducesProblem(StatusCodes.Status401Unauthorized);
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ExchangesCredentials();
     }
 
     /// <summary>

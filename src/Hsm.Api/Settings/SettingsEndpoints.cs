@@ -22,17 +22,23 @@ public static class SettingsEndpoints
         ArgumentNullException.ThrowIfNull(app);
         var settings = app.MapGroup("/api/v1/settings").WithTags("Settings");
 
+        // All three dispatch a request with an AbstractValidator that can fail —
+        // an unknown or missing category on any of them, an empty key or an
+        // oversized page on the other two — so 400 is part of every route's
+        // contract here.
         settings.MapGet("/", GetSettings)
             .WithSummary("Read a settings category (one of four known categories), values masked for secrets.")
             .Produces<SettingsResource>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status403Forbidden);
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesValidationProblem();
 
         settings.MapPut("/", UpdateSettings)
             .WithSummary("Update a settings category and return the fresh read-back.")
             .Produces<SettingsResource>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status403Forbidden);
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesValidationProblem();
 
         // Registered before no route below could ever shadow it — the group
         // has no other path segment, so ordering is not actually load-bearing
@@ -41,7 +47,8 @@ public static class SettingsEndpoints
             .WithSummary("Read the settings audit trail for a category, newest first, paged.")
             .Produces<PagedResult<SettingAuditResource>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status403Forbidden);
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesValidationProblem();
     }
 
     private static async Task<IResult> GetSettings(

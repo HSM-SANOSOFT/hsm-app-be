@@ -195,7 +195,15 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/identity/onboarding": {
@@ -245,7 +253,15 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/identity/csrf": {
@@ -458,7 +474,15 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/identity/integrations/logout": {
@@ -501,7 +525,15 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/identity/refresh": {
@@ -618,8 +650,26 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -677,7 +727,15 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/users/me": {
@@ -727,7 +785,15 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/users/me/password": {
@@ -770,7 +836,15 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/users/{id}": {
@@ -831,7 +905,15 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       },
       "patch": {
         "tags": [
@@ -910,7 +992,15 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/settings": {
@@ -958,8 +1048,26 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       },
       "put": {
         "tags": [
@@ -1006,8 +1114,26 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/settings/audit": {
@@ -1081,8 +1207,26 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/templates": {
@@ -1124,7 +1268,15 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -1151,8 +1303,26 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/templates/validate": {
@@ -1192,7 +1362,15 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/templates/draft-render": {
@@ -1231,8 +1409,26 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/templates/{id}": {
@@ -1282,7 +1478,15 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       },
       "put": {
         "tags": [
@@ -1330,8 +1534,26 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       },
       "delete": {
         "tags": [
@@ -1383,7 +1605,15 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/emails": {
@@ -1422,8 +1652,26 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       },
       "get": {
         "tags": [
@@ -1517,8 +1765,26 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/emails/{id}": {
@@ -1569,7 +1835,15 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/emails/{id}/resend": {
@@ -1620,7 +1894,15 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/emails/{id}/recipients/{recipientId}/resend": {
@@ -1680,7 +1962,15 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/documents": {
@@ -1765,8 +2055,26 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       },
       "post": {
         "tags": [
@@ -1803,8 +2111,26 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       },
       "delete": {
         "tags": [
@@ -1833,8 +2159,26 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/documents/generated": {
@@ -1873,8 +2217,26 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/documents/urls": {
@@ -1916,8 +2278,26 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/documents/{id}": {
@@ -1968,7 +2348,15 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       },
       "delete": {
         "tags": [
@@ -2010,7 +2398,15 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     },
     "/api/v1/documents/{id}/url": {
@@ -2061,7 +2457,15 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "bearer": []
+          }
+        ]
       }
     }
   },
@@ -4021,6 +4425,20 @@
             "format": "int32"
           }
         }
+      }
+    },
+    "securitySchemes": {
+      "session": {
+        "type": "apiKey",
+        "description": "The browser session. Issued by POST /api/v1/identity/login, encrypted, HttpOnly and SameSite=Strict, and revocable per session by POST /api/v1/identity/logout. Unsafe methods authenticated this way ALSO require the antiforgery token from GET /api/v1/identity/csrf, echoed in the X-XSRF-TOKEN header.",
+        "name": "hsm.session",
+        "in": "cookie"
+      },
+      "bearer": {
+        "type": "http",
+        "description": "An integration\u0027s access token, from POST /api/v1/identity/integrations/{id}/tokens or GET /v1/auth/refresh. Short-lived and rotated; carrying it opts the request out of the cookie handler entirely, so no antiforgery token is required or accepted.",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
       }
     }
   },

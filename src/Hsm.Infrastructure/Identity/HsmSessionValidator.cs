@@ -22,6 +22,15 @@ namespace Hsm.Infrastructure.Identity;
 /// waved through: the only cookies without one are pre-feature relics and
 /// anything hand-assembled, and "authenticate as if sessions did not exist" is
 /// the one answer that would quietly disable the whole mechanism.</para>
+///
+/// <para>It is also where a human caller's ACCOUNT state is enforced on an
+/// already-issued cookie. Identity's stamp validator resolves the row through
+/// the unfiltered <c>UserManager.FindByIdAsync</c>, which has no query filter on
+/// <c>DeletedAt</c> and no opinion at all about <c>IsActive</c> — so on its own
+/// it would keep validating a soft-deleted or deactivated account's session for
+/// the rest of the sliding window. <c>IUserSessionStore.TouchAsync</c> folds
+/// both clauses into the session read that already happens here, so enforcing
+/// them costs no extra round trip.</para>
 /// </summary>
 public static class HsmSessionValidator
 {
@@ -58,28 +67,29 @@ public static class HsmSessionValidator
         var sessions = context.HttpContext.RequestServices.GetRequiredService<IUserSessionStore>();
         var ct = context.HttpContext.RequestAborted;
 
-        if (!Guid.TryParse(context.Principal!.FindFirstValue(HsmClaims.SessionId), out var sessionId))
+        var principal = context.Principal!;
+        if (!Guid.TryParse(principal.FindFirstValue(HsmClaims.SessionId), out var sessionId)
+            || !Guid.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier), out var userId))
         {
             await RejectAsync(context);
             return;
         }
 
-        var expiresAt = await sessions.ExpiresAtAsync(sessionId, ct);
-        var now = DateTimeOffset.UtcNow;
-        if (expiresAt is null || expiresAt <= now)
+        // Checks and slides in one statement. False means revoked by a
+        // sign-out, reclaimed after expiry, owned by a different account, or
+        // owned by an account that has since been deactivated or soft-deleted —
+        // all of which mean the cookie in hand is worthless, whatever its own
+        // expiry says.
+        //
+        // The extension is unconditional because the COOKIE's is: with
+        // SecurityStampValidatorOptions.ValidationInterval at zero the stamp
+        // validator sets ShouldRenew on every request, so the browser's copy
+        // slides a full Lifetime forward every time. A row that only slid in the
+        // last half of its window would end the session up to half a Lifetime
+        // before the cookie says it ends. See SessionPolicy.
+        if (!await sessions.TouchAsync(sessionId, userId, DateTimeOffset.UtcNow + SessionPolicy.Lifetime, ct))
         {
-            // Revoked by a sign-out, or reclaimed after expiry. Both mean the
-            // cookie in hand is worthless, whatever its own expiry says.
             await RejectAsync(context);
-            return;
-        }
-
-        // Keep the row ahead of the sliding cookie, and only when it has fallen
-        // into the last half of its window — recomputing it every request would
-        // be a database WRITE on every request. See SessionPolicy.
-        if (expiresAt.Value - now < SessionPolicy.ExtendWhenRemainingBelow)
-        {
-            await sessions.ExtendAsync(sessionId, now + SessionPolicy.Lifetime, ct);
         }
     }
 

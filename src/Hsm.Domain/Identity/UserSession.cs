@@ -28,9 +28,12 @@ public class UserSession
 
     /// <summary>
     /// When this row stops standing for a live session. It tracks the COOKIE's
-    /// own expiry rather than imposing a second, independent lifetime — see
-    /// <c>HsmSessionValidator</c> for how it is pushed forward as the cookie
-    /// slides, and why it is not simply recomputed on every request.
+    /// own expiry rather than imposing a second, independent lifetime, and on
+    /// the same schedule: <c>HsmSessionValidator</c> pushes it to
+    /// <c>now + SessionPolicy.Lifetime</c> on every cookie-authenticated
+    /// request, which is exactly when the cookie itself renews. See
+    /// <c>SessionPolicy</c> for why matching the schedule matters and not only
+    /// the number.
     /// </summary>
     public DateTimeOffset ExpiresAt { get; set; }
 }

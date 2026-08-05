@@ -27,15 +27,22 @@ public static class EmailEndpoints
         ArgumentNullException.ThrowIfNull(app);
         var emails = app.MapGroup("/api/v1/emails").WithTags("Emails");
 
+        // ProducesValidationProblem where — and only where — the dispatched
+        // request type carries an AbstractValidator that can actually fail:
+        // SendEmailValidator and ListEmailsValidator. The three resend/read
+        // routes below dispatch validator-less requests, so a 400 is not part of
+        // their contract.
         emails.MapPost("/", SendEmail)
             .WithSummary("Send an email batch.")
             .Produces<AcceptedEmailResponse>(StatusCodes.Status202Accepted)
-            .ProducesProblem(StatusCodes.Status401Unauthorized);
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem();
 
         emails.MapGet("/", ListEmails)
             .WithSummary("List email batches, newest first.")
             .Produces<PagedResult<EmailResource>>()
-            .ProducesProblem(StatusCodes.Status401Unauthorized);
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem();
 
         emails.MapGet("/{id:guid}", GetEmail)
             .WithSummary("Read one email batch with its recipients.")

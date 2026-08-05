@@ -35,7 +35,8 @@ public static class UserEndpoints
             .WithSummary("List users, newest first.")
             .Produces<PagedResult<UserResource>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status403Forbidden);
+            .ProducesProblem(StatusCodes.Status403Forbidden)
+            .ProducesValidationProblem();
 
         users.MapPost("/", CreateUser)
             .WithSummary("Create a staff user.")

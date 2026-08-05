@@ -107,6 +107,16 @@ public abstract class ApiHostFactory<TEntryPoint> : WebApplicationFactory<TEntry
         // JWT — an opaque token has nothing to sign.
         builder.UseSetting("Auth:JwtAccessSecret", "api_test_at_secret_0123456789abcdef");
         builder.UseSetting("Auth:Environment", "dev");
+
+        // Explicit, not inherited: Auth:CookieSecure defaults to TRUE, and every
+        // host this assembly boots is in-memory on plain http://localhost. A
+        // Secure cookie is still SENT over http, so the hand-rolled CookieJar
+        // below would not notice — but CreateClient()'s CookieContainer (used
+        // wherever a suite lets the handler manage cookies) silently DROPS one,
+        // which presents as an anonymous request rather than as a configuration
+        // problem. Saying it here keeps the transport and the cookie honest
+        // about each other.
+        builder.UseSetting("Auth:CookieSecure", "false");
         ConfigureModule(builder);
     }
 

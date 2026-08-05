@@ -37,12 +37,23 @@ public sealed class UserSessionStore(HsmDbContext db) : IUserSessionStore
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task<DateTimeOffset?> ExpiresAtAsync(Guid sessionId, CancellationToken ct = default) =>
-        await db.UserSessions
-            .AsNoTracking()
-            .Where(s => s.Id == sessionId)
-            .Select(s => (DateTimeOffset?)s.ExpiresAt)
-            .FirstOrDefaultAsync(ct);
+    public async Task<bool> TouchAsync(
+        Guid sessionId, Guid userId, DateTimeOffset expiresAt, CancellationToken ct = default)
+    {
+        var now = DateTimeOffset.UtcNow;
+
+        // One statement, not a read followed by a conditional write: the WHERE
+        // clause IS the session check (open, owned by this caller, backed by a
+        // live and active account) and the SET is the sliding extension. Rows
+        // affected therefore answers both questions at once — 0 means the
+        // cookie is worthless and nothing was extended.
+        return await db.UserSessions
+            .Where(s => s.Id == sessionId
+                && s.UserId == userId
+                && s.ExpiresAt > now
+                && db.Users.Any(u => u.Id == userId && u.DeletedAt == null && u.IsActive))
+            .ExecuteUpdateAsync(setters => setters.SetProperty(s => s.ExpiresAt, expiresAt), ct) > 0;
+    }
 
     public Task ExtendAsync(Guid sessionId, DateTimeOffset expiresAt, CancellationToken ct = default) =>
         db.UserSessions

@@ -1,3 +1,4 @@
+using Hsm.Api.OpenApi;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Identity;
 using Hsm.Application.Identity.Commands.CompleteOnboarding;
@@ -94,7 +95,8 @@ public static class IdentityEndpoints
             .WithSummary("Sign in and start a session.")
             .Produces<MeResource>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesValidationProblem();
+            .ProducesValidationProblem()
+            .ExchangesCredentials();
 
         identity.MapPost("/logout", Logout)
             .WithSummary("End the calling session.")
@@ -168,7 +170,8 @@ public static class IdentityEndpoints
             .Produces<IntegrationTokenResource>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesValidationProblem()
-            .RequireRateLimiting(RefreshRateLimitPolicy);
+            .RequireRateLimiting(RefreshRateLimitPolicy)
+            .ExchangesCredentials();
     }
 
     private static async Task<IResult> Register(

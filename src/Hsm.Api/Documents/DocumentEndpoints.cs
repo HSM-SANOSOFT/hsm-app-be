@@ -36,26 +36,35 @@ public static class DocumentEndpoints
         ArgumentNullException.ThrowIfNull(app);
         var documents = app.MapGroup("/api/v1/documents").WithTags("Documents");
 
+        // ProducesValidationProblem where the dispatched request type carries an
+        // AbstractValidator that can fail (ListDocuments/UploadDocuments/
+        // GenerateDocument/PresignDocuments), plus the bulk delete, whose 400
+        // comes from ParseIds at the edge rather than from the pipeline. The
+        // per-id read/delete/url routes dispatch validator-less requests.
         documents.MapGet("/", ListDocuments)
             .WithSummary("List the caller's documents, newest first.")
             .Produces<PagedResult<DocumentResource>>()
-            .ProducesProblem(StatusCodes.Status401Unauthorized);
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem();
 
         documents.MapPost("/", UploadDocuments)
             .WithSummary("Upload one or more documents (multipart/form-data, field 'files').")
             .Produces<UploadResultResource>(StatusCodes.Status201Created)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem()
             .Accepts<IFormFile>("multipart/form-data");
 
         documents.MapPost("/generated", GenerateDocument)
             .WithSummary("Generate a document from a template.")
             .Produces<AcceptedDocumentResponse>(StatusCodes.Status202Accepted)
-            .ProducesProblem(StatusCodes.Status401Unauthorized);
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem();
 
         documents.MapPost("/urls", PresignDocuments)
             .WithSummary("Presign GET URLs for a batch of stored objects.")
             .Produces<IReadOnlyList<PresignedItemResource>>()
-            .ProducesProblem(StatusCodes.Status401Unauthorized);
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem();
 
         documents.MapGet("/{id:guid}", GetDocument)
             .WithSummary("Read one document with its versions.")
@@ -76,7 +85,8 @@ public static class DocumentEndpoints
         documents.MapDelete("/", DeleteDocumentsBulk)
             .WithSummary("Delete a batch of documents (?ids=a,b,c).")
             .Produces(StatusCodes.Status204NoContent)
-            .ProducesProblem(StatusCodes.Status401Unauthorized);
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem();
 
         documents.MapGet("/{id:guid}/url", GetDocumentUrl)
             .WithSummary("Presign a GET URL for a document's latest version.")

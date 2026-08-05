@@ -42,10 +42,15 @@ public static class TemplateEndpoints
             .Produces<IReadOnlyList<TemplateResource>>()
             .ProducesProblem(StatusCodes.Status401Unauthorized);
 
+        // ProducesValidationProblem where the dispatched request type carries an
+        // AbstractValidator that can fail: CreateTemplateValidator,
+        // UpdateTemplateValidator, DraftRenderValidator. List/Get/Validate/
+        // Delete dispatch validator-less requests.
         templates.MapPost("/", CreateTemplate)
             .WithSummary("Create a template.")
             .Produces<TemplateDetailResource>(StatusCodes.Status201Created)
-            .ProducesProblem(StatusCodes.Status401Unauthorized);
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem();
 
         templates.MapPost("/validate", ValidateTemplate)
             .WithSummary("Validate sample data against a stored template's schema and Handlebars source.")
@@ -55,7 +60,8 @@ public static class TemplateEndpoints
         templates.MapPost("/draft-render", DraftRender)
             .WithSummary("Render unsaved Handlebars source (optionally wrapped in a BASE template) against sample data.")
             .Produces<DraftRenderResource>()
-            .ProducesProblem(StatusCodes.Status401Unauthorized);
+            .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesValidationProblem();
 
         templates.MapGet("/{id}", GetTemplate)
             .WithSummary("Read one template, addressed by id or by its unique name.")
@@ -67,7 +73,8 @@ public static class TemplateEndpoints
             .WithSummary("Update a template.")
             .Produces<TemplateDetailResource>()
             .ProducesProblem(StatusCodes.Status401Unauthorized)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem();
 
         // The one route in this group that can 409: DeleteTemplateCommand
         // raises a domain ConflictException when the template is still

@@ -116,13 +116,85 @@ public class EmailsEndpointTests(EmailsFactory factory) : IClassFixture<EmailsFa
         Assert.True(page.GetProperty("totalItems").GetInt32() >= 2);
         var items = page.GetProperty("items");
         Assert.Equal(1, items.GetArrayLength());
-        // Pins EmailBatchStore.ListEmailsAsync's Include(b => b.Recipients):
-        // without it, every list row's Recipients collection is unloaded and
-        // totalRecipients silently reports 0 for a batch that actually has one.
+        // Pins EmailBatchStore.ListEmailsAsync's recipient aggregation: the
+        // list query does NOT load recipient rows (see EmailBatchSummary), so
+        // if the SQL counts were ever dropped, totalRecipients would silently
+        // report 0 for a batch that actually has one.
         var newest = items[0];
         Assert.Equal(newestId, newest.GetProperty("id").GetGuid());
         Assert.Equal(1, newest.GetProperty("totalRecipients").GetInt32());
     }
+
+    [Fact]
+    public async Task The_lists_recipient_counts_are_the_details_own_counts()
+    {
+        // The list computes TotalRecipients/SentCount/FailedCount as SQL
+        // aggregates; the detail counts the recipient rows it loaded anyway.
+        // Two statements of one rule, so this is what stops them drifting —
+        // and a batch with several recipients in mixed states is the only shape
+        // that can tell a correct aggregate from an accidental one (a
+        // single-recipient batch would agree even if the status predicate were
+        // wrong).
+        using var client = await factory.AuthenticatedClientAsync(Roles.Nurse);
+        var template = await factory.SeedTemplateAsync();
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/emails",
+            new
+            {
+                fromEmail = "noreply@api.test",
+                fromName = "HSM",
+                to = new[] { "a@api.test", "b@api.test", "c@api.test", "d@api.test" },
+                emailTemplate = template,
+                data = new { },
+            },
+            CancellationToken.None);
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var id = (await response.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None))
+            .GetProperty("id").GetGuid();
+
+        // One SENT, one DELIVERED (both count as sent), one FAILED, one left
+        // PENDING — so all three numbers are distinct and none of them equals
+        // the row count by coincidence.
+        await SetRecipientStatusesAsync(
+            id,
+            EmailRecipientStatus.Sent,
+            EmailRecipientStatus.Delivered,
+            EmailRecipientStatus.Failed);
+
+        var listed = await client.GetFromJsonAsync<JsonElement>(
+            $"/api/v1/emails?pageSize=100", CancellationToken.None);
+        var row = listed.GetProperty("items").EnumerateArray()
+            .First(item => item.GetProperty("id").GetGuid() == id);
+        var detail = await client.GetFromJsonAsync<JsonElement>(
+            $"/api/v1/emails/{id}", CancellationToken.None);
+
+        Assert.Equal(4, row.GetProperty("totalRecipients").GetInt32());
+        Assert.Equal(2, row.GetProperty("sentCount").GetInt32());
+        Assert.Equal(1, row.GetProperty("failedCount").GetInt32());
+        foreach (var field in new[] { "totalRecipients", "sentCount", "failedCount" })
+        {
+            Assert.Equal(detail.GetProperty(field).GetInt32(), row.GetProperty(field).GetInt32());
+        }
+    }
+
+    /// <summary>
+    /// Stamps the batch's recipients, in id order, with the given statuses —
+    /// any beyond the list keep whatever they were created with.
+    /// </summary>
+    private Task<int> SetRecipientStatusesAsync(Guid batchId, params string[] statuses) =>
+        factory.WithDbAsync(async db =>
+        {
+            var recipients = await db.EmailRecipients
+                .Where(r => r.BatchId == batchId)
+                .OrderBy(r => r.Id)
+                .ToListAsync(CancellationToken.None);
+            for (var i = 0; i < statuses.Length && i < recipients.Count; i++)
+            {
+                recipients[i].Status = statuses[i];
+            }
+
+            return await db.SaveChangesAsync(CancellationToken.None);
+        });
 
     [Fact]
     public async Task Sending_an_email_with_no_recipients_is_a_field_validation_failure()

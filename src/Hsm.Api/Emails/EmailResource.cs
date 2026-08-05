@@ -1,3 +1,4 @@
+using Hsm.Application.Coms;
 using Hsm.Domain.Coms;
 
 namespace Hsm.Api.Emails;
@@ -23,26 +24,30 @@ public sealed record EmailResource(
     string OverallStatus, int TotalRecipients, int SentCount, int FailedCount,
     Guid? CreatedBy, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt)
 {
-    public static EmailResource From(EmailBatch batch)
+    /// <summary>
+    /// From the LIST view's shape, whose counts came back as SQL aggregates —
+    /// the recipient rows were never loaded. See <see cref="EmailBatchSummary"/>.
+    /// </summary>
+    public static EmailResource From(EmailBatchSummary summary)
     {
-        ArgumentNullException.ThrowIfNull(batch);
+        ArgumentNullException.ThrowIfNull(summary);
+        var batch = summary.Batch;
         return new EmailResource(
             batch.Id,
             batch.FromEmail,
             batch.FromName,
             batch.TemplateId,
             batch.OverallStatus,
-            batch.Recipients.Count,
-            // SENT and DELIVERED both count as sent (DispatchEmailBatchHandler's
-            // own rule — a recipient moves SENT -> DELIVERED when the
-            // provider's webhook lands, and that is not a regression back to
-            // "not sent").
-            batch.Recipients.Count(r => r.Status is EmailRecipientStatus.Sent or EmailRecipientStatus.Delivered),
-            batch.Recipients.Count(r => r.Status == EmailRecipientStatus.Failed),
+            summary.TotalRecipients,
+            summary.SentCount,
+            summary.FailedCount,
             batch.CreatedBy,
             batch.CreatedAt,
             batch.CreatedAt);
     }
+
+    /// <summary>From a loaded aggregate — the detail view's path.</summary>
+    public static EmailResource From(EmailBatch batch) => From(EmailBatchSummary.From(batch));
 }
 
 public sealed record EmailDetailResource(

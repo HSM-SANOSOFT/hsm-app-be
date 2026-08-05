@@ -21,14 +21,10 @@ public sealed class EmailBatchStore(HsmDbContext db) : IEmailBatchStore
         return await query.FirstOrDefaultAsync(b => b.Id == id, ct);
     }
 
-    public async Task<PagedResult<EmailBatch>> ListEmailsAsync(
+    public async Task<PagedResult<EmailBatchSummary>> ListEmailsAsync(
         EmailListFilter filter, int page, int pageSize, CancellationToken ct = default)
     {
-        // Included even for the list view: Hsm.Api.Emails.EmailResource
-        // reports TotalRecipients/SentCount/FailedCount per row, and those
-        // are computed off the loaded Recipients collection — without this,
-        // every row in the list would silently report zero for all three.
-        IQueryable<EmailBatch> query = db.EmailBatches.AsNoTracking().Include(b => b.Recipients);
+        IQueryable<EmailBatch> query = db.EmailBatches.AsNoTracking();
         if (filter.TemplateId is not null)
         {
             query = query.Where(b => b.TemplateId == filter.TemplateId);
@@ -51,12 +47,26 @@ public sealed class EmailBatchStore(HsmDbContext db) : IEmailBatchStore
         }
 
         var totalItems = await query.CountAsync(ct);
+
+        // The three counts EmailResource reports, computed as correlated SQL
+        // aggregates over email_recipients rather than by loading the rows and
+        // counting them in memory. The status rule is EmailBatchSummary.From's,
+        // restated here because EF Core has to see the predicate inline to
+        // translate it;
+        // EmailsEndpointTests.The_lists_recipient_counts_are_the_details_own_counts
+        // pins the two forms against each other.
         var items = await query
             .OrderByDescending(b => b.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
+            .Select(b => new EmailBatchSummary(
+                b,
+                b.Recipients.Count,
+                b.Recipients.Count(r =>
+                    r.Status == EmailRecipientStatus.Sent || r.Status == EmailRecipientStatus.Delivered),
+                b.Recipients.Count(r => r.Status == EmailRecipientStatus.Failed)))
             .ToListAsync(ct);
-        return new PagedResult<EmailBatch>(items, page, pageSize, totalItems);
+        return new PagedResult<EmailBatchSummary>(items, page, pageSize, totalItems);
     }
 
     public async Task AddAsync(EmailBatch batch, CancellationToken ct = default) =>

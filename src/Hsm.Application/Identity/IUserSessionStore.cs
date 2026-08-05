@@ -15,13 +15,37 @@ public interface IUserSessionStore
     Task OpenAsync(Guid sessionId, Guid userId, DateTimeOffset expiresAt, CancellationToken ct = default);
 
     /// <summary>
-    /// The session's recorded expiry, or <see langword="null"/> when no row
-    /// exists — which is what a revoked, never-opened or reclaimed session all
-    /// look like, deliberately.
+    /// The per-request check AND the sliding extension that goes with it, as ONE
+    /// statement. True when every one of these still holds, false otherwise:
+    ///
+    /// <list type="bullet">
+    /// <item>a row for <paramref name="sessionId"/> exists (a sign-out deletes
+    /// it) and has not itself expired;</item>
+    /// <item>it belongs to <paramref name="userId"/> — the caller presenting the
+    /// cookie must be the account the session was opened for;</item>
+    /// <item>that account is still LIVE and ACTIVE (<c>DeletedAt is null</c>,
+    /// <c>IsActive</c>).</item>
+    /// </list>
+    ///
+    /// <para>The account clause rides HERE rather than in a second query because
+    /// this read already happens on every cookie-authenticated request. Without
+    /// it, deactivating or soft-deleting a user leaves every session they
+    /// already hold working for the rest of its sliding window: Identity's own
+    /// security-stamp validator looks the row up through the UNFILTERED
+    /// <c>UserManager.FindByIdAsync</c>, so it sees a soft-deleted account as a
+    /// perfectly good one and never notices <c>IsActive</c> at all.</para>
+    ///
+    /// <para>The extension is unconditional, and that is the point — see
+    /// <see cref="SessionPolicy"/>. Returning false leaves the row untouched.</para>
     /// </summary>
-    Task<DateTimeOffset?> ExpiresAtAsync(Guid sessionId, CancellationToken ct = default);
+    Task<bool> TouchAsync(
+        Guid sessionId, Guid userId, DateTimeOffset expiresAt, CancellationToken ct = default);
 
-    /// <summary>Pushes an open session's expiry out, as the cookie's own slides.</summary>
+    /// <summary>
+    /// Pushes an open session's expiry out without the checks
+    /// <see cref="TouchAsync"/> makes — for the sign-in paths that have just
+    /// established who the caller is (<c>HsmSessionSignIn.RefreshAsync</c>).
+    /// </summary>
     Task ExtendAsync(Guid sessionId, DateTimeOffset expiresAt, CancellationToken ct = default);
 
     /// <summary>Revokes one session. True when a row was actually removed.</summary>

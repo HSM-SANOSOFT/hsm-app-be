@@ -53,17 +53,20 @@ public class CookieConfigurationTests
     }
 
     [Fact]
-    public void Cookie_secure_is_configuration_driven_and_defaults_to_same_as_request()
+    public void Cookie_secure_is_configuration_driven_and_defaults_to_always()
     {
-        // Always in a TLS deployment; SameAsRequest by default so a developer's
-        // plain-HTTP container still gets a session at all.
-        Assert.Equal(CookieSecurePolicy.SameAsRequest, SessionCookie(Build()).SecurePolicy);
+        // The DEFAULT is the safe one: an environment that never configured this
+        // gets HTTPS-only cookies, not a session cookie a plain-HTTP hop carries
+        // in the clear. Opting down to SameAsRequest is what a developer's
+        // plain-HTTP container does explicitly (appsettings.Development.json).
+        Assert.Equal(CookieSecurePolicy.Always, SessionCookie(Build()).SecurePolicy);
+        Assert.Equal(CookieSecurePolicy.Always, AntiforgeryCookie(Build()).SecurePolicy);
         Assert.Equal(
-            CookieSecurePolicy.Always,
-            SessionCookie(Build(("Auth:CookieSecure", "true"))).SecurePolicy);
+            CookieSecurePolicy.SameAsRequest,
+            SessionCookie(Build(("Auth:CookieSecure", "false"))).SecurePolicy);
         Assert.Equal(
-            CookieSecurePolicy.Always,
-            AntiforgeryCookie(Build(("Auth:CookieSecure", "true"))).SecurePolicy);
+            CookieSecurePolicy.SameAsRequest,
+            AntiforgeryCookie(Build(("Auth:CookieSecure", "false"))).SecurePolicy);
     }
 
     [Fact]

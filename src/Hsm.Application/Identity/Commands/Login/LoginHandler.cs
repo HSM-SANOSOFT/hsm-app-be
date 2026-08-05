@@ -14,9 +14,10 @@ public sealed class LoginHandler(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        // Unknown username, soft-deleted account, wrong password and lockout all
-        // surface the SAME message — the login form must not leak which accounts
-        // exist, nor which of them are currently locked out.
+        // Unknown username, soft-deleted account, DEACTIVATED account, wrong
+        // password and lockout all surface the SAME message — the login form
+        // must not leak which accounts exist, which are currently locked out,
+        // nor which have been switched off.
         // Through the directory, not UserManager.FindByNameAsync: a soft-deleted
         // row may share this name with the live account, and the unfiltered
         // lookup can return either one.
@@ -26,8 +27,21 @@ public sealed class LoginHandler(
             throw new UnauthorizedException("Invalid username or password.");
         }
 
-        // Lockout is checked FIRST: a locked account must be refused even when
-        // the password presented is the right one, or the lockout buys nothing.
+        // Deactivation is the admin's off switch for an account that still
+        // exists — HsmUser.IsActive, on the wire as UserResource.isActive and
+        // rendered on the admin screen. IssueIntegrationTokensHandler and
+        // RefreshIntegrationTokensHandler already refuse on it; a human sign-in
+        // has to as well, or the switch does nothing to the door people
+        // actually use. Checked before the password so a deactivated account's
+        // failures never touch the lockout counter.
+        if (!user.IsActive)
+        {
+            throw new UnauthorizedException("Invalid username or password.");
+        }
+
+        // Lockout is checked FIRST among the credential checks: a locked account
+        // must be refused even when the password presented is the right one, or
+        // the lockout buys nothing.
         if (await users.IsLockedOutAsync(user))
         {
             throw new UnauthorizedException("Invalid username or password.");

@@ -240,7 +240,7 @@ public static class DependencyInjection
         // through the same pipeline as everything else.
         services.AddScoped<IRequestHandler<SendEmailCommand, SendEmailResult>, SendEmailHandler>();
         services.AddScoped<
-            IRequestHandler<ListEmailsQuery, PagedResult<EmailBatch>>, ListEmailsHandler>();
+            IRequestHandler<ListEmailsQuery, PagedResult<EmailBatchSummary>>, ListEmailsHandler>();
         services.AddScoped<IRequestHandler<GetEmailBatchQuery, EmailBatch>, GetEmailBatchHandler>();
         services.AddScoped<IRequestHandler<ResendEmailBatchCommand, string>, ResendEmailBatchHandler>();
         services.AddScoped<IRequestHandler<GetEmailRecipientQuery, EmailRecipient>, GetEmailRecipientHandler>();

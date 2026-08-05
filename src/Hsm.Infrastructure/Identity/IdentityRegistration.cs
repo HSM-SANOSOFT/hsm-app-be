@@ -80,7 +80,15 @@ public static class IdentityRegistration
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
-        var cookieSecure = configuration.GetValue("Auth:CookieSecure", defaultValue: false);
+        // Defaults to TRUE — the session cookie and the antiforgery cookie that
+        // guards it are both HTTPS-only unless a deployment says otherwise.
+        // A default of false meant every environment that never thought about
+        // this setting shipped SameAsRequest, i.e. a session cookie a plain-HTTP
+        // hop would happily carry in the clear. The environments that genuinely
+        // cannot do TLS are the ones that know it: appsettings.Development.json
+        // sets it false on both hosts, and the in-memory test hosts set it false
+        // in ApiHostFactory.
+        var cookieSecure = configuration.GetValue("Auth:CookieSecure", defaultValue: true);
 
         // COOKIE_DOMAIN. It is not decoration: with Hsm.Api and
         // Hsm.Web on sibling subdomains, a host-only cookie is scoped to the
@@ -171,7 +179,11 @@ public static class IdentityRegistration
         // dozen: the user lookup, its claims, its roles, and then each role's
         // own row and claims. It also sets ShouldRenew, so every validated
         // response carries a fresh Set-Cookie (which is why the test seam needs
-        // a cookie jar rather than an append). That is an accepted trade HERE —
+        // a cookie jar rather than an append) — and because that renewal slides
+        // the cookie a full Lifetime forward every time, HsmSessionValidator
+        // must slide the session row on the same request or the two disagree
+        // about when the session ends, which adds one indexed UPDATE (see
+        // SessionPolicy). That is an accepted trade HERE —
         // an internal hospital application, indexed lookups, no public
         // high-QPS surface — bought in exchange for role and password changes
         // taking effect on the NEXT request instead of half an hour later. On a
