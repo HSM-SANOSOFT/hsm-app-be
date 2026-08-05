@@ -5,11 +5,10 @@ using Hsm.Application.Errors;
 namespace Hsm.Api.Fhir;
 
 /// <summary>
-/// FHIR routes bypass the frozen envelope entirely (fhir.decorator.ts +
-/// fhir-operation-outcome.filter.ts): success responses are the RAW resource
-/// or Bundle as plain application/json (the frozen Express default), and
-/// errors render a FHIR OperationOutcome with content type
-/// application/fhir+json. No metadata/data/issue wrapper ever appears here.
+/// FHIR routes bypass the standard envelope entirely: success responses are
+/// the RAW resource or Bundle as plain application/json, and errors render a
+/// FHIR OperationOutcome with content type application/fhir+json. No
+/// metadata/data/issue wrapper ever appears here.
 /// </summary>
 public static class FhirResponses
 {
@@ -18,7 +17,7 @@ public static class FhirResponses
     public static IResult Resource(JsonObject resource, int statusCode = StatusCodes.Status200OK) =>
         Results.Json(resource, statusCode: statusCode);
 
-    /// <summary>The frozen searchset Bundle shape (fhir-bundle.util.ts).</summary>
+    /// <summary>The searchset Bundle shape.</summary>
     public static IResult SearchsetBundle(IReadOnlyList<JsonObject> resources)
     {
         var entries = new JsonArray();
@@ -38,7 +37,7 @@ public static class FhirResponses
     }
 
     /// <summary>
-    /// Renders the frozen OperationOutcome error body: one issue whose
+    /// Renders the OperationOutcome error body: one issue whose
     /// severity is fatal at 5xx and error otherwise, the status-derived FHIR
     /// issue code, and the exception's own message as diagnostics (never PHI).
     /// </summary>

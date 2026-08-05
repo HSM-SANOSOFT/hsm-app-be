@@ -8,17 +8,17 @@ namespace Hsm.Api.Templates;
 /// The wire shape of a stored template (list view). <see cref="Identifier"/>
 /// and <see cref="Name"/> both come from <see cref="Template.Name"/> — the
 /// domain has exactly one human-authored, uniquely-indexed string column
-/// (frozen templates.entity.ts: <c>@Unique(['name'])</c>, no separate slug
-/// column), and it is that same value <c>GetTemplateQuery</c> matches on the
-/// GET route's unconstrained <c>{id}</c> (see <see cref="TemplateEndpoints"/>'s
+/// (no separate slug column), and it is that same value
+/// <c>GetTemplateQuery</c> matches on the GET route's unconstrained
+/// <c>{id}</c> (see <see cref="TemplateEndpoints"/>'s
 /// own doc comment on the asymmetric identifier form). Exposing it under both
 /// names says explicitly "this is what you can fetch me by" without forcing a
 /// client to already know that Name doubles as the lookup key.
 ///
-/// <para><see cref="Template"/> carries no created/updated timestamps: the
-/// frozen entity never had them (unlike <c>Document</c> or <c>EmailBatch</c>,
-/// which do — see their own entities), and <c>TemplateStore</c> stamps none.
-/// There is no data to report, so this resource does not claim any.</para>
+/// <para><see cref="Template"/> carries no created/updated timestamps
+/// (unlike <c>Document</c> or <c>EmailBatch</c>, which do — see their own
+/// entities), and <c>TemplateStore</c> stamps none. There is no data to
+/// report, so this resource does not claim any.</para>
 /// </summary>
 public sealed record TemplateResource(
     Guid Id, string Identifier, string Name, string Category, string? Description, bool IsActive)
@@ -66,7 +66,7 @@ public sealed record TemplateDetailResource(
 }
 
 /// <summary>
-/// The EMAIL_INTERNAL/EMAIL_EXTERNAL shape (frozen <c>template_coms_email</c> /
+/// The EMAIL_INTERNAL/EMAIL_EXTERNAL shape (<c>template_coms_email</c> /
 /// <see cref="TemplateEmail"/>) — a field-for-field mirror of the stored child
 /// row. Deliberately not <c>(Subject, Body, Attachments)</c>: that shape
 /// (an earlier plan draft) matches no column here — the row has no body text
@@ -86,7 +86,7 @@ public sealed record TemplateEmailResource(
 }
 
 /// <summary>
-/// The DOCS shape (frozen <c>template_docs</c> / <see cref="TemplateDoc"/>).
+/// The DOCS shape (<c>template_docs</c> / <see cref="TemplateDoc"/>).
 /// Deliberately not <c>(Body, Header, Footer)</c>: that shape (an earlier plan
 /// draft) matches no column here — the four stored fields are
 /// DocumentCodesEnum-family selectors that pick a document layout, not
@@ -103,7 +103,7 @@ public sealed record TemplateDocResource(string DocumentCode, string Format, str
 }
 
 /// <summary>
-/// The SMS_INTERNAL/SMS_EXTERNAL shape (frozen <c>template_coms_sms</c> /
+/// The SMS_INTERNAL/SMS_EXTERNAL shape (<c>template_coms_sms</c> /
 /// <see cref="TemplateSms"/>). Not in the plan's original resource list at
 /// all (only Email/Doc were drafted there) — added so an SMS-category
 /// template round-trips: Create/Update already accept an

@@ -1,6 +1,6 @@
 using System.Text;
 using System.Text.Json;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 

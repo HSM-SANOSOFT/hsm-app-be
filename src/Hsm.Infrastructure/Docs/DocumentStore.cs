@@ -8,8 +8,8 @@ namespace Hsm.Infrastructure.Docs;
 
 /// <summary>
 /// EF Core adapter for <see cref="IDocumentStore"/>. Multi-row writes are
-/// single SaveChanges calls — one database transaction, the frozen guarantee
-/// that a mid-loop failure cannot leave a half-written document graph.
+/// single SaveChanges calls — one database transaction, so a mid-loop
+/// failure cannot leave a half-written document graph.
 /// </summary>
 public sealed class DocumentStore(HsmDbContext db) : IDocumentStore
 {
@@ -25,7 +25,7 @@ public sealed class DocumentStore(HsmDbContext db) : IDocumentStore
         var query = db.Documents.AsNoTracking()
             .Where(d => d.CreatedBy == filter.CreatedBy && d.DeletedAt == null);
 
-        // Frozen: the entity filter applies only when BOTH parts are present.
+        // The entity filter applies only when BOTH parts are present.
         if (!string.IsNullOrEmpty(filter.EntityId) && !string.IsNullOrEmpty(filter.EntityType))
         {
             query = query.Where(d => d.EntityId == filter.EntityId && d.EntityType == filter.EntityType);
@@ -73,9 +73,9 @@ public sealed class DocumentStore(HsmDbContext db) : IDocumentStore
 
     public async Task<int> AddGeneratedVersionAsync(GeneratedVersionRecord record, CancellationToken ct = default)
     {
-        // Frozen: COALESCE(MAX(version),0)+1 under a write lock. Here the
-        // unique (DocumentId, Version) index is the backstop — a concurrent
-        // insert fails and the job's retry recomputes.
+        // Next version = MAX(version)+1. The unique (DocumentId, Version)
+        // index is the backstop — a concurrent insert fails and the job's
+        // retry recomputes.
         var next = (await db.DocumentVersions
             .Where(v => v.DocumentId == record.DocumentId)
             .MaxAsync(v => (int?)v.Version, ct) ?? 0) + 1;
@@ -107,8 +107,8 @@ public sealed class DocumentStore(HsmDbContext db) : IDocumentStore
             },
         });
 
-        // Frozen: a link plus entity fields on the document row, only when
-        // both parts are present (truthy in the frozen worker).
+        // A link plus entity fields on the document row, only when both
+        // parts are present.
         if (!string.IsNullOrEmpty(record.EntityId) && !string.IsNullOrEmpty(record.EntityType))
         {
             db.DocumentLinks.Add(new DocumentLink

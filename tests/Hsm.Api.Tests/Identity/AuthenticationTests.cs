@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Domain.Identity;
 using Microsoft.Extensions.DependencyInjection;
 

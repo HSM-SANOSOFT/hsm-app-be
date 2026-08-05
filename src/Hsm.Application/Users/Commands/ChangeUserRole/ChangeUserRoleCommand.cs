@@ -4,7 +4,7 @@ using Hsm.Domain.Identity;
 namespace Hsm.Application.Users.Commands.ChangeUserRole;
 
 /// <summary>
-/// Admin-only role change (frozen changeUserRole): replaces the target's role
+/// Admin-only role change: replaces the target's role
 /// assignments via remove-then-add inside ONE transaction.
 ///
 /// Role change vs. live sessions: authorization is decided from the CALLER'S
@@ -20,8 +20,6 @@ namespace Hsm.Application.Users.Commands.ChangeUserRole;
 ///     lifetime, because a JWT is not re-read from anywhere. Integrations hold
 ///     one role (integration) and no route grants on it, so nothing is
 ///     currently reachable that way — but revoking them is Task 14's to design.
-/// The frozen system's ceiling was the 15-minute access token; this is the next
-/// request.
 /// </summary>
 [RequireRole(Roles.Admin)]
 public sealed record ChangeUserRoleCommand(Guid UserId, string Role) : ICommand<UserWithRoles>;

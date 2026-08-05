@@ -4,8 +4,7 @@ using Microsoft.Extensions.Logging;
 namespace Hsm.Infrastructure.Users;
 
 /// <summary>
-/// Staff welcome delivery stub: the frozen system enqueued to the coms queue
-/// for the worker to send; the rewritten delivery pipeline arrives with the
+/// Staff welcome delivery stub: the real delivery pipeline arrives with the
 /// communications module. Until then delivery is a logged no-op. NEVER logs
 /// the temporary password.
 /// </summary>

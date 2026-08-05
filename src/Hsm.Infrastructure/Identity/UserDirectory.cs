@@ -1,4 +1,4 @@
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Contracts;
 using Hsm.Domain.Identity;
 using Hsm.Infrastructure.Persistence;

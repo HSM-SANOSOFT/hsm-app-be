@@ -3,7 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.RegularExpressions;
 using Amazon.S3;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Application.Errors;
 using Hsm.Contracts.Ui;
 using Hsm.Web.Auth;

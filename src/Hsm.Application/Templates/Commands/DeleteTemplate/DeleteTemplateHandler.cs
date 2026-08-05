@@ -1,9 +1,9 @@
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 
 namespace Hsm.Application.Templates.Commands.DeleteTemplate;
 
-public sealed class DeleteTemplateHandler(ITemplateStore store, IAuthUnitOfWork unitOfWork)
+public sealed class DeleteTemplateHandler(ITemplateStore store, IUnitOfWork unitOfWork)
     : IRequestHandler<DeleteTemplateCommand, Unit>
 {
     public async Task<Unit> HandleAsync(DeleteTemplateCommand request, CancellationToken ct)

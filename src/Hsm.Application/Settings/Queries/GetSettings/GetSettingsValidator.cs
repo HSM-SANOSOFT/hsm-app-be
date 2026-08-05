@@ -3,7 +3,7 @@ using Hsm.Domain.Settings;
 
 namespace Hsm.Application.Settings.Queries.GetSettings;
 
-/// <summary>The category must be one of the frozen four; unknown categories are a caller mistake, not an empty read.</summary>
+/// <summary>The category must be one of the four known categories; unknown categories are a caller mistake, not an empty read.</summary>
 public sealed class GetSettingsValidator : AbstractValidator<GetSettingsQuery>
 {
     public GetSettingsValidator()

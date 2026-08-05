@@ -3,9 +3,8 @@ using Hsm.Application.Abstractions;
 namespace Hsm.Application.Docs.Commands.RenderDocument;
 
 /// <summary>
-/// The frozen worker 'document' job envelope (frozen BullMQ 'document' queue,
-/// job name <c>render</c>). <see cref="JobNameAttribute"/> is what the job
-/// registry maps to and from — the payload never names a CLR type.
+/// The job envelope for the docs-render job. <see cref="JobNameAttribute"/> is
+/// what the job registry maps to and from — the payload never names a CLR type.
 ///
 /// <para>Authenticated, and ENFORCED: dispatched through <c>IDispatcher</c>
 /// with the actor that was current when POST /v1/docs/generate enqueued it,

@@ -1,5 +1,5 @@
 using Hsm.Application.Abstractions;
-using Hsm.Infrastructure.Jobs;
+using Hsm.Infrastructure.Queue;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Hsm.Worker;

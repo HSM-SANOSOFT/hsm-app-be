@@ -142,7 +142,7 @@ public sealed class DeleteDocumentBlobsWorkerTests : IAsyncLifetime
             builder => builder.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:HsmDb"] = DedicatedDatabase("hsm_delete_document_blobs_worker_test"),
-                ["Jobs:KeyPrefix"] = $"hsmtest:{Guid.NewGuid():N}",
+                ["Queue:KeyPrefix"] = $"hsmtest:{Guid.NewGuid():N}",
                 ["Docs:RetryBaseDelayMs"] = "50",
             }),
             services =>

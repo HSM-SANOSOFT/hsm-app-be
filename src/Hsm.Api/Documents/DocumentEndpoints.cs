@@ -203,9 +203,8 @@ public static class DocumentEndpoints
     {
         var form = await ctx.Request.ReadFormAsync(ct);
 
-        // Frozen FilesInterceptor('files') / Task 2's sweep: a file under any
-        // other field name is a field validation failure, not a silently
-        // ignored file.
+        // Task 2's sweep: a file under any other field name is a field
+        // validation failure, not a silently ignored file.
         var unexpectedField = form.Files.FirstOrDefault(f => f.Name != "files")?.Name;
         if (unexpectedField is not null)
         {

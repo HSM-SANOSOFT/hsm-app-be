@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using Hsm.Application.Abstractions;
-using Hsm.Infrastructure.Jobs;
+using Hsm.Infrastructure.Queue;
 using Hsm.Worker;
 using Hsm.Worker.Scheduling;
 using Microsoft.Extensions.DependencyInjection;

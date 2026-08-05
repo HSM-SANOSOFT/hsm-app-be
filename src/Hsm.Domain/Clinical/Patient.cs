@@ -1,11 +1,11 @@
 namespace Hsm.Domain.Clinical;
 
 /// <summary>
-/// FHIR Patient system-of-record entity, pg-native (frozen patient.entity.ts,
-/// KTD1/KTD4). Searchable scalars are real columns; complex FHIR datatypes not
-/// yet searched on (name[], telecom[], address[]) persist as jsonb documents
-/// carrying the inbound FHIR JSON verbatim. Business identifiers live in the
-/// normalized child table — never as the primary key (the MPI seam, KTD2).
+/// FHIR Patient system-of-record entity, pg-native (KTD1/KTD4). Searchable
+/// scalars are real columns; complex FHIR datatypes not yet searched on
+/// (name[], telecom[], address[]) persist as jsonb documents carrying the
+/// inbound FHIR JSON verbatim. Business identifiers live in the normalized
+/// child table — never as the primary key (the MPI seam, KTD2).
 /// </summary>
 public class Patient
 {
@@ -37,8 +37,8 @@ public class Patient
 
 /// <summary>
 /// Normalized FHIR Identifier[] child row — the national-identifier lookup
-/// seam (frozen patient-identifier.entity.ts). Unique (system, value) so the
-/// same business id can never be registered twice.
+/// seam. Unique (system, value) so the same business id can never be
+/// registered twice.
 /// </summary>
 public class PatientIdentifier
 {

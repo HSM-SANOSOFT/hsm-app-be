@@ -1,5 +1,5 @@
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Contracts;
 
 namespace Hsm.Application.Users.Queries.ListUsers;

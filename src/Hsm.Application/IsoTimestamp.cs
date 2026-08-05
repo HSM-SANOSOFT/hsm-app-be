@@ -3,8 +3,8 @@ using System.Globalization;
 namespace Hsm.Application;
 
 /// <summary>
-/// The frozen ISO-8601 serialization used everywhere a timestamp crosses the
-/// API surface (envelope metadata, entity JSON, JWT onboarding claim):
+/// The ISO-8601 serialization used everywhere a timestamp crosses the API
+/// surface (envelope metadata, entity JSON, JWT onboarding claim):
 /// millisecond precision, UTC, trailing 'Z'. The format string is contract —
 /// integration consumers parse it.
 /// </summary>

@@ -18,7 +18,7 @@ public sealed class TemplateStore(HsmDbContext db) : ITemplateStore
         // Identifier lookups feed read-only flows (get, render, send, docs
         // generation); mutating flows load via FindByIdAsync.
         var query = Query(withChildren, withBase).AsNoTracking();
-        // The frozen id-or-name rule: a UUID-shaped identifier matches id OR name.
+        // Id-or-name rule: a UUID-shaped identifier matches id OR name.
         if (Guid.TryParse(identifier, out var id))
         {
             return await query.FirstOrDefaultAsync(t => t.Id == id || t.Name == identifier, ct);

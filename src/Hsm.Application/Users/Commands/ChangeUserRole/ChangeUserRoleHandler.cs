@@ -1,5 +1,5 @@
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Application.Errors;
 using Hsm.Domain.Identity;
 using Microsoft.AspNetCore.Identity;
@@ -19,9 +19,9 @@ public sealed class ChangeUserRoleHandler(UserManager<HsmUser> users)
             throw new NotFoundException("User", request.UserId);
         }
 
-        // Remove FIRST, then add — the frozen statement order, so re-assigning
-        // a role the user already holds cannot trip the (user, role) primary
-        // key. Both halves run through UserManager's EF store, which shares
+        // Remove FIRST, then add — so re-assigning a role the user already
+        // holds cannot trip the (user, role) primary key. Both halves run
+        // through UserManager's EF store, which shares
         // this scope's DbContext, so both land inside the single transaction
         // TransactionBehavior opened around this command: an exception between
         // them rolls the removal back rather than leaving the account with no

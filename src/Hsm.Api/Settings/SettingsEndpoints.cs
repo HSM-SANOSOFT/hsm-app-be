@@ -23,7 +23,7 @@ public static class SettingsEndpoints
         var settings = app.MapGroup("/api/v1/settings").WithTags("Settings");
 
         settings.MapGet("/", GetSettings)
-            .WithSummary("Read a settings category (the frozen four), values masked for secrets.")
+            .WithSummary("Read a settings category (one of four known categories), values masked for secrets.")
             .Produces<SettingsResource>();
 
         settings.MapPut("/", UpdateSettings)

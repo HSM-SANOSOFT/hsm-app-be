@@ -18,8 +18,7 @@ namespace Hsm.Api.Templates;
 /// dispatch, project, choose a status. There is no authentication call and no
 /// role check here — the actor is installed by middleware and the policy
 /// rides on the request type (every Templates command/query below is
-/// authenticated-only, no role restriction: the frozen controller decorated
-/// every route with a bare <c>@Roles()</c>).
+/// authenticated-only, no role restriction).
 ///
 /// <para><c>{id}</c> means two different things on this resource, and that is
 /// deliberate, not an inconsistency to "fix": <see cref="GetTemplate"/> keeps
@@ -115,7 +114,7 @@ public static class TemplateEndpoints
     }
 
     /// <summary>
-    /// Reads the frozen Create/Update Template payload. Shape validation
+    /// Reads the Create/Update Template payload. Shape validation
     /// (required fields, category-conditional block requirements) does not
     /// happen here — CreateTemplateValidator/UpdateTemplateValidator carry the
     /// FluentValidation subset (Task 3), and CreateTemplateHandler's

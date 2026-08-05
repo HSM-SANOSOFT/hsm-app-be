@@ -4,7 +4,7 @@ using Hsm.Application.Errors;
 
 namespace Hsm.Application.Templates;
 
-/// <summary>Shared error factories mirroring the frozen templates.error.ts family.</summary>
+/// <summary>Shared error factories for the templates module.</summary>
 public static class TemplateErrors
 {
     public static NotFoundException NotFound(string identifier) => new("Template", identifier);

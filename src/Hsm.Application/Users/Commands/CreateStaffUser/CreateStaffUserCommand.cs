@@ -4,7 +4,7 @@ using Hsm.Domain.Identity;
 namespace Hsm.Application.Users.Commands.CreateStaffUser;
 
 /// <summary>
-/// Admin-only staff provisioning (frozen createStaffUser): the account is
+/// Admin-only staff provisioning: the account is
 /// created pending first-login onboarding (onboardingCompletedAt = null),
 /// user row + role row commit in ONE transaction, and the temporary password
 /// is emailed AFTER the write — never returned in the response.

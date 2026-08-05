@@ -1,5 +1,5 @@
 using FluentValidation;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Application.Errors;
 using Microsoft.AspNetCore.Identity;
 

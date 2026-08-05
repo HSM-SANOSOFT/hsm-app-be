@@ -1,6 +1,6 @@
 namespace Hsm.Domain.Docs;
 
-/// <summary>Frozen DocumentTypeEnum values (packages/common/src/enums/docs.enum.ts).</summary>
+/// <summary>Document type values.</summary>
 public static class DocumentTypes
 {
     public const string Generated = "GENERATED";
@@ -9,7 +9,7 @@ public static class DocumentTypes
     public static readonly IReadOnlyList<string> All = [Generated, Uploaded];
 }
 
-/// <summary>Frozen DocumentStatusEnum values.</summary>
+/// <summary>Document status values.</summary>
 public static class DocumentStatuses
 {
     public const string Pending = "PENDING";
@@ -20,7 +20,7 @@ public static class DocumentStatuses
     public static readonly IReadOnlyList<string> All = [Pending, Processing, Completed, Failed];
 }
 
-/// <summary>Frozen DocumentSourceEnum values.</summary>
+/// <summary>Document source values.</summary>
 public static class DocumentSources
 {
     public const string Template = "TEMPLATE";

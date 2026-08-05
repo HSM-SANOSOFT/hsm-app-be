@@ -4,7 +4,7 @@ using Hsm.Domain.Identity;
 namespace Hsm.Application.Settings.Commands.UpdateSettings;
 
 /// <summary>
-/// Settings update (frozen SettingsService.update): every row write AND its
+/// Settings update: every row write AND its
 /// audit entry commit in ONE transaction (R11) — settings can never change
 /// without a matching audit trail. Unknown or category-mismatched keys are
 /// ignored, a blank value never overwrites a secret, and no-op writes produce

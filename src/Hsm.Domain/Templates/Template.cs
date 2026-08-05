@@ -1,12 +1,11 @@
 namespace Hsm.Domain.Templates;
 
 /// <summary>
-/// A stored template (frozen templates.entity.ts). One parent row plus at most
-/// one category-matching child row (email / sms / doc) sharing the parent's
-/// primary key — the frozen model's three shapes, not single-table inheritance.
-/// The frozen CHECK constraint (BASE has no base reference, everything else
-/// requires one) is enforced by the create/update handlers as a domain
-/// invariant.
+/// A stored template. One parent row plus at most one category-matching
+/// child row (email / sms / doc) sharing the parent's primary key — three
+/// shapes, not single-table inheritance. The CHECK constraint (BASE has no
+/// base reference, everything else requires one) is enforced by the
+/// create/update handlers as a domain invariant.
 /// </summary>
 public class Template
 {
@@ -40,7 +39,7 @@ public class Template
     public TemplateDoc? Doc { get; set; }
 }
 
-/// <summary>Email shape (frozen template_coms_email): shares the parent's PK.</summary>
+/// <summary>Email shape: shares the parent's PK.</summary>
 public class TemplateEmail
 {
     public Guid Id { get; set; }
@@ -58,7 +57,7 @@ public class TemplateEmail
     public bool HasAttachment { get; set; }
 }
 
-/// <summary>SMS shape (frozen template_coms_sms): shares the parent's PK.</summary>
+/// <summary>SMS shape: shares the parent's PK.</summary>
 public class TemplateSms
 {
     public Guid Id { get; set; }
@@ -70,7 +69,7 @@ public class TemplateSms
     public string From { get; set; } = string.Empty;
 }
 
-/// <summary>Document shape (frozen template_docs): shares the parent's PK.</summary>
+/// <summary>Document shape: shares the parent's PK.</summary>
 public class TemplateDoc
 {
     public Guid Id { get; set; }
@@ -85,9 +84,9 @@ public class TemplateDoc
 }
 
 /// <summary>
-/// One render attempt (frozen template_parse_logs): success or failure, with
-/// the input data and denormalized template name/category so the log survives
-/// template deletion (the FK nulls out, the row stays).
+/// One render attempt: success or failure, with the input data and
+/// denormalized template name/category so the log survives template
+/// deletion (the FK nulls out, the row stays).
 /// </summary>
 public class TemplateParseLog
 {

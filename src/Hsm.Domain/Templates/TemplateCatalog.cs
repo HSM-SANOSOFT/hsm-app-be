@@ -1,9 +1,6 @@
 namespace Hsm.Domain.Templates;
 
-/// <summary>
-/// Template categories frozen at packages/common/src/enums/templates.enum.ts.
-/// Values are contract.
-/// </summary>
+/// <summary>Template categories. Values are contract.</summary>
 public static class TemplateCategories
 {
     public const string Base = "BASE";
@@ -33,14 +30,14 @@ public static class TemplateCatalog
         category is not null && TemplateCategories.All.Contains(category, StringComparer.Ordinal);
 }
 
-/// <summary>Frozen TemplateParseTriggerEnum values.</summary>
+/// <summary>Template parse trigger values.</summary>
 public static class TemplateParseTriggers
 {
     public const string Http = "HTTP";
     public const string Internal = "INTERNAL";
 }
 
-/// <summary>Frozen TemplateParseErrorCodeEnum values.</summary>
+/// <summary>Template parse error code values.</summary>
 public static class TemplateParseErrorCodes
 {
     public const string Schema = "SCHEMA";
@@ -50,27 +47,27 @@ public static class TemplateParseErrorCodes
     public const string Unknown = "UNKNOWN";
 }
 
-/// <summary>Frozen document enums (docs.enum.ts) used by the DOCS shape.</summary>
+/// <summary>Document format values used by the DOCS shape.</summary>
 public static class DocumentFormats
 {
     public static readonly IReadOnlyList<string> All = ["PDF", "WORD", "EXCEL"];
 }
 
-/// <summary>Frozen document page sizes.</summary>
+/// <summary>Document page size values.</summary>
 public static class DocumentSizes
 {
     public static readonly IReadOnlyList<string> All = ["A4", "A3", "LETTER"];
 }
 
-/// <summary>Frozen document orientations.</summary>
+/// <summary>Document orientation values.</summary>
 public static class DocumentOrientations
 {
     public static readonly IReadOnlyList<string> All = ["PORTRAIT", "LANDSCAPE"];
 }
 
 /// <summary>
-/// The frozen DocumentCodesEnum (57 institutional document codes). Values are
-/// contract for the DOCS template shape.
+/// The institutional document codes (57 of them). Values are contract for
+/// the DOCS template shape.
 /// </summary>
 public static class DocumentCodes
 {

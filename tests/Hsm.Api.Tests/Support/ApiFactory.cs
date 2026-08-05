@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Hsm.Api.Auth;
+using Hsm.Api.Identity;
 using Hsm.Application.Abstractions;
 using Hsm.Domain.Identity;
 using Hsm.Infrastructure.Persistence;
@@ -66,7 +66,7 @@ public abstract class ApiHostFactory<TEntryPoint> : WebApplicationFactory<TEntry
     /// <summary>The same value, reachable by a sibling host on the same data.</summary>
     internal string Database => DatabaseName;
 
-    /// <summary>This factory's queue namespace (Jobs:KeyPrefix; Queue:KeyPrefix after Task 15).</summary>
+    /// <summary>This factory's queue namespace (Queue:KeyPrefix).</summary>
     protected virtual string JobKeyPrefix => _jobKeyPrefix;
 
     internal string JobNamespace => JobKeyPrefix;
@@ -77,7 +77,7 @@ public abstract class ApiHostFactory<TEntryPoint> : WebApplicationFactory<TEntry
     protected sealed override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("ConnectionStrings:HsmDb", ConnectionStringFor(DatabaseName));
-        builder.UseSetting("Jobs:KeyPrefix", JobKeyPrefix);
+        builder.UseSetting("Queue:KeyPrefix", JobKeyPrefix);
         builder.UseSetting("OpenApi:Enabled", "true");
         builder.ConfigureServices(services => services
             .AddDataProtection()

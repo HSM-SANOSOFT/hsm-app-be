@@ -3,9 +3,9 @@ namespace Hsm.Contracts.Ui;
 /// <summary>
 /// Settings administration (plan U18, screen 4): catalog-driven view and
 /// edit per category, secrets masked on read, and the audit trail (actor,
-/// old value, new value) the frozen system writes with every effective
-/// change. The host implementation calls the settings handlers in process
-/// with the authenticated admin as the audit actor.
+/// old value, new value) written with every effective change. The host
+/// implementation calls the settings handlers in process with the
+/// authenticated admin as the audit actor.
 /// </summary>
 public interface ISettingsAdminUiService
 {
@@ -38,9 +38,9 @@ public sealed record SettingAuditEntryDto(
     DateTimeOffset ChangedAt);
 
 /// <summary>
-/// Frozen settings categories, re-declared on this side of the boundary (the
-/// string values are contract; the component library cannot reference the
-/// domain catalog).
+/// Settings categories, re-declared on this side of the boundary (the string
+/// values are contract; the component library cannot reference the domain
+/// catalog).
 /// </summary>
 public static class UiSettingCategories
 {

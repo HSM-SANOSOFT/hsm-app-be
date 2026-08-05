@@ -14,9 +14,9 @@ using Hsm.Web.Auth;
 namespace Hsm.Web.Services;
 
 /// <summary>
-/// Host-side document management (plan U18, screen 5): publish the actor, then
-/// dispatch the same requests the frozen /v1/docs endpoints do, with the
-/// frozen createdBy scoping bound to the signed-in admin (see
+/// Host-side document management (plan U18, screen 5): publish the actor,
+/// then dispatch the same requests the /v1/docs endpoints do, with the same
+/// createdBy scoping bound to the signed-in admin (see
 /// <see cref="ShellActor"/>). Uploads land in the configured docs bucket under
 /// a fixed folder — the screen does not expose bucket/folder choice.
 /// </summary>
@@ -34,8 +34,8 @@ public sealed class DocumentsAdminUiService(
     {
         var actor = await shellActor.InstallAsync(cancellationToken)
             ?? throw new UnauthorizedException();
-        // The frozen createdBy scoping: this screen lists the signed-in
-        // admin's own uploads. Whether that caller may list at all is
+        // CreatedBy scoping: this screen lists the signed-in admin's own
+        // uploads. Whether that caller may list at all is
         // ListDocumentsQuery's policy, decided in the pipeline a line later.
         var adminId = Guid.Parse(actor.Id);
         var filter = new DocumentListFilter(

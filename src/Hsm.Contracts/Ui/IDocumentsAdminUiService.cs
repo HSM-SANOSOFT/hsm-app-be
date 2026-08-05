@@ -3,8 +3,8 @@ namespace Hsm.Contracts.Ui;
 /// <summary>
 /// Document management (plan U18, screen 5): list, upload, retrieve via
 /// presigned URL, delete. The host implementation calls the docs handlers in
-/// process; the listing keeps the frozen createdBy scoping, so the screen
-/// shows the documents the signed-in admin owns.
+/// process; the listing scopes by createdBy, so the screen shows the
+/// documents the signed-in admin owns.
 /// </summary>
 public interface IDocumentsAdminUiService
 {

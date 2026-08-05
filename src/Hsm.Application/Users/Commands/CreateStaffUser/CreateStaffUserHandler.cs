@@ -1,5 +1,5 @@
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Domain.Identity;
 using Microsoft.AspNetCore.Identity;
 
@@ -38,9 +38,9 @@ public sealed class CreateStaffUserHandler(
         (await users.CreateAsync(staff, request.TempPassword)).ThrowIfFailed("tempPassword");
         (await users.AddToRoleAsync(staff, request.Role)).ThrowIfFailed("role");
 
-        // The account is written; the welcome email is best-effort (frozen:
-        // enqueue failure was logged and swallowed — an account that exists
-        // must not surface a 500).
+        // The account is written; the welcome email is best-effort: a
+        // delivery failure is logged and swallowed — an account that exists
+        // must not surface a 500.
         try
         {
             await emailer.SendStaffWelcomeAsync(
@@ -48,7 +48,7 @@ public sealed class CreateStaffUserHandler(
         }
         catch (Exception)
         {
-            // Deliberate swallow, matching the frozen log-and-continue.
+            // Deliberate swallow: the account write already succeeded and must stand.
         }
 
         return new UserWithRoles(staff, [request.Role]);

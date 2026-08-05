@@ -34,7 +34,7 @@ public sealed record IntegrationAccountDto(
     bool IsActive,
     bool HasActiveToken);
 
-/// <summary>What provisioning needs (mirrors the frozen signupIntegration shape).</summary>
+/// <summary>What provisioning needs.</summary>
 public sealed record NewIntegrationAccountDto(string Name, string Description, string Functionality);
 
 /// <summary>
@@ -49,9 +49,9 @@ public sealed record IssuedIntegrationTokensDto(
     string RefreshToken);
 
 /// <summary>
-/// Frozen RoleFunctionalityEnum values, re-declared on this side of the
-/// boundary (the component library cannot reference the domain catalog; the
-/// string values are contract).
+/// Role functionality values, re-declared on this side of the boundary (the
+/// component library cannot reference the domain catalog; the string values
+/// are contract).
 /// </summary>
 public static class UiIntegrationFunctionality
 {

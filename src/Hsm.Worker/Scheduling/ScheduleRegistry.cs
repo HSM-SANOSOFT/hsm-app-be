@@ -17,10 +17,10 @@ public sealed record ScheduledJob(
 
 /// <summary>
 /// The one place recurring work is declared. It is EMPTY, and that is the
-/// current state of the system, not an oversight: the frozen application had no
-/// cron — every background job was enqueued by a request — so there is nothing
-/// to carry over. It exists because the alternative to one declaration point is
-/// a <c>PeriodicTimer</c> hidden in whichever service first needed one.
+/// current state of the system, not an oversight: every background job is
+/// enqueued by a request, not on a timer, so there is nothing here yet. It
+/// exists because the alternative to one declaration point is a
+/// <c>PeriodicTimer</c> hidden in whichever service first needed one.
 ///
 /// <para><b>Out of scope, deliberately:</b> this is interval scheduling, not
 /// durable exactly-once scheduling. A tick is claimed by whichever worker gets

@@ -38,8 +38,9 @@ public sealed class AppSettingStore(HsmDbContext db) : IAppSettingStore
 
 /// <summary>
 /// Deploy-environment seeds bound from configuration
-/// (Settings:Seed:&lt;KEY&gt;) — the frozen definitions read process env vars
-/// of the same key names; configuration is this stack's equivalent surface.
+/// (Settings:Seed:&lt;KEY&gt;): the catalog's definitions share key names with
+/// the process env vars they would otherwise be read from directly;
+/// configuration is this stack's equivalent surface.
 /// </summary>
 public sealed class ConfigurationSettingSeedSource(IConfiguration configuration) : ISettingSeedSource
 {

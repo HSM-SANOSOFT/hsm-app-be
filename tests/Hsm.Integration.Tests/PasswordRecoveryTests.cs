@@ -1,8 +1,8 @@
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
-using Hsm.Application.Auth.Commands.ForgotPassword;
-using Hsm.Application.Auth.Commands.RecoverUsername;
-using Hsm.Application.Auth.Commands.ResetPassword;
+using Hsm.Application.Identity;
+using Hsm.Application.Identity.Commands.ForgotPassword;
+using Hsm.Application.Identity.Commands.RecoverUsername;
+using Hsm.Application.Identity.Commands.ResetPassword;
 using Hsm.Application.Errors;
 using Hsm.Domain.Identity;
 using Hsm.Infrastructure.Persistence;

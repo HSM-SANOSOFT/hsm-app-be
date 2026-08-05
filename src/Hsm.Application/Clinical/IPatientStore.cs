@@ -4,7 +4,7 @@ namespace Hsm.Application.Clinical;
 
 /// <summary>
 /// Patient persistence port (plan U16). Identifier search binds parameters —
-/// never interpolates — mirroring the frozen service's TypeORM discipline.
+/// never interpolates — to keep identifier values out of the query text.
 /// </summary>
 public interface IPatientStore
 {
@@ -13,7 +13,7 @@ public interface IPatientStore
 
     /// <summary>
     /// Patients holding an identifier row matching the token: value always,
-    /// system additionally when provided (frozen searchByIdentifier).
+    /// system additionally when provided.
     /// </summary>
     Task<IReadOnlyList<Patient>> SearchByIdentifierAsync(
         string? system, string value, CancellationToken ct = default);

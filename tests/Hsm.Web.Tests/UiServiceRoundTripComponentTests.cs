@@ -27,6 +27,8 @@ public sealed class UiServiceRoundTripComponentTests : MudTestContext
     {
         public Task<T> ExecuteInTransactionAsync<T>(Func<CancellationToken, Task<T>> work, CancellationToken ct) =>
             work(ct);
+
+        public Task SaveChangesAsync(CancellationToken ct = default) => Task.CompletedTask;
     }
 
     [Fact]

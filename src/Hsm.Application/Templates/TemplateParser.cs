@@ -1,10 +1,10 @@
 using System.Text.Json.Nodes;
-using Hsm.Application.Auth;
+using Hsm.Application.Abstractions;
 using Hsm.Domain.Templates;
 
 namespace Hsm.Application.Templates;
 
-/// <summary>Raised when a parse's data fails the template schema (frozen TemplateSchemaValidationError).</summary>
+/// <summary>Raised when a parse's data fails the template schema.</summary>
 public sealed class TemplateParseSchemaException(IReadOnlyList<TemplateSchemaIssue> issues)
     : Exception("Template schema validation failed")
 {
@@ -15,21 +15,20 @@ public sealed class TemplateParseSchemaException(IReadOnlyList<TemplateSchemaIss
 public sealed class TemplateParseException(string message) : Exception(message);
 
 /// <summary>
-/// The frozen worker-side TemplatesService.parse/parseEmail: renders with
-/// base-template inheritance and writes a parse-log row per attempt (success
-/// or failure) — the ONLY writer of template_parse_logs. Log writes are
-/// best-effort: a log failure never breaks the render.
+/// Renders with base-template inheritance and writes a parse-log row per
+/// attempt (success or failure) — the ONLY writer of template_parse_logs.
+/// Log writes are best-effort: a log failure never breaks the render.
 /// </summary>
 public sealed class TemplateParser(
     ITemplateStore store,
     ITemplateRenderer renderer,
-    IAuthUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork)
 {
     public sealed record EmailRender(string Subject, string Html, Guid TemplateId);
 
     /// <summary>
-    /// Frozen parseEmail: the template must carry the email shape; the subject
-    /// compiles first (fail fast), then the body renders through parse().
+    /// The template must carry the email shape; the subject compiles first
+    /// (fail fast), then the body renders through parse().
     /// </summary>
     public async Task<EmailRender> ParseEmailAsync(
         string identifier, JsonObject data, Guid? userId = null, CancellationToken ct = default)
@@ -56,7 +55,7 @@ public sealed class TemplateParser(
         return new EmailRender(subject, html, template.Id);
     }
 
-    /// <summary>Frozen parse: schema validation, composition, and the parse-log write.</summary>
+    /// <summary>Schema validation, composition, and the parse-log write.</summary>
     public async Task<string> ParseAsync(
         Template template, JsonObject data, Guid? userId, CancellationToken ct = default)
     {
@@ -122,7 +121,7 @@ public sealed class TemplateParser(
         }
         catch (Exception)
         {
-            // Frozen behavior: parse-log persistence is best-effort.
+            // Parse-log persistence is best-effort.
         }
     }
 }

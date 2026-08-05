@@ -1,15 +1,15 @@
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
-using Hsm.Application.Auth.Commands.CompleteOnboarding;
-using Hsm.Application.Auth.Commands.ForgotPassword;
-using Hsm.Application.Auth.Commands.Login;
-using Hsm.Application.Auth.Commands.LogoutIntegration;
-using Hsm.Application.Auth.Commands.RecoverUsername;
-using Hsm.Application.Auth.Commands.RefreshIntegrationTokens;
-using Hsm.Application.Auth.Commands.Register;
-using Hsm.Application.Auth.Commands.RegisterIntegration;
-using Hsm.Application.Auth.Commands.ResetPassword;
-using Hsm.Application.Auth.Queries.GetMe;
+using Hsm.Application.Identity;
+using Hsm.Application.Identity.Commands.CompleteOnboarding;
+using Hsm.Application.Identity.Commands.ForgotPassword;
+using Hsm.Application.Identity.Commands.Login;
+using Hsm.Application.Identity.Commands.LogoutIntegration;
+using Hsm.Application.Identity.Commands.RecoverUsername;
+using Hsm.Application.Identity.Commands.RefreshIntegrationTokens;
+using Hsm.Application.Identity.Commands.Register;
+using Hsm.Application.Identity.Commands.RegisterIntegration;
+using Hsm.Application.Identity.Commands.ResetPassword;
+using Hsm.Application.Identity.Queries.GetMe;
 using Hsm.Domain.Identity;
 using Hsm.Infrastructure.Identity;
 using Microsoft.AspNetCore.Antiforgery;
@@ -107,7 +107,7 @@ public static class IdentityEndpoints
 
         // 202, not 200: the work these two acknowledge — finding the account,
         // sending the mail — is deliberately not reported on, so "accepted" is
-        // the only honest status. The rate limit is the frozen per-IP throttle.
+        // the only honest status. The rate limit here is the per-IP throttle.
         identity.MapPost("/password/forgot", ForgotPassword)
             .WithSummary("Begin a password reset.")
             .Produces<AcknowledgedResource>(StatusCodes.Status202Accepted)
@@ -219,12 +219,12 @@ public static class IdentityEndpoints
     /// person stays signed in on their other devices, which is what
     /// distinguishes signing out from a password change.</para>
     ///
-    /// <para>204 even for a caller with no session. The frozen
-    /// <c>LogoutCommand</c> was <c>[AllowAnonymousRequest]</c> for the reason
-    /// that still applies — refusing would leave a browser holding a stale or
-    /// unreadable cookie with no way to be rid of it, which is the one state
-    /// this route exists to fix. (An authenticated caller still passes
-    /// antiforgery on the way in, like every other cookie-borne mutation.)</para>
+    /// <para>204 even for a caller with no session, and reachable without an
+    /// authentication check for the same reason: refusing would leave a
+    /// browser holding a stale or unreadable cookie with no way to be rid of
+    /// it, which is the one state this route exists to fix. (An authenticated
+    /// caller still passes antiforgery on the way in, like every other
+    /// cookie-borne mutation.)</para>
     /// </summary>
     private static async Task<IResult> Logout(HsmSessionSignIn sessions, CancellationToken ct)
     {

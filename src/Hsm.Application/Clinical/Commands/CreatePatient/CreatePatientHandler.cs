@@ -5,8 +5,8 @@ using Hsm.Domain.Clinical;
 namespace Hsm.Application.Clinical.Commands.CreatePatient;
 
 /// <summary>
-/// Frozen PatientService.create: persist the patient with its identifier rows;
-/// a (system, value) already registered is the frozen 409
+/// Persist the patient with its identifier rows;
+/// a (system, value) already registered is a 409
 /// "A patient with one of these identifiers already exists".
 /// </summary>
 public sealed class CreatePatientHandler(IPatientStore patients) : IRequestHandler<CreatePatientCommand, Patient>

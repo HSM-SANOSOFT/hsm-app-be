@@ -1,8 +1,8 @@
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth.Commands.IssueIntegrationTokens;
-using Hsm.Application.Auth.Commands.RevokeIntegrationTokens;
-using Hsm.Application.Auth.Commands.RegisterIntegration;
-using Hsm.Application.Auth.Queries.ListIntegrationAccounts;
+using Hsm.Application.Identity.Commands.IssueIntegrationTokens;
+using Hsm.Application.Identity.Commands.RevokeIntegrationTokens;
+using Hsm.Application.Identity.Commands.RegisterIntegration;
+using Hsm.Application.Identity.Queries.ListIntegrationAccounts;
 using Hsm.Contracts.Ui;
 using Hsm.Web.Auth;
 

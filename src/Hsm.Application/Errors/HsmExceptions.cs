@@ -9,7 +9,8 @@ namespace Hsm.Application.Errors;
 /// is what a malformed request gets, and malformed requests are the validators'
 /// business (FluentValidation, Task 3). A refusal that is not about the request's
 /// shape is a Conflict, a Forbidden, or a bug — reintroducing a catch-all here
-/// would rebuild the ApiException this type replaced.</para>
+/// would rebuild the single generic exception type this design deliberately
+/// replaced.</para>
 /// </summary>
 public abstract class HsmException(string? message) : Exception(message);
 

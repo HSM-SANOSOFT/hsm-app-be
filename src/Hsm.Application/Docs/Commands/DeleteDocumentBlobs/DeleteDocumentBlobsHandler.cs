@@ -11,9 +11,9 @@ public sealed class DeleteDocumentBlobsHandler(IObjectStorage storage)
         ArgumentNullException.ThrowIfNull(request);
 
         // Independent blob deletes run concurrently (bounded), each still
-        // best-effort: the frozen deleteFiles swallowed per-object failures
-        // (logged only) — DeleteDocumentHandler answered success either way,
-        // and this job carries that same posture forward.
+        // best-effort: per-object failures are swallowed (logged only) —
+        // DeleteDocumentHandler answers success either way, and this job
+        // carries that same posture forward.
         using var throttle = new SemaphoreSlim(4);
         await Task.WhenAll(request.Blobs.Select(async blob =>
         {
@@ -24,7 +24,7 @@ public sealed class DeleteDocumentBlobsHandler(IObjectStorage storage)
             }
             catch (ObjectStorageException)
             {
-                // Swallowed, as in the frozen path.
+                // Swallowed; see the comment above for why.
             }
             finally
             {

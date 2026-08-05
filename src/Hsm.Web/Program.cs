@@ -1,5 +1,5 @@
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Contracts.Ui;
 using Hsm.Infrastructure;
 using Hsm.Infrastructure.Identity;

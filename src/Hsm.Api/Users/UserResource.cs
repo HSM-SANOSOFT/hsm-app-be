@@ -46,7 +46,7 @@ public sealed record UserResource(
             user.LastLoginAt,
             user.OnboardingCompletedAt,
             user.IsActive,
-            // Identity's own confirmation flags under the frozen wire names.
+            // Identity's own confirmation flags, under this resource's wire names.
             user.EmailConfirmed,
             user.PhoneNumberConfirmed,
             user.CreatedAt,

@@ -1,6 +1,6 @@
 using FluentValidation;
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Application.Errors;
 using Hsm.Domain.Identity;
 using Microsoft.AspNetCore.Identity;

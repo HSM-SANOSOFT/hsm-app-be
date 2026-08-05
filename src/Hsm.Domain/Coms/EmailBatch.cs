@@ -1,11 +1,11 @@
 namespace Hsm.Domain.Coms;
 
 /// <summary>
-/// An email send batch (frozen email_batch): the aggregate root over its
-/// per-recipient rows. Recipients are reachable through the aggregate; a
-/// recipient removed from <see cref="Recipients"/> is deleted, not orphaned
-/// (the EF Core change-tracking behavior the stack was chosen for, proven by
-/// integration test against real PostgreSQL).
+/// An email send batch: the aggregate root over its per-recipient rows.
+/// Recipients are reachable through the aggregate; a recipient removed from
+/// <see cref="Recipients"/> is deleted, not orphaned (the EF Core
+/// change-tracking behavior the stack was chosen for, proven by integration
+/// test against real PostgreSQL).
 /// </summary>
 public class EmailBatch
 {
@@ -36,7 +36,7 @@ public class EmailBatch
     public List<EmailRecipient> Recipients { get; set; } = [];
 }
 
-/// <summary>One recipient of a batch (frozen email_recipient).</summary>
+/// <summary>One recipient of a batch.</summary>
 public class EmailRecipient
 {
     public Guid Id { get; set; }
@@ -56,8 +56,8 @@ public class EmailRecipient
 }
 
 /// <summary>
-/// A suppressed address (frozen email_suppression): unique per email; first
-/// suppression wins, the reason is never updated.
+/// A suppressed address: unique per email; first suppression wins, the
+/// reason is never updated.
 /// </summary>
 public class EmailSuppression
 {
@@ -74,9 +74,8 @@ public class EmailSuppression
 }
 
 /// <summary>
-/// One received provider webhook event, normalized (frozen
-/// email_webhook_event). <see cref="ProcessedAt"/> is the processing
-/// idempotency marker.
+/// One received provider webhook event, normalized. <see cref="ProcessedAt"/>
+/// is the processing idempotency marker.
 /// </summary>
 public class EmailWebhookEvent
 {
@@ -100,7 +99,7 @@ public class EmailWebhookEvent
     public DateTimeOffset CreatedAt { get; set; }
 }
 
-/// <summary>Frozen EmailBatchStatusEnum values.</summary>
+/// <summary>Email batch status values.</summary>
 public static class EmailBatchStatus
 {
     public const string Pending = "PENDING";
@@ -112,7 +111,7 @@ public static class EmailBatchStatus
     public static readonly IReadOnlyList<string> All = [Pending, Processing, Sent, Partial, Failed];
 }
 
-/// <summary>Frozen EmailRecipientStatusEnum values.</summary>
+/// <summary>Email recipient status values.</summary>
 public static class EmailRecipientStatus
 {
     public const string Pending = "PENDING";
@@ -128,7 +127,7 @@ public static class EmailRecipientStatus
         [Pending, Sent, Failed, Suppressed, Delivered, BouncedHard, BouncedSoft, Spam];
 }
 
-/// <summary>Frozen EmailWebhookEventTypeEnum values.</summary>
+/// <summary>Email webhook event type values.</summary>
 public static class EmailWebhookEventTypes
 {
     public const string Delivered = "DELIVERED";
@@ -142,7 +141,7 @@ public static class EmailWebhookEventTypes
     public const string Unknown = "UNKNOWN";
 }
 
-/// <summary>Frozen EmailSuppressionReasonEnum values.</summary>
+/// <summary>Email suppression reason values.</summary>
 public static class EmailSuppressionReasons
 {
     public const string HardBounce = "HARD_BOUNCE";

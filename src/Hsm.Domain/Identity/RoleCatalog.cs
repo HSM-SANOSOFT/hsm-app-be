@@ -1,9 +1,8 @@
 namespace Hsm.Domain.Identity;
 
 /// <summary>
-/// Role identifiers frozen by the reference implementation
-/// (packages/common/src/enums/roles.enum.ts at freeze/typescript-2026-07-27).
-/// The string values are contract: they ride in JWTs and role rows.
+/// Role identifiers. The string values are contract: they ride in JWTs and
+/// role rows.
 /// </summary>
 public static class Roles
 {
@@ -60,9 +59,9 @@ public static class Roles
 }
 
 /// <summary>
-/// Maps every role to its domain branch — the frozen RolesService resolved
-/// role→domain pairs before persisting role rows; unknown roles resolve to
-/// nothing (frozen behavior: silently skipped, or rejected by the caller).
+/// Maps every role to its domain branch, resolving role→domain pairs before
+/// persisting role rows; unknown roles resolve to nothing — silently
+/// skipped, or rejected by the caller.
 /// </summary>
 public static class RoleCatalog
 {
@@ -99,8 +98,8 @@ public static class RoleCatalog
     }
 
     /// <summary>
-    /// All known role identifiers in the frozen declaration order — the order
-    /// of the frozen ROLE_VALUES constant, which rides in validation messages.
+    /// All known role identifiers in declaration order — that order rides in
+    /// validation messages.
     /// </summary>
     public static IReadOnlyList<string> All => OrderedRoles;
 
@@ -115,10 +114,9 @@ public static class RoleCatalog
     public static bool IsKnown(string? role) => role is not null && DomainByRole.ContainsKey(role);
 
     /// <summary>
-    /// Whether a role may be handed to a staff account. The frozen
-    /// createStaffUser guard rejects the patient-facing branch outright: those
-    /// accounts are created by the patient signup path, never by an admin
-    /// provisioning staff.
+    /// Whether a role may be handed to a staff account. Rejects the
+    /// patient-facing branch outright: those accounts are created by the
+    /// patient signup path, never by an admin provisioning staff.
     /// </summary>
     public static bool IsAssignableToStaff(string role) =>
         role is not (Roles.Patient or Roles.Family);

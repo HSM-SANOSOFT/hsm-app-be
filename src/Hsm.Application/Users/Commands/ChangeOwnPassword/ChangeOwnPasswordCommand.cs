@@ -4,7 +4,7 @@ using Hsm.Domain.Identity;
 namespace Hsm.Application.Users.Commands.ChangeOwnPassword;
 
 /// <summary>
-/// Self-service password change (frozen changeOwnPassword). Like
+/// Self-service password change. Like
 /// <c>UpdateOwnProfileCommand</c> it carries no user id — the target is the
 /// actor from <see cref="ICurrentPrincipal"/>.
 ///

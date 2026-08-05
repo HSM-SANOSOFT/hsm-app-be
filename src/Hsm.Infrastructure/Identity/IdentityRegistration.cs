@@ -1,5 +1,5 @@
 using System.Text;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Domain.Identity;
 using Hsm.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -69,8 +69,8 @@ public static class IdentityRegistration
     ///
     /// <para>Both hosts call this, which is what makes one sign-in serve both
     /// doors: the cookie's name, path, SameSite mode and lifetime are stated
-    /// once here, where <c>AuthCookiePolicy</c> used to state them for two
-    /// hand-rolled writers. Each host still owns its own cookie EVENTS — a 401
+    /// once here, where two hand-rolled writers used to each state them
+    /// separately. Each host still owns its own cookie EVENTS — a 401
     /// and a redirect to a sign-in page are both correct answers to the same
     /// situation on different doors.</para>
     /// </summary>
@@ -82,7 +82,7 @@ public static class IdentityRegistration
 
         var cookieSecure = configuration.GetValue("Auth:CookieSecure", defaultValue: false);
 
-        // The frozen COOKIE_DOMAIN. It is not decoration: with Hsm.Api and
+        // COOKIE_DOMAIN. It is not decoration: with Hsm.Api and
         // Hsm.Web on sibling subdomains, a host-only cookie is scoped to the
         // door that issued it and "one sign-in serves both doors" quietly stops
         // being true — invisibly, because a single-origin test host can never
@@ -130,9 +130,8 @@ public static class IdentityRegistration
                 ValidateIssuer = false,
                 ValidateAudience = false,
                 ValidateLifetime = true,
-                // The frozen verifier had no clock tolerance and neither does
-                // this one: a five-minute default skew is five extra minutes of
-                // life for a revoked integration token.
+                // No clock skew: a five-minute default would be five extra
+                // minutes of life for a revoked integration token.
                 ClockSkew = TimeSpan.Zero,
                 RoleClaimType = "roles",
                 NameClaimType = "username",
@@ -182,8 +181,8 @@ public static class IdentityRegistration
         // It buys a second thing for free. When the stamp still matches, the
         // validator rebuilds the principal from the row, so a caller's role
         // claims are re-read rather than trusted for the cookie's whole
-        // lifetime — the property the frozen 15-minute access token had, now
-        // without the 15 minutes.
+        // lifetime — the same property a short-lived access token would buy,
+        // without ever expiring.
         services.Configure<SecurityStampValidatorOptions>(options =>
         {
             options.ValidationInterval = TimeSpan.Zero;

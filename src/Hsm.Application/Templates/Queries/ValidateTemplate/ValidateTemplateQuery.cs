@@ -4,12 +4,12 @@ using Hsm.Domain.Templates;
 
 namespace Hsm.Application.Templates.Queries.ValidateTemplate;
 
-/// <summary>The validate result (frozen ValidateTemplateResponseDto).</summary>
+/// <summary>The validate result.</summary>
 public sealed record ValidateTemplateResult(
     bool Valid, Guid? TemplateId, IReadOnlyList<TemplateSchemaIssue>? Issues);
 
 /// <summary>
-/// Frozen validate: schema check then a compile probe — always a SUCCESS
+/// Schema check then a compile probe — always a SUCCESS
 /// response carrying valid/issues, never an error status (except unknown
 /// identifier, which is 404). Writes no parse log. A query: nothing is persisted.
 /// </summary>

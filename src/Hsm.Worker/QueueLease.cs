@@ -1,4 +1,4 @@
-using Hsm.Infrastructure.Jobs;
+using Hsm.Infrastructure.Queue;
 using StackExchange.Redis;
 
 namespace Hsm.Worker;
@@ -39,7 +39,7 @@ namespace Hsm.Worker;
 /// not hold.</item>
 /// </list>
 ///
-/// <para>What is left over is genuinely exceptional: a process frozen for
+/// <para>What is left over is genuinely exceptional: a process stalled for
 /// longer than a whole job's worst case. The queue survives even that —
 /// delivery is at-least-once and handlers are idempotent — but the ORDERING
 /// guarantee is degraded while it lasts, and that is the residue this design

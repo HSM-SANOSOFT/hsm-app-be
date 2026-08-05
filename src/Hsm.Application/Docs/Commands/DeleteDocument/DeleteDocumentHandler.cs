@@ -4,8 +4,7 @@ using Hsm.Application.Errors;
 namespace Hsm.Application.Docs.Commands.DeleteDocument;
 
 /// <summary>
-/// <b>Does not delete blobs itself</b> — unlike the frozen handler, which
-/// deleted every version's S3 object right after the soft-delete. Object-store
+/// <b>Does not delete blobs itself.</b> Object-store
 /// deletes are not transactional and have no rollback: if this handler ran
 /// inside an ambient transaction alongside OTHER <see cref="DeleteDocumentCommand"/>
 /// dispatches (the bulk-delete route wraps a whole batch in one

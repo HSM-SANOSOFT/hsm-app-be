@@ -3,7 +3,7 @@ using Hsm.Application.Abstractions;
 namespace Hsm.Application.Docs.Commands.GenerateDocument;
 
 /// <summary>
-/// POST /v1/docs/generate (frozen generateDocument): persists a PENDING
+/// POST /v1/docs/generate: persists a PENDING
 /// GENERATED/TEMPLATE document and reserves the render job's id — the
 /// response carries both ids, and the caller (the endpoint) enqueues the
 /// render AFTER this command's transaction has committed. See
@@ -21,5 +21,5 @@ public sealed record GenerateDocumentCommand(
     string? EntityId,
     string? EntityType) : ICommand<GenerateDocumentResult>;
 
-/// <summary>The frozen generateDocument response: the created document's id and the reserved job id.</summary>
+/// <summary>The generate-document response: the created document's id and the reserved job id.</summary>
 public sealed record GenerateDocumentResult(Guid DocumentId, string JobId);

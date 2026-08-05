@@ -1,5 +1,5 @@
 using Hsm.Application.Ports;
-using Hsm.Infrastructure.Jobs;
+using Hsm.Infrastructure.Queue;
 
 namespace Hsm.Worker;
 
@@ -16,9 +16,9 @@ namespace Hsm.Worker;
 /// <para><b>Parallelism is per queue</b>
 /// (<see cref="JobQueueDefinition.Consumers"/>): <c>docs</c> runs four loops
 /// because generation jobs are independent and one job's backoff must not
-/// serialize the queue, while <c>coms</c> runs one, because the frozen resend
-/// ordering depends on no newer job starting while an earlier one is still
-/// working through its attempts.</para>
+/// serialize the queue, while <c>coms</c> runs one, because resend ordering
+/// depends on no newer job starting while an earlier one is still working
+/// through its attempts.</para>
 ///
 /// <para><b>And for a serial queue, one loop in the CLUSTER.</b> Counting loops
 /// in this process would mean nothing with two worker replicas running, so a
@@ -77,7 +77,7 @@ public sealed partial class JobConsumerService(
                     $"Serial queue '{queue.Name}' has a consume lease of {topology.LeaseTtl} but allows a "
                     + $"job to run for up to {queue.ClaimMinIdle} (its ClaimMinIdle). The lease would lapse "
                     + "while the job is still running and a second consumer would start. Raise "
-                    + "Jobs:LeaseTtlMs above it, or lower the queue's ClaimMinIdle.");
+                    + "Queue:LeaseTtlMs above it, or lower the queue's ClaimMinIdle.");
             }
         }
 

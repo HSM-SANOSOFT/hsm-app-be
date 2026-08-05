@@ -1,5 +1,5 @@
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Application.Errors;
 using Hsm.Application.Settings.Queries.GetSettings;
 using Hsm.Domain.Settings;
@@ -9,7 +9,7 @@ namespace Hsm.Application.Settings.Commands.UpdateSettings;
 public sealed class UpdateSettingsHandler(
     IAppSettingStore store,
     ISettingSeedSource seeds,
-    IAuthUnitOfWork unitOfWork,
+    IUnitOfWork unitOfWork,
     ICurrentPrincipal principal,
     IRequestHandler<GetSettingsQuery, SettingsView> reader)
     : IRequestHandler<UpdateSettingsCommand, SettingsView>
@@ -94,7 +94,8 @@ public sealed class UpdateSettingsHandler(
 
         await unitOfWork.SaveChangesAsync(ct);
 
-        // Frozen behavior: respond with the fresh category read-back.
+        // Respond with the fresh category read-back so the caller sees the
+        // settings as they now stand.
         return await reader.HandleAsync(new GetSettingsQuery(request.Category), ct);
     }
 }

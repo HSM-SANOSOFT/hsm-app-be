@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Ports;
-using Hsm.Infrastructure.Jobs;
+using Hsm.Infrastructure.Queue;
 using Hsm.Infrastructure.Persistence;
 using Hsm.Worker;
 using Microsoft.EntityFrameworkCore;
@@ -126,7 +126,7 @@ public sealed class ConsumerLeaseTests : IAsyncLifetime
             () => Consumer(provider).StartAsync(CancellationToken.None));
 
         Assert.Contains("consume lease", failure.Message, StringComparison.Ordinal);
-        Assert.Contains("Jobs:LeaseTtlMs", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("Queue:LeaseTtlMs", failure.Message, StringComparison.Ordinal);
     }
 
     /// <summary>Enqueues a job and waits for whichever worker holds the lease to run it.</summary>

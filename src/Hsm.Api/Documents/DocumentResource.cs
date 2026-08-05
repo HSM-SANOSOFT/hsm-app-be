@@ -32,7 +32,7 @@ public sealed record DocumentResource(
             document.EntityType,
             // Every write path (GenerateDocumentHandler, UploadDocumentsHandler)
             // stamps CreatedBy from the acting principal; the column is
-            // nullable only because the frozen schema allowed it, so this is a
+            // nullable only because the schema allows it, so this is a
             // safe default, not a fabricated value.
             document.CreatedBy.GetValueOrDefault(),
             document.CreatedAt,
@@ -97,7 +97,7 @@ public sealed record DocumentUrlResource(string Url);
 public sealed record AcceptedDocumentResponse(Guid Id, string JobId);
 
 /// <summary>
-/// The frozen generateDocument body shape, promoted from DocsEndpoints'
+/// The generateDocument body shape, promoted from DocsEndpoints'
 /// private record to a public request record — same fields, same semantics
 /// (<see cref="Data"/> is a raw JSON object, serialized back to a string for
 /// the command). Not part of the brief's resource list because it maps

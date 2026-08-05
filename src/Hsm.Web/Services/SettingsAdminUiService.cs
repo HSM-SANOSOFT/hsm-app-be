@@ -11,9 +11,9 @@ namespace Hsm.Web.Services;
 
 /// <summary>
 /// Host-side settings administration (plan U18, screen 4): publish the actor,
-/// then dispatch the same command/query slices the frozen /v1/settings
-/// endpoints do — masking and the transactional write+audit guarantee live in
-/// the handlers, not here, and the admin requirement lives on the requests.
+/// then dispatch the same command/query slices the /v1/settings endpoints
+/// do — masking and the transactional write+audit guarantee live in the
+/// handlers, not here, and the admin requirement lives on the requests.
 /// The authenticated admin is also the audit actor, read from ICurrentPrincipal
 /// rather than passed as a parameter.
 /// </summary>

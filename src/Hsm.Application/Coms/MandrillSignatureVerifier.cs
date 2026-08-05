@@ -4,12 +4,10 @@ using System.Text;
 namespace Hsm.Application.Coms;
 
 /// <summary>
-/// The frozen Mandrill signature verification (mandrill-webhook.adapter.ts
-/// verify()), preserved at full strength: HMAC-SHA1 of the RAW request body
-/// bytes with the provider signing key, base64-encoded, compared against the
-/// <c>x-mandrill-signature</c> header with a constant-time comparison (the
-/// frozen crypto.timingSafeEqual) behind an equal-length guard. No header →
-/// invalid; nothing weaker than the frozen check is accepted.
+/// Mandrill signature verification: HMAC-SHA1 of the RAW request body bytes
+/// with the provider signing key, base64-encoded, compared against the
+/// <c>x-mandrill-signature</c> header with a constant-time comparison behind
+/// an equal-length guard. No header → invalid.
 /// </summary>
 public static class MandrillSignatureVerifier
 {
@@ -33,8 +31,7 @@ public static class MandrillSignatureVerifier
         var computedBytes = Encoding.UTF8.GetBytes(computed);
         var signatureBytes = Encoding.UTF8.GetBytes(signature);
         // FixedTimeEquals is length-guarded internally, but the explicit guard
-        // mirrors the frozen adapter's shape (timingSafeEqual throws on
-        // length mismatch there).
+        // returns false on a length mismatch instead of throwing.
         if (computedBytes.Length != signatureBytes.Length)
         {
             return false;

@@ -4,7 +4,7 @@ using Hsm.Domain.Templates;
 namespace Hsm.Application.Templates.Commands.CreateTemplate;
 
 /// <summary>
-/// Create requires a name and a known category; every other frozen
+/// Create requires a name and a known category; every other
 /// category-conditional shape rule (email/doc/sms block requirements, schema
 /// well-formedness, Handlebars compile check) is a full reshape left to
 /// Task 8, not ported here.

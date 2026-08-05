@@ -182,7 +182,7 @@ public sealed class WorkerEndToEndTests : IAsyncLifetime
             builder => builder.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:HsmDb"] = DedicatedDatabase("hsm_worker_e2e_test"),
-                ["Jobs:KeyPrefix"] = $"hsmtest:{Guid.NewGuid():N}",
+                ["Queue:KeyPrefix"] = $"hsmtest:{Guid.NewGuid():N}",
                 ["Coms:RetryBaseDelayMs"] = "50",
             }),
             services =>

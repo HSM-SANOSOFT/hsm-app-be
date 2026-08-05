@@ -3,7 +3,7 @@ using Hsm.Application.Abstractions;
 
 namespace Hsm.Application.Docs.Queries.ListDocuments;
 
-/// <summary>The frozen paging contract (see <see cref="PagingRules"/>), stated once for this query.</summary>
+/// <summary>The paging contract (see <see cref="PagingRules"/>), stated once for this query.</summary>
 public sealed class ListDocumentsValidator : AbstractValidator<ListDocumentsQuery>
 {
     public ListDocumentsValidator()

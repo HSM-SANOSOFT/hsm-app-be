@@ -3,7 +3,7 @@ using Hsm.Domain.Docs;
 
 namespace Hsm.Application.Docs;
 
-/// <summary>List filter (frozen ListDocumentsQueryDto + createdBy scoping).</summary>
+/// <summary>List filter (createdBy scoping).</summary>
 public sealed record DocumentListFilter(
     Guid CreatedBy,
     string? EntityId,
@@ -12,9 +12,9 @@ public sealed record DocumentListFilter(
     string? Status);
 
 /// <summary>
-/// Everything one generated version persists in a single transaction (frozen
-/// worker: version max+1, storage object, generation provenance, optional
-/// link plus entity fields on the document row).
+/// Everything one generated version persists in a single transaction:
+/// version max+1, storage object, generation provenance, optional
+/// link plus entity fields on the document row.
 /// </summary>
 public sealed record GeneratedVersionRecord(
     Guid DocumentId,
@@ -30,8 +30,8 @@ public sealed record GeneratedVersionRecord(
     string? EntityType);
 
 /// <summary>
-/// One uploaded file's document graph (frozen uploadDocuments transaction:
-/// document + version 1 + storage object + optional link).
+/// One uploaded file's document graph: document + version 1 + storage
+/// object + optional link.
 /// </summary>
 public sealed record UploadedDocumentRecord(
     string Title,
@@ -50,17 +50,17 @@ public interface IDocumentStore
 {
     Task AddAsync(Document document, CancellationToken ct = default);
 
-    /// <summary>Frozen list: createdBy scope, deleted excluded, createdAt DESC.</summary>
+    /// <summary>List: createdBy scope, deleted excluded, createdAt DESC.</summary>
     Task<PagedResult<Document>> ListAsync(
         DocumentListFilter filter, int page, int pageSize, CancellationToken ct = default);
 
     /// <summary>
-    /// Frozen findOne({ id, createdBy }, relations: versions.storage):
+    /// Scoped find by (id, createdBy):
     /// deleted rows excluded, versions with their storage objects loaded.
     /// </summary>
     Task<Document?> FindWithVersionsAsync(Guid id, Guid createdBy, CancellationToken ct = default);
 
-    /// <summary>Frozen softDelete: stamps deletedAt; every other row survives.</summary>
+    /// <summary>Soft delete: stamps deletedAt; every other row survives.</summary>
     Task SoftDeleteAsync(Guid id, CancellationToken ct = default);
 
     Task SetStatusAsync(Guid id, string status, CancellationToken ct = default);
@@ -73,8 +73,8 @@ public interface IDocumentStore
     Task<int> AddGeneratedVersionAsync(GeneratedVersionRecord record, CancellationToken ct = default);
 
     /// <summary>
-    /// One transaction for the whole upload batch (frozen: a mid-loop failure
-    /// must not leave a half-written document graph). Returns the created
+    /// One transaction for the whole upload batch: a mid-loop failure
+    /// must not leave a half-written document graph. Returns the created
     /// document ids, in order.
     /// </summary>
     Task<IReadOnlyList<Guid>> AddUploadedDocumentsAsync(

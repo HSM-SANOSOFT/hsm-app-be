@@ -9,10 +9,11 @@ namespace Hsm.Domain.Identity;
 /// stamp and the lockout counters — comes from <see cref="IdentityUser{TKey}"/>.
 /// What is added here is what the hospital cares about and Identity does not.
 ///
-/// <para>The frozen entity's columns map across as: Username → UserName,
-/// EmailVerified → EmailConfirmed, PhoneVerified → PhoneNumberConfirmed. They
-/// are not duplicated here; a second IsEmailVerified alongside EmailConfirmed
-/// is exactly the kind of pair that drifts.</para>
+/// <para>What might look like missing fields already exist under Identity's
+/// naming: Username is UserName, EmailVerified is EmailConfirmed,
+/// PhoneVerified is PhoneNumberConfirmed. They are not duplicated here; a
+/// second IsEmailVerified alongside EmailConfirmed is exactly the kind of
+/// pair that drifts.</para>
 ///
 /// <para><see cref="OnboardingCompletedAt"/> null marks an admin-created staff
 /// account still pending forced first-login onboarding. The database row is

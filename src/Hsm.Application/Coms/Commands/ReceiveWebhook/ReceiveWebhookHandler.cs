@@ -5,18 +5,18 @@ using FluentValidation;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Coms;
 using Hsm.Application.Errors;
+using Hsm.Application.Identity;
 using Hsm.Application.Settings;
 using Hsm.Domain.Coms;
 
 namespace Hsm.Application.Coms.Commands.ReceiveWebhook;
 
 /// <summary>
-/// <b>Does not enqueue the process-webhook-event job itself</b> — unlike the
-/// frozen handler and the pre-slicing port, which enqueued right after
-/// <c>SaveChangesAsync</c>. <c>TransactionBehavior</c> now wraps this whole
-/// handler in one transaction that commits only after <c>HandleAsync</c>
-/// returns, so enqueuing in here raced the commit in practice, not just in
-/// theory: <c>WebhookContractTests.Valid_webhook_updates_the_matching_recipient_delivery_state</c>
+/// <b>Does not enqueue the process-webhook-event job itself.</b>
+/// <c>TransactionBehavior</c> wraps this whole handler in one transaction
+/// that commits only after <c>HandleAsync</c> returns, so enqueuing right
+/// after <c>SaveChangesAsync</c> here would race the commit in practice, not
+/// just in theory: <c>WebhookContractTests.Valid_webhook_updates_the_matching_recipient_delivery_state</c>
 /// and <c>.Hard_bounce_suppresses_the_address_and_later_sends_skip_it</c>
 /// failed on first run (the in-process channel consumer, in its own
 /// scope/connection, looked up the new <c>EmailWebhookEvent</c> row before
@@ -31,7 +31,7 @@ public sealed class ReceiveWebhookHandler(
     IEmailWebhookEventStore events,
     IAppSettingStore settings,
     ISettingSeedSource seeds,
-    Auth.IAuthUnitOfWork unitOfWork) : IRequestHandler<ReceiveWebhookCommand, ReceiveWebhookResult>
+    IUnitOfWork unitOfWork) : IRequestHandler<ReceiveWebhookCommand, ReceiveWebhookResult>
 {
     public const string SigningKeysSettingKey = "COMS_WEBHOOK_SIGNING_KEYS";
 
@@ -39,7 +39,7 @@ public sealed class ReceiveWebhookHandler(
     {
         if (!string.Equals(request.Provider, MandrillWebhookAdapter.Provider, StringComparison.OrdinalIgnoreCase))
         {
-            // Frozen: unknown providers are acknowledged with received: 0.
+            // Unknown providers are acknowledged with received: 0.
             return new ReceiveWebhookResult(0, []);
         }
 
@@ -115,9 +115,9 @@ public sealed class ReceiveWebhookHandler(
     }
 
     /// <summary>
-    /// The frozen getWebhookSigningKeys(): the effective value of the secret
-    /// COMS_WEBHOOK_SIGNING_KEYS setting (store row, else deploy seed) parsed
-    /// as a JSON provider→key map; invalid JSON degrades to an empty map.
+    /// The effective value of the secret COMS_WEBHOOK_SIGNING_KEYS setting
+    /// (store row, else deploy seed) parsed as a JSON provider→key map;
+    /// invalid JSON degrades to an empty map.
     /// </summary>
     private async Task<string?> SigningKeyForAsync(string provider, CancellationToken ct)
     {

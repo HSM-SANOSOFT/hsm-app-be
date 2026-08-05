@@ -3,9 +3,9 @@ using Hsm.Application.Abstractions;
 namespace Hsm.Application.Coms.Commands.DispatchEmailBatch;
 
 /// <summary>
-/// The frozen worker 'send-email' job envelope (frozen BullMQ 'coms' queue,
-/// job name <c>send-email</c>). <see cref="JobNameAttribute"/> is what the job
-/// registry maps to and from — the payload never names a CLR type.
+/// The 'send-email' job envelope, on the 'coms' queue.
+/// <see cref="JobNameAttribute"/> is what the job registry maps to and from —
+/// the payload never names a CLR type.
 ///
 /// <para>Authenticated, and ENFORCED: this command is dispatched through
 /// <c>IDispatcher</c> like every other, and the actor it authorizes against is
@@ -24,7 +24,7 @@ namespace Hsm.Application.Coms.Commands.DispatchEmailBatch;
 /// commits to the handler, exactly as they were before the queue routed it
 /// through a dispatcher — so
 /// <c>BatchAndRecipientContractTests.Resending_a_failed_recipient_dispatches_again_without_duplicating_the_batch</c>
-/// still reads FAILED with its frozen error message after five exhausted
+/// still reads FAILED with its error message after five exhausted
 /// attempts.</item>
 /// </list>
 ///

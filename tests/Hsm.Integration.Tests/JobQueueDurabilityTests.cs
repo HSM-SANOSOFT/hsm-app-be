@@ -3,7 +3,7 @@ using System.Text.Json;
 
 using Hsm.Application.Abstractions;
 using Hsm.Application.Ports;
-using Hsm.Infrastructure.Jobs;
+using Hsm.Infrastructure.Queue;
 using Hsm.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;

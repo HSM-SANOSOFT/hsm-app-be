@@ -7,8 +7,7 @@ using Hsm.Application.Clinical.Queries.SearchPatients;
 namespace Hsm.Api.Fhir;
 
 /// <summary>
-/// The FHIR R4 Patient facade at /fhir/R4/Patient (frozen
-/// patient.controller.ts behind @FhirController): version-neutral path (no
+/// The FHIR R4 Patient facade at /fhir/R4/Patient: version-neutral path (no
 /// /v1 prefix), raw FHIR responses, OperationOutcome errors, and the clinical
 /// PHI roles gate (KTD11) — a single broad clinical-staff grant.
 ///
@@ -16,13 +15,12 @@ namespace Hsm.Api.Fhir;
 /// (<c>[RequireRole(Doctor, Nurse, Technician, Therapist, Pharmacist, Admin)]</c>
 /// — admin is an explicit member because the pipeline has no blanket bypass;
 /// see <c>GetPatientQuery</c>'s XML doc). Task 14 carried the grant here as
-/// well, belt-and-suspenders, purely so the frozen "Insufficient permissions"
-/// diagnostics survived; Task 15 removed the edge copy. Since Task 12 these
-/// routes do not even establish identity: HsmActorMiddleware has already
-/// installed the actor for every route, so what is left here is transport —
-/// parse a FHIR body, dispatch, render an OperationOutcome.
+/// well, belt-and-suspenders; Task 15 removed the edge copy. Since Task 12
+/// these routes do not even establish identity: HsmActorMiddleware has
+/// already installed the actor for every route, so what is left here is
+/// transport — parse a FHIR body, dispatch, render an OperationOutcome.
 ///
-/// The frozen Encounter and ServiceRequest facades are deliberately NOT here:
+/// The Encounter and ServiceRequest facades are deliberately NOT here:
 /// plan Scope Boundaries exclude clinical modules beyond patient lookup, and
 /// the drop is recorded in the definition-of-done (C5) and pinned by the
 /// route-closure contract test.
@@ -67,7 +65,7 @@ public static class FhirEndpoints
         });
 
     /// <summary>
-    /// The frozen FhirSearchPipe for the Patient config: every query param
+    /// Query param validation for the Patient search: every query param
     /// must be single-valued; 'identifier' is required and must parse as
     /// 'system|value' (or bare 'value').
     /// </summary>
@@ -89,8 +87,8 @@ public static class FhirEndpoints
             throw Unprocessable("identifier", "Patient search requires an 'identifier' parameter");
         }
 
-        // The frozen token grammar: ^(?:([^|]+)\|)?([^|]+)$ — at most one '|',
-        // with non-empty parts on both sides.
+        // The token grammar: ^(?:([^|]+)\|)?([^|]+)$ — at most one '|', with
+        // non-empty parts on both sides.
         var parts = raw.Split('|');
         return parts switch
         {
@@ -111,7 +109,7 @@ public static class FhirEndpoints
     {
         if (!ctx.Request.HasJsonContentType())
         {
-            // ReadFromJsonAsync's frozen posture, preserved: a non-JSON
+            // ReadFromJsonAsync's own posture, preserved: a non-JSON
             // content type escapes as the generic 500 OperationOutcome.
             throw new InvalidOperationException(
                 $"Unable to read the request as JSON because the request content type '{ctx.Request.ContentType}' is not a known JSON content type.");

@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.Security.Claims;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Domain.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;

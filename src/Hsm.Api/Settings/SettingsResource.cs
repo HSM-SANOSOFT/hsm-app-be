@@ -3,7 +3,7 @@ using Hsm.Domain.Settings;
 
 namespace Hsm.Api.Settings;
 
-/// <summary>The category read-back (frozen GetSettingsResponseDto).</summary>
+/// <summary>The category read-back.</summary>
 public sealed record SettingsResource(string Category, IReadOnlyList<SettingItemResource> Settings)
 {
     public static SettingsResource From(SettingsView view)
@@ -39,14 +39,14 @@ public sealed record SettingItemResource(string Key, string? Value, bool IsSecre
     }
 }
 
-/// <summary>The frozen UpdateSettingsDto surface.</summary>
+/// <summary>The settings-update request wire surface.</summary>
 public sealed record UpdateSettingsRequest(string Category, IReadOnlyList<SettingUpdateRequest> Settings);
 
-/// <summary>The frozen UpdateSettingItemDto surface.</summary>
+/// <summary>One requested settings change, as sent over the wire.</summary>
 public sealed record SettingUpdateRequest(string Key, string? Value);
 
 /// <summary>
-/// One settings-audit row (frozen <c>app_setting_audit</c> /
+/// One settings-audit row (the <c>app_setting_audit</c> table /
 /// <see cref="AppSettingAudit"/>). <see cref="OldValue"/>/<see cref="NewValue"/>
 /// are already masked for secret keys by
 /// <see cref="Hsm.Application.Settings.Commands.UpdateSettings.UpdateSettingsHandler"/>

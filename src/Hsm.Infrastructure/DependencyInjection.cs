@@ -1,21 +1,21 @@
 using Amazon.Runtime;
 using Amazon.S3;
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Contracts;
-using Hsm.Application.Auth.Commands.CompleteOnboarding;
-using Hsm.Application.Auth.Commands.ForgotPassword;
-using Hsm.Application.Auth.Commands.IssueIntegrationTokens;
-using Hsm.Application.Auth.Commands.Login;
-using Hsm.Application.Auth.Commands.LogoutIntegration;
-using Hsm.Application.Auth.Commands.RecoverUsername;
-using Hsm.Application.Auth.Commands.RefreshIntegrationTokens;
-using Hsm.Application.Auth.Commands.Register;
-using Hsm.Application.Auth.Commands.RegisterIntegration;
-using Hsm.Application.Auth.Commands.ResetPassword;
-using Hsm.Application.Auth.Commands.RevokeIntegrationTokens;
-using Hsm.Application.Auth.Queries.GetMe;
-using Hsm.Application.Auth.Queries.ListIntegrationAccounts;
+using Hsm.Application.Identity.Commands.CompleteOnboarding;
+using Hsm.Application.Identity.Commands.ForgotPassword;
+using Hsm.Application.Identity.Commands.IssueIntegrationTokens;
+using Hsm.Application.Identity.Commands.Login;
+using Hsm.Application.Identity.Commands.LogoutIntegration;
+using Hsm.Application.Identity.Commands.RecoverUsername;
+using Hsm.Application.Identity.Commands.RefreshIntegrationTokens;
+using Hsm.Application.Identity.Commands.Register;
+using Hsm.Application.Identity.Commands.RegisterIntegration;
+using Hsm.Application.Identity.Commands.ResetPassword;
+using Hsm.Application.Identity.Commands.RevokeIntegrationTokens;
+using Hsm.Application.Identity.Queries.GetMe;
+using Hsm.Application.Identity.Queries.ListIntegrationAccounts;
 using Hsm.Application.Clinical;
 using Hsm.Application.Clinical.Commands.CreatePatient;
 using Hsm.Application.Clinical.Queries.GetPatient;
@@ -73,7 +73,7 @@ using Hsm.Infrastructure.Clinical;
 using Hsm.Infrastructure.Coms;
 using Hsm.Infrastructure.Docs;
 using Hsm.Infrastructure.Identity;
-using Hsm.Infrastructure.Jobs;
+using Hsm.Infrastructure.Queue;
 using Hsm.Infrastructure.Persistence;
 using Hsm.Infrastructure.Search;
 using Hsm.Infrastructure.Settings;
@@ -125,7 +125,7 @@ public static class DependencyInjection
                 AuthenticationRegion = configuration["Storage:S3:Region"] ?? "us-east-1",
             }));
         // Presigned URLs may sign against a second, externally reachable
-        // endpoint (frozen STRG_S3_HOST_EXTERNAL) so browsers outside the
+        // endpoint (STRG_S3_HOST_EXTERNAL) so browsers outside the
         // container network can use them; unset means the main client signs.
         services.AddSingleton<IObjectStorage>(sp =>
         {
@@ -171,7 +171,7 @@ public static class DependencyInjection
 
     /// <summary>
     /// Documents adapters and handlers (plan U15). Generation runs as a queued
-    /// RenderDocumentCommand on the 'docs' queue — frozen retry posture (3
+    /// RenderDocumentCommand on the 'docs' queue — retry posture (3
     /// attempts, 1s first-attempt delay, 2s exponential backoff) configured in
     /// JobQueueRegistration — with QuestPDF instead of headless Chrome.
     /// </summary>
@@ -208,7 +208,7 @@ public static class DependencyInjection
     /// <summary>
     /// Template + communications adapters and handlers (plan U14). Sending runs
     /// as a queued DispatchEmailBatchCommand on the strictly serial 'coms'
-    /// queue (frozen resend ordering); SMTP delivery stays a port with a
+    /// queue (to preserve resend ordering); SMTP delivery stays a port with a
     /// logging adapter — real relays are deployment configuration.
     /// </summary>
     private static void AddTemplatesAndComs(IServiceCollection services, IConfiguration configuration)
@@ -268,7 +268,7 @@ public static class DependencyInjection
 
     /// <summary>
     /// User-administration and settings adapters plus their use-case handlers
-    /// (plan U13). The settings seed source binds the frozen envValue()
+    /// (plan U13). The settings seed source binds the deploy-environment
     /// fallbacks from configuration (Settings:Seed:&lt;KEY&gt;).
     /// </summary>
     private static void AddUsersAndSettings(IServiceCollection services)
@@ -323,7 +323,6 @@ public static class DependencyInjection
         services.AddScoped<IUserSessionStore, UserSessionStore>();
         services.AddScoped<IIntegrationRefreshTokenStore, IntegrationRefreshTokenStore>();
         services.AddScoped<IIntegrationAccountStore, IntegrationAccountStore>();
-        services.AddScoped<IAuthUnitOfWork, AuthUnitOfWork>();
         services.AddSingleton<IRecoveryEmailer, LoggingRecoveryEmailer>();
 
         // ONE secret. The refresh JWT and its own key are gone: a refresh token
@@ -334,7 +333,7 @@ public static class DependencyInjection
         });
         services.AddSingleton<IIntegrationTokenCodec, IntegrationTokenCodec>();
 
-        // Frozen envs.ENVIRONMENT gate for the developer role.
+        // Environment gate for the developer role.
         var environment = configuration["Auth:Environment"] ?? "dev";
         services.AddSingleton<IEnvironmentPolicy>(new EnvironmentPolicy(environment == "dev"));
 

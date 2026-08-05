@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Domain.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;

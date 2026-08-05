@@ -3,7 +3,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Domain.Identity;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;

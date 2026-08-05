@@ -12,7 +12,7 @@ namespace Hsm.Web.Services;
 
 /// <summary>
 /// Host-side user administration (plan U18, screen 2): the same commands and
-/// queries the frozen /v1/user endpoints dispatch, through the same pipeline.
+/// queries the /v1/user endpoints dispatch, through the same pipeline.
 /// The admin policy is declared on the request types and enforced by the
 /// pipeline, so this service performs no authorization of its own —
 /// <see cref="ShellActor"/> only publishes WHO is calling. A non-admin
@@ -74,7 +74,7 @@ public sealed class UsersAdminUiService(
         // No dispatch, so no policy: this reads a compile-time constant
         // (RoleCatalog) and discloses nothing about any account. The screen
         // that calls it is [Authorize(Roles = admin)] at the routing layer.
-        // Staff provisioning excludes the patient-facing roles (frozen guard).
+        // Staff provisioning excludes the patient-facing roles.
         return [.. RoleCatalog.All.Where(RoleCatalog.IsAssignableToStaff)];
     }
 

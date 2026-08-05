@@ -1,6 +1,6 @@
-using Hsm.Application.Auth.Commands.CompleteOnboarding;
-using Hsm.Application.Auth.Commands.ResetPassword;
-using Hsm.Application.Auth.Commands.Register;
+using Hsm.Application.Identity.Commands.CompleteOnboarding;
+using Hsm.Application.Identity.Commands.ResetPassword;
+using Hsm.Application.Identity.Commands.Register;
 
 namespace Hsm.Tests.Auth;
 

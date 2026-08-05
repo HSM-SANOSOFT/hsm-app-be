@@ -6,7 +6,7 @@ namespace Hsm.Api.Http;
 
 /// <summary>
 /// The one place a caller-supplied request body is read as JSON, across the
-/// six endpoint files Task 3 swept off <c>BodyValidator</c>. Wraps
+/// six endpoint files Task 3 swept clean of edge-level validation. Wraps
 /// <c>HttpRequest.ReadFromJsonAsync&lt;T&gt;</c>, converting a malformed or
 /// empty body's <see cref="JsonException"/> into a
 /// <see cref="ValidationException"/> — the same 400 vehicle every other shape

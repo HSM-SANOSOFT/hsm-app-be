@@ -5,7 +5,7 @@ namespace Hsm.Infrastructure.Coms;
 
 /// <summary>
 /// The default <see cref="IEmailTransport"/>: SMTP delivery is deployment
-/// configuration (frozen SMTP_* settings); in this repo the adapter logs the
+/// configuration (the SMTP_* settings); in this repo the adapter logs the
 /// send and fabricates a provider message id. Real relays are wired per
 /// deployment behind the same port.
 /// </summary>

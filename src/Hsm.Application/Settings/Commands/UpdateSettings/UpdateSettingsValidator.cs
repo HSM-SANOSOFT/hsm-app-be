@@ -4,7 +4,7 @@ using Hsm.Domain.Settings;
 namespace Hsm.Application.Settings.Commands.UpdateSettings;
 
 /// <summary>
-/// The category must be one of the frozen four, and every item in the batch
+/// The category must be one of the four known categories, and every item in the batch
 /// must at least name the key it is writing — a blank key cannot be resolved
 /// against <see cref="SettingCatalog"/> and would otherwise be silently
 /// dropped several layers down.

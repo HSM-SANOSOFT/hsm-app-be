@@ -11,19 +11,17 @@ using Hsm.Application.Clinical;
 namespace Hsm.Api.Fhir;
 
 /// <summary>
-/// Inbound FHIR Patient validation + the frozen field mapping
-/// (fhir-validation.pipe.ts + patient.translator.ts).
+/// Inbound FHIR Patient validation + field mapping.
 ///
-/// Validation posture mirrors the frozen Medplum validateResource: structure,
-/// element types, and unknown-property rejection are enforced (422), while
-/// terminology/code bindings are NOT — a bad gender code passes, exactly as it
-/// did through Medplum (KTD6). Firely's strict deserializer supplies the
+/// Validation posture: structure, element types, and unknown-property
+/// rejection are enforced (422), while terminology/code bindings are NOT — a
+/// bad gender code passes (KTD6). Firely's strict deserializer supplies the
 /// structural check; its coded-value complaints are deliberately tolerated.
 ///
-/// Persistence mapping is the frozen translator's: only active, gender,
-/// birthDate, name, telecom, address, and identifier(system/value/use) rows
-/// survive; other valid R4 fields are accepted and dropped. The stored jsonb
-/// carries the inbound JSON verbatim, so reads echo what was accepted.
+/// Persistence mapping: only active, gender, birthDate, name, telecom,
+/// address, and identifier(system/value/use) rows survive; other valid R4
+/// fields are accepted and dropped. The stored jsonb carries the inbound
+/// JSON verbatim, so reads echo what was accepted.
 /// </summary>
 public static class PatientFhirMapper
 {
@@ -44,8 +42,7 @@ public static class PatientFhirMapper
         {
             foreach (var entry in identifierArray)
             {
-                // The frozen translator persisted only identifiers carrying
-                // both system and value (toIdentifierEntities filter).
+                // Persist only identifiers carrying both system and value.
                 if (entry is JsonObject identifier
                     && StringOf(identifier["system"]) is { Length: > 0 } system
                     && StringOf(identifier["value"]) is { Length: > 0 } value)
@@ -55,7 +52,7 @@ public static class PatientFhirMapper
             }
         }
 
-        // Frozen fromFhir: active ?? true.
+        // active defaults to true when absent.
         var active = !(resource["active"] is JsonValue activeValue
             && activeValue.GetValueKind() == JsonValueKind.False);
 
@@ -69,7 +66,7 @@ public static class PatientFhirMapper
             Identifiers: identifiers);
     }
 
-    /// <summary>The frozen toFhir projection: entity → FHIR Patient JSON.</summary>
+    /// <summary>Entity → FHIR Patient JSON projection.</summary>
     public static JsonObject ToJson(Domain.Clinical.Patient patient)
     {
         var resource = new JsonObject
@@ -140,16 +137,15 @@ public static class PatientFhirMapper
 
         if (parsed is not Patient)
         {
-            // The frozen pipe validated any resource type and the controller
-            // then silently treated it as a Patient; rejecting the mismatch
-            // is a deliberate, documented divergence.
+            // Reject a mismatched resourceType instead of silently treating
+            // it as a Patient.
             throw Unprocessable("resourceType", "Expected a Patient resource");
         }
     }
 
     /// <summary>
-    /// Frozen Medplum parity: terminology/code-binding complaints pass;
-    /// everything structural rejects.
+    /// Terminology/code-binding complaints pass; everything structural
+    /// rejects.
     /// </summary>
     private static bool IsTerminologyIssue(CodedException exception) =>
         exception is CodedValidationException coded
@@ -167,7 +163,7 @@ public static class PatientFhirMapper
             ? value.GetValue<string>()
             : null;
 
-    /// <summary>The frozen translator stored arrays only when non-empty.</summary>
+    /// <summary>Arrays are stored only when non-empty.</summary>
     private static string? NonEmptyArrayJson(JsonNode? node) =>
         node is JsonArray { Count: > 0 } array ? array.ToJsonString() : null;
 

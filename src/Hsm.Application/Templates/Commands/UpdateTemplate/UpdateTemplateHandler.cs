@@ -1,5 +1,5 @@
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 using Hsm.Application.Templates.Commands.CreateTemplate;
 using Hsm.Application.Templates.Queries.GetTemplate;
 using Hsm.Domain.Templates;
@@ -9,7 +9,7 @@ namespace Hsm.Application.Templates.Commands.UpdateTemplate;
 public sealed class UpdateTemplateHandler(
     ITemplateStore store,
     ITemplateRenderer renderer,
-    IAuthUnitOfWork unitOfWork,
+    IUnitOfWork unitOfWork,
     IRequestHandler<GetTemplateQuery, Template> reader)
     : IRequestHandler<UpdateTemplateCommand, Template>
 {
@@ -57,7 +57,7 @@ public sealed class UpdateTemplateHandler(
         }
         else if (command.BaseTemplatePresent && string.IsNullOrEmpty(command.BaseTemplateId))
         {
-            // Frozen: an explicitly-present null clears the relation.
+            // An explicitly-present null clears the relation.
             newBaseId = null;
         }
 
@@ -96,7 +96,7 @@ public sealed class UpdateTemplateHandler(
         return await reader.HandleAsync(new GetTemplateQuery(existing.Id.ToString()), ct);
     }
 
-    /// <summary>The frozen upsertChildOnUpdate: keyed by the stored category.</summary>
+    /// <summary>Upserts the child block, keyed by the stored category.</summary>
     private static void UpsertChild(Template existing, TemplatePayload command)
     {
         if (TemplateCategories.IsEmail(existing.Category) && command.Email is not null)

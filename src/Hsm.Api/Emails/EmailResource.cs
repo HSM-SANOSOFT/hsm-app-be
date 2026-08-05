@@ -3,7 +3,7 @@ using Hsm.Domain.Coms;
 namespace Hsm.Api.Emails;
 
 /// <summary>
-/// The wire shape of an email batch. A batch IS an email send — the frozen
+/// The wire shape of an email batch. A batch IS an email send — the
 /// "batch" noun dies at the HTTP boundary, so this resource is what
 /// <c>/api/v1/emails</c> serves both from its list and its detail route.
 ///
@@ -59,7 +59,6 @@ public sealed record EmailDetailResource(
             summary.Id, summary.FromEmail, summary.FromName, summary.TemplateId,
             summary.OverallStatus, summary.TotalRecipients, summary.SentCount, summary.FailedCount,
             summary.CreatedBy, summary.CreatedAt, summary.UpdatedAt,
-            // The frozen recipient ordering (RecipientJson's caller): id ASC.
             [.. batch.Recipients.OrderBy(r => r.Id).Select(r => EmailRecipientResource.From(r, batch.CreatedAt))]);
     }
 }

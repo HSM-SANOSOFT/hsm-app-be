@@ -3,7 +3,7 @@ using Hsm.Domain.Coms;
 
 namespace Hsm.Application.Coms;
 
-/// <summary>Filters for the frozen listBatches query.</summary>
+/// <summary>Filters for the list-batches query.</summary>
 public sealed record EmailListFilter(
     Guid? TemplateId,
     string? OverallStatus,
@@ -16,7 +16,7 @@ public interface IEmailBatchStore
 {
     Task<EmailBatch?> FindAsync(Guid id, bool withRecipients = false, CancellationToken ct = default);
 
-    /// <summary>createdAt DESC, offset pagination (frozen listBatches).</summary>
+    /// <summary>createdAt DESC, offset pagination.</summary>
     Task<PagedResult<EmailBatch>> ListEmailsAsync(
         EmailListFilter filter, int page, int pageSize, CancellationToken ct = default);
 
@@ -24,6 +24,6 @@ public interface IEmailBatchStore
 
     Task<EmailRecipient?> FindRecipientAsync(Guid id, CancellationToken ct = default);
 
-    /// <summary>The most recent recipient row (id DESC) for an address — the frozen webhook match rule.</summary>
+    /// <summary>The most recent recipient row (id DESC) for an address — the webhook match rule.</summary>
     Task<EmailRecipient?> FindLatestRecipientByEmailAsync(string email, CancellationToken ct = default);
 }

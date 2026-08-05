@@ -3,8 +3,7 @@ using Hsm.Application.Abstractions;
 namespace Hsm.Application.Coms.Commands.ProcessWebhookEvent;
 
 /// <summary>
-/// The frozen worker 'process-webhook-event' job envelope (frozen BullMQ
-/// 'coms' queue, job name <c>process-webhook-event</c>).
+/// The 'process-webhook-event' job envelope, on the 'coms' queue.
 /// <see cref="JobNameAttribute"/> is what the job registry maps to and from.
 ///
 /// <para><see cref="AllowAnonymousRequestAttribute"/>, and now genuinely

@@ -21,9 +21,9 @@ namespace Hsm.Api.SystemStatus;
 /// <c>GET /api/v1/system/status</c> dispatches the existing
 /// <see cref="GetSystemStatusQuery"/> (Application layer, unchanged — it
 /// exists to prove the U8 Blazor UI-service boundary round trip and is
-/// reused as-is here) and layers on the fields the frozen contract's dropped
-/// <c>GET /v1/health/version</c> and this dashboard-facing route need that
-/// <see cref="Hsm.Contracts.Ui.SystemStatusDto"/> does not carry:
+/// reused as-is here) and layers on the fields the retired
+/// <c>GET /v1/health/version</c> route and this dashboard-facing route need
+/// that <see cref="Hsm.Contracts.Ui.SystemStatusDto"/> does not carry:
 ///
 /// <list type="bullet">
 /// <item><description><c>Version</c>: resolved with the same precedence the

@@ -46,7 +46,7 @@ public sealed class EmailBatchStore(HsmDbContext db) : IEmailBatchStore
 
         if (filter.FromDate is not null && filter.ToDate is not null)
         {
-            // Frozen: the date range filters only when BOTH bounds are given.
+            // The date range filters only when BOTH bounds are given.
             query = query.Where(b => b.CreatedAt >= filter.FromDate && b.CreatedAt <= filter.ToDate);
         }
 
@@ -67,9 +67,9 @@ public sealed class EmailBatchStore(HsmDbContext db) : IEmailBatchStore
 
     public async Task<EmailRecipient?> FindLatestRecipientByEmailAsync(
         string email, CancellationToken ct = default) =>
-        // The frozen match rule: the most recent recipient row for the
-        // address (its "id DESC" over uuid keys was an accidental proxy for
-        // recency; the batch's creation time is the real signal).
+        // The match rule: the most recent recipient row for the address
+        // (id DESC over uuid keys would be an accidental proxy for recency;
+        // the batch's creation time is the real signal).
         await db.EmailRecipients
             .Where(r => r.ToEmail == email)
             .Join(db.EmailBatches, r => r.BatchId, b => b.Id, (r, b) => new { Recipient = r, b.CreatedAt })
@@ -93,7 +93,7 @@ public sealed class EmailSuppressionStore(HsmDbContext db) : IEmailSuppressionSt
 
     public async Task AddIfMissingAsync(EmailSuppression suppression, CancellationToken ct = default)
     {
-        // The frozen orIgnore upsert: first suppression wins.
+        // orIgnore-style upsert: first suppression wins.
         if (await db.EmailSuppressions.AnyAsync(s => s.Email == suppression.Email, ct))
         {
             return;

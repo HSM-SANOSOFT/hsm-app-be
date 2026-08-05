@@ -34,7 +34,7 @@ public sealed record UserRowDto(
     bool IsActive,
     bool OnboardingPending);
 
-/// <summary>What staff provisioning needs (mirrors the frozen createStaffUser shape).</summary>
+/// <summary>What staff provisioning needs.</summary>
 public sealed record NewStaffUserDto(
     string Username,
     string Email,

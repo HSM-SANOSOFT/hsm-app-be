@@ -7,11 +7,11 @@ using Hsm.Application.Templates;
 namespace Hsm.Infrastructure.Templates;
 
 /// <summary>
-/// Handlebars.Net adapter for <see cref="ITemplateRenderer"/> — the frozen
-/// composeTemplate semantics: HTML escaping ON, no custom helpers, and
-/// base-template inheritance by rendering the base with the child's output
-/// injected as <c>body</c>. Compiled templates are memoized by content (the
-/// renderer is a singleton; template bodies are few and small).
+/// Handlebars.Net adapter for <see cref="ITemplateRenderer"/>: HTML escaping
+/// ON, no custom helpers, and base-template inheritance by rendering the
+/// base with the child's output injected as <c>body</c>. Compiled templates
+/// are memoized by content (the renderer is a singleton; template bodies
+/// are few and small).
 /// </summary>
 public sealed class HandlebarsTemplateRenderer : ITemplateRenderer
 {

@@ -3,7 +3,7 @@ using Hsm.Application.Abstractions;
 namespace Hsm.Application.Users.Commands.UpdateOwnProfile;
 
 /// <summary>
-/// Self-service profile update (frozen updateOwnProfile): ONLY firstName and
+/// Self-service profile update: ONLY firstName and
 /// email are reachable through this path — the role and every other column
 /// cannot be changed by the profile owner (R6; self-escalation is impossible
 /// because the request type has no other field to carry one).

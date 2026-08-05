@@ -5,7 +5,7 @@ using Hsm.Domain.Settings;
 namespace Hsm.Application.Settings.Queries.ListSettingsAudit;
 
 /// <summary>
-/// The frozen paging contract (see <see cref="PagingRules"/>), plus the same
+/// The paging contract (see <see cref="PagingRules"/>), plus the same
 /// category rule <see cref="Hsm.Application.Settings.Queries.GetSettings.GetSettingsValidator"/>
 /// states for this resource family: "unknown categories are a caller mistake,
 /// not an empty read" — this query used to answer an unknown/missing category

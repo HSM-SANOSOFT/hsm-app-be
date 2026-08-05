@@ -1,5 +1,5 @@
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth.Commands.Login;
+using Hsm.Application.Identity.Commands.Login;
 using Hsm.Application.Errors;
 using Hsm.Contracts.Ui;
 using Hsm.Domain.Identity;
@@ -46,7 +46,7 @@ public sealed class SignInUiService(
         catch (HsmException)
         {
             // Unknown username and wrong password surface the same message —
-            // the screen must not leak which accounts exist (frozen posture).
+            // the screen must not leak which accounts exist.
             return SignInResult.Failed("Usuario o contraseña incorrectos.");
         }
     }

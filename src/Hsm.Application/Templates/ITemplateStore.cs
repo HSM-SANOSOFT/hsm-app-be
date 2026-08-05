@@ -10,7 +10,7 @@ public interface ITemplateStore
         Guid id, bool withChildren = false, bool withBase = false, CancellationToken ct = default);
 
     /// <summary>
-    /// The frozen id-or-name lookup: a UUID-shaped identifier matches by id OR
+    /// The id-or-name lookup: a UUID-shaped identifier matches by id OR
     /// name; anything else matches by name only.
     /// </summary>
     Task<Template?> FindByIdentifierAsync(

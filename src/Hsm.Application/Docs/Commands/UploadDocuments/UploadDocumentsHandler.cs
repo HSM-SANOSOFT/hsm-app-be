@@ -14,7 +14,7 @@ public sealed class UploadDocumentsHandler(IDocumentStore store, IObjectStorage 
         var actor = principal.Actor ?? throw new UnauthorizedException();
         var userId = Guid.Parse(actor.Id);
 
-        // Frozen matching: a queue per trimmed original filename; each
+        // Matching: a queue per trimmed original filename; each
         // payload entry consumes one file; leftovers are an error either way.
         var fileQueues = new Dictionary<string, Queue<UploadFileUpload>>(StringComparer.Ordinal);
         var fileByName = new Dictionary<string, UploadFileUpload>(StringComparer.Ordinal);
@@ -76,7 +76,7 @@ public sealed class UploadDocumentsHandler(IDocumentStore store, IObjectStorage 
                 ]);
         }
 
-        // Blob uploads first (frozen order), grouped per payload item;
+        // Blob uploads first, grouped per payload item;
         // independent puts run concurrently (bounded) with result order
         // preserved by index.
         var s3Result = new List<UploadedItem>();
@@ -94,7 +94,7 @@ public sealed class UploadDocumentsHandler(IDocumentStore store, IObjectStorage 
                 uploaded[i] = new UploadedFile(fileId.ToString(), file.FileName, key);
                 puts.Add(PutThrottledAsync(throttle, key, file, item.Bucket, ct));
 
-                // Frozen quirk preserved: mimeType/size come from the FIRST
+                // Deliberate quirk: mimeType/size come from the FIRST
                 // file carrying this name, not necessarily the matched one.
                 var original = fileByName.GetValueOrDefault(file.FileName.Trim());
                 records.Add(new UploadedDocumentRecord(

@@ -7,12 +7,12 @@ using Hsm.Application.Ports;
 namespace Hsm.Api.Webhooks;
 
 /// <summary>
-/// The provider webhook, moved across from the frozen coms-webhook.controller
-/// (via <c>Hsm.Api.Coms.ComsEndpoints</c>) unchanged: raw body bytes,
-/// HMAC-SHA1 verification, per-event enqueueing. <c>ReceiveWebhookCommand</c>
-/// carries <see cref="Hsm.Application.Abstractions.AllowAnonymousRequestAttribute"/>
-/// — the frozen route is <c>@Public</c>, the signature IS the credential — so
-/// no endpoint-level auth call belongs here either.
+/// The provider webhook, moved across from <c>Hsm.Api.Coms.ComsEndpoints</c>
+/// unchanged: raw body bytes, HMAC-SHA1 verification, per-event enqueueing.
+/// <c>ReceiveWebhookCommand</c> carries
+/// <see cref="Hsm.Application.Abstractions.AllowAnonymousRequestAttribute"/>
+/// — the signature IS the credential — so no endpoint-level auth call
+/// belongs here either.
 /// </summary>
 public static class WebhookEndpoints
 {

@@ -1,7 +1,7 @@
 using System.Reflection;
 using Hsm.Application.Abstractions;
-using Hsm.Application.Auth.Commands.Login;
-using Hsm.Application.Auth.Commands.RefreshIntegrationTokens;
+using Hsm.Application.Identity.Commands.Login;
+using Hsm.Application.Identity.Commands.RefreshIntegrationTokens;
 using Hsm.Application.Coms.Commands.DispatchEmailBatch;
 using Hsm.Application.Docs.Commands.RenderDocument;
 

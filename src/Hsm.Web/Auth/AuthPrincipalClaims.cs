@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using Hsm.Application.Auth;
+using Hsm.Application.Identity;
 
 namespace Hsm.Web.Auth;
 

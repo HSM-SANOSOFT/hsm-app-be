@@ -185,11 +185,10 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options)
     }
 
     /// <summary>
-    /// Clinical patient tables mirror the frozen schema's semantics
-    /// (patient.entity.ts / patient-identifier.entity.ts): searchable scalars
-    /// as real columns, complex FHIR datatypes as jsonb, and the normalized
-    /// identifier child table with the unique (system, value) index whose
-    /// frozen name the 409 path referenced.
+    /// Clinical patient tables: searchable scalars as real columns, complex
+    /// FHIR datatypes as jsonb, and the normalized identifier child table
+    /// with the unique (system, value) index that backs the handler's 409
+    /// duplicate-identifier response.
     /// </summary>
     private static void ConfigureClinical(ModelBuilder modelBuilder)
     {
@@ -206,8 +205,8 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options)
                 .HasForeignKey(i => i.PatientId)
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Cascade);
-            // The frozen relation was eager — identifier rows always travel
-            // with the patient.
+            // Identifier rows always travel with the patient, so the
+            // relation is eager-loaded.
             patient.Navigation(p => p.Identifiers).AutoInclude();
         });
 
@@ -222,13 +221,13 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options)
     }
 
     /// <summary>
-    /// Template tables mirror the frozen schema (templates.* in Postgres):
-    /// one parent row plus at most one shape row (email/sms/doc) sharing the
-    /// parent's key, a nullable self-reference to the BASE template that
-    /// RESTRICTS delete (the domain 409 fires first; the constraint is the
-    /// backstop), and a parse log whose FK nulls on template deletion so the
-    /// audit trail survives. Frozen enum columns are plain strings here — the
-    /// catalogs are the source of truth, observably identical via the API.
+    /// Template tables (templates.* in Postgres): one parent row plus at
+    /// most one shape row (email/sms/doc) sharing the parent's key, a
+    /// nullable self-reference to the BASE template that RESTRICTS delete
+    /// (the domain 409 fires first; the constraint is the backstop), and a
+    /// parse log whose FK nulls on template deletion so the audit trail
+    /// survives. Enum columns are plain strings here — the catalogs are the
+    /// source of truth, observably identical via the API.
     /// </summary>
     private static void ConfigureTemplates(ModelBuilder modelBuilder)
     {
@@ -297,10 +296,10 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options)
     }
 
     /// <summary>
-    /// Communications tables mirror the frozen coms.* schema. The
-    /// batch→recipient relationship is the aggregate the stack was chosen
-    /// for: required FK plus cascade, so a recipient removed from the batch's
-    /// collection is DELETED (orphan removal), proven by integration test.
+    /// Communications tables. The batch→recipient relationship is the
+    /// aggregate the stack was chosen for: required FK plus cascade, so a
+    /// recipient removed from the batch's collection is DELETED (orphan
+    /// removal), proven by integration test.
     /// </summary>
     private static void ConfigureComs(ModelBuilder modelBuilder)
     {
@@ -353,13 +352,13 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options)
     }
 
     /// <summary>
-    /// Document tables mirror the frozen docs.* schema (table names included,
-    /// hyphens and all): metadata rows only — the binary itself lives in the
-    /// blob store, and a schema-inspection test proves no binary-capable
-    /// column exists on any of these tables. Versions are relational (one
-    /// blob key per version row); links and audits hang off the document and
-    /// cascade with the ROW's hard delete only — the API soft-deletes, so in
-    /// practice they survive (frozen semantics).
+    /// Document tables (note the hyphenated table names): metadata rows
+    /// only — the binary itself lives in the blob store, and a
+    /// schema-inspection test proves no binary-capable column exists on any
+    /// of these tables. Versions are relational (one blob key per version
+    /// row); links and audits hang off the document and cascade with the
+    /// ROW's hard delete only — the API soft-deletes, so in practice they
+    /// survive.
     /// </summary>
     private static void ConfigureDocs(ModelBuilder modelBuilder)
     {
@@ -435,11 +434,10 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options)
     }
 
     /// <summary>
-    /// Settings tables mirror the frozen schema's semantics: one row per key
-    /// (unique), and an append-only audit table whose rows never store secret
-    /// plaintext. The frozen category column was a Postgres enum; a plain
-    /// string is used here — observably identical through the API, and the
-    /// catalog (not the column type) is the source of truth for valid values.
+    /// Settings tables: one row per key (unique), and an append-only audit
+    /// table whose rows never store secret plaintext. The category column is
+    /// a plain string rather than a Postgres enum — the catalog (not the
+    /// column type) is the source of truth for valid values.
     /// </summary>
     private static void ConfigureSettings(ModelBuilder modelBuilder)
     {
