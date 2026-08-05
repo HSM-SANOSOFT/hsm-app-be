@@ -1,9 +1,13 @@
 using Hsm.Application.Abstractions;
+using Hsm.Application.Auth;
 using Hsm.Application.Auth.Commands.CompleteOnboarding;
 using Hsm.Application.Auth.Commands.ForgotPassword;
 using Hsm.Application.Auth.Commands.Login;
+using Hsm.Application.Auth.Commands.LogoutIntegration;
 using Hsm.Application.Auth.Commands.RecoverUsername;
+using Hsm.Application.Auth.Commands.RefreshIntegrationTokens;
 using Hsm.Application.Auth.Commands.Register;
+using Hsm.Application.Auth.Commands.RegisterIntegration;
 using Hsm.Application.Auth.Commands.ResetPassword;
 using Hsm.Application.Auth.Queries.GetMe;
 using Hsm.Domain.Identity;
@@ -15,9 +19,8 @@ using Microsoft.AspNetCore.Identity;
 namespace Hsm.Api.Identity;
 
 /// <summary>
-/// The identity resource — everything the frozen <c>/v1/auth</c> controller
-/// did except the integration routes, which Task 14 brings over as
-/// <c>/api/v1/identity/integrations/*</c> and <c>/api/v1/identity/refresh</c>.
+/// The identity resource: the account lifecycle a person goes through, and the
+/// three routes an integration account needs because it cannot hold a cookie.
 ///
 /// <para>Every delegate does transport work only: bind, dispatch, project,
 /// choose a status — plus, on the four routes that open or close a session,
@@ -98,6 +101,27 @@ public static class IdentityEndpoints
             .WithSummary("Email the username for an account.")
             .Produces<AcknowledgedResource>(StatusCodes.Status202Accepted)
             .RequireRateLimiting(RecoveryRateLimitPolicy);
+
+        // ----- integrations ------------------------------------------------
+        //
+        // The one caller that cannot hold a session cookie. Registering and
+        // signing out are administration, gated by their commands'
+        // [RequireRole(admin)]; refreshing is the machine's own, and the token
+        // it presents IS the credential.
+        identity.MapPost("/integrations/register", RegisterIntegration)
+            .WithSummary("Provision an integration account and issue its first credential.")
+            .Produces<IntegrationTokenResource>(StatusCodes.Status201Created);
+
+        identity.MapPost("/integrations/logout", LogoutIntegration)
+            .WithSummary("Revoke an integration account's credential by presenting it.")
+            .Produces(StatusCodes.Status204NoContent);
+
+        // Under /identity rather than /identity/integrations because it is the
+        // machine speaking for itself, not an admin acting on it — the same
+        // split login and register sit on either side of.
+        identity.MapPost("/refresh", Refresh)
+            .WithSummary("Redeem an integration's refresh token for a fresh credential.")
+            .Produces<IntegrationTokenResource>();
     }
 
     private static async Task<IResult> Register(
@@ -268,8 +292,62 @@ public static class IdentityEndpoints
         return Results.Accepted(value: new AcknowledgedResource(GenericRecoveryMessage));
     }
 
+    private static async Task<IResult> RegisterIntegration(
+        RegisterIntegrationRequest request, IDispatcher dispatcher, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var tokens = await dispatcher.Send(
+            new RegisterIntegrationCommand(request.Name, request.Description, request.Functionality),
+            ct);
+
+        // 201 with no Location: there is no route that reads an integration
+        // account back, and pointing at one that does not exist would be worse
+        // than pointing at nothing. The credential in the body is the whole
+        // result, and it is the only time it can be read.
+        return Results.Json(TokensFor(tokens), statusCode: StatusCodes.Status201Created);
+    }
+
+    private static async Task<IResult> LogoutIntegration(
+        LogoutIntegrationRequest request, IDispatcher dispatcher, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        await dispatcher.Send(new LogoutIntegrationCommand(request.Token), ct);
+        return Results.NoContent();
+    }
+
     /// <summary>
-    /// The one projection every route in this file returns. Roles come from
+    /// Rotate an integration's credential.
+    ///
+    /// <para>The route does no verification of its own — it binds a string and
+    /// dispatches. That is not an omission: an opaque refresh token has no
+    /// signature to check and no claim to read, so the ONLY check that exists is
+    /// the handler's lookup against the stored digest, and splitting a second,
+    /// weaker one out to the edge would invite a reader to believe the edge was
+    /// doing something.</para>
+    ///
+    /// <para>Anonymous, because the refresh token is the credential: this route
+    /// is reachable precisely when the access token is not. A signed-in browser
+    /// gains nothing by calling it — it holds a sliding session cookie, not a
+    /// refresh token, and a cookie matches no row here.</para>
+    /// </summary>
+    private static async Task<IResult> Refresh(
+        RefreshRequest request, IDispatcher dispatcher, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var tokens = await dispatcher.Send(
+            new RefreshIntegrationTokensCommand(request.RefreshToken), ct);
+        return Results.Ok(TokensFor(tokens));
+    }
+
+    private static IntegrationTokenResource TokensFor(IntegrationTokens tokens) =>
+        new(tokens.AccessToken,
+            tokens.RefreshToken,
+            (int)IntegrationTokenIssuer.AccessTokenLifetime.TotalSeconds);
+
+    /// <summary>
+    /// The one projection every user-facing route in this file returns. Roles come from
     /// Identity's own assignment table, which is a second read — the same one
     /// the users module pays — and it is why <see cref="MeResource.From"/>
     /// takes them rather than reading them off the entity.

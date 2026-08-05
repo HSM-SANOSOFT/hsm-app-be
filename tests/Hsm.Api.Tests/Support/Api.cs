@@ -5,10 +5,13 @@ namespace Hsm.Api.Tests;
 
 /// <summary>
 /// The one HTTP helper the shell suites still need: a bearer-decorated GET
-/// against the sidecar REST host. It is down to a single caller
-/// (<c>AdminScreensTests</c>'s machine call) now that Task 13 has retired the
-/// frozen envelope those suites used to unwrap, and retires with the
-/// integration routes in Task 14.
+/// against the sidecar REST host, with a single caller —
+/// <c>AdminScreensTests</c>'s machine call, which provisions an integration
+/// through the shell's own UI service and then proves the resulting token
+/// reaches the OTHER door. That cross-door hop is the whole point of the
+/// helper, and it is why it did not retire with the integration routes: those
+/// routes are exercised over HTTP by <c>IntegrationTokenTests</c>, but only a
+/// shell test can start in process and end up at the API.
 /// </summary>
 public static class Api
 {

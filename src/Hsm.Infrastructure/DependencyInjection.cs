@@ -9,11 +9,11 @@ using Hsm.Application.Auth.Commands.IssueIntegrationTokens;
 using Hsm.Application.Auth.Commands.Login;
 using Hsm.Application.Auth.Commands.LogoutIntegration;
 using Hsm.Application.Auth.Commands.RecoverUsername;
-using Hsm.Application.Auth.Commands.RefreshTokens;
+using Hsm.Application.Auth.Commands.RefreshIntegrationTokens;
+using Hsm.Application.Auth.Commands.Register;
+using Hsm.Application.Auth.Commands.RegisterIntegration;
 using Hsm.Application.Auth.Commands.ResetPassword;
 using Hsm.Application.Auth.Commands.RevokeIntegrationTokens;
-using Hsm.Application.Auth.Commands.Register;
-using Hsm.Application.Auth.Commands.SignupIntegration;
 using Hsm.Application.Auth.Queries.GetMe;
 using Hsm.Application.Auth.Queries.ListIntegrationAccounts;
 using Hsm.Application.Clinical;
@@ -307,9 +307,11 @@ public static class DependencyInjection
         services.AddScoped<IRequestHandler<GetSystemStatusQuery, SystemStatusDto>, GetSystemStatusHandler>();
 
     /// <summary>
-    /// Identity adapters and auth use-case handlers (plan U12). Two refresh
-    /// token stores on purpose: browser sessions and integration tokens never
-    /// share persistence.
+    /// Identity adapters and auth use-case handlers (plan U12). Sessions and
+    /// integration tokens have separate stores on purpose: a browser session is
+    /// a cookie backed by a revocable row, an integration credential is a signed
+    /// access token plus an opaque refresh digest, and the two never share
+    /// persistence.
     /// </summary>
     private static void AddIdentity(IServiceCollection services, IConfiguration configuration)
     {
@@ -324,18 +326,19 @@ public static class DependencyInjection
         services.AddScoped<IAuthUnitOfWork, AuthUnitOfWork>();
         services.AddSingleton<IRecoveryEmailer, LoggingRecoveryEmailer>();
 
-        services.AddSingleton(new AuthTokenOptions
+        // ONE secret. The refresh JWT and its own key are gone: a refresh token
+        // is opaque now, so there is nothing left to sign it with.
+        services.AddSingleton(new IntegrationTokenOptions
         {
             AccessSecret = configuration["Auth:JwtAccessSecret"] ?? string.Empty,
-            RefreshSecret = configuration["Auth:JwtRefreshSecret"] ?? string.Empty,
         });
-        services.AddSingleton<IAuthTokenCodec, JwtAuthTokenCodec>();
+        services.AddSingleton<IIntegrationTokenCodec, IntegrationTokenCodec>();
 
         // Frozen envs.ENVIRONMENT gate for the developer role.
         var environment = configuration["Auth:Environment"] ?? "dev";
         services.AddSingleton<IEnvironmentPolicy>(new EnvironmentPolicy(environment == "dev"));
 
-        services.AddScoped<TokenIssuer>();
+        services.AddScoped<IntegrationTokenIssuer>();
 
         // Auth: command/query slices behind the dispatcher. Policy rides on the
         // request type (see each command's attributes), so nothing here grants
@@ -348,20 +351,22 @@ public static class DependencyInjection
         services.AddScoped<IRequestHandler<ResetPasswordCommand, Unit>, ResetPasswordHandler>();
         services.AddScoped<IRequestHandler<RecoverUsernameCommand, Unit>, RecoverUsernameHandler>();
 
-        // Integration accounts. RefreshTokensCommand is the LAST consumer of
-        // the frozen /v1/auth surface (GET /v1/auth/refresh): Task 14 replaces
-        // it with POST /api/v1/identity/refresh over an opaque token, and
-        // deleting it here first would strand every refresh token the
-        // integration-accounts screen has already handed out.
-        services.AddScoped<IRequestHandler<RefreshTokensCommand, TokenPair>, RefreshTokensHandler>();
-        services.AddScoped<IRequestHandler<SignupIntegrationCommand, TokenPair>, SignupIntegrationHandler>();
+        // Integration accounts. The three that carry a REST route:
+        // POST /api/v1/identity/integrations/register, .../logout and
+        // POST /api/v1/identity/refresh.
+        services.AddScoped<
+            IRequestHandler<RefreshIntegrationTokensCommand, IntegrationTokens>,
+            RefreshIntegrationTokensHandler>();
+        services.AddScoped<
+            IRequestHandler<RegisterIntegrationCommand, IntegrationTokens>, RegisterIntegrationHandler>();
         services.AddScoped<IRequestHandler<LogoutIntegrationCommand, Unit>, LogoutIntegrationHandler>();
 
-        // In-process UI surface only (plan U18): no /v1 routes map to these.
+        // In-process admin-screen surface only: no REST route maps to these.
         services.AddScoped<
             IRequestHandler<ListIntegrationAccountsQuery, IReadOnlyList<IntegrationAccountListItem>>,
             ListIntegrationAccountsHandler>();
-        services.AddScoped<IRequestHandler<IssueIntegrationTokensCommand, TokenPair>, IssueIntegrationTokensHandler>();
+        services.AddScoped<
+            IRequestHandler<IssueIntegrationTokensCommand, IntegrationTokens>, IssueIntegrationTokensHandler>();
         services.AddScoped<IRequestHandler<RevokeIntegrationTokensCommand, int>, RevokeIntegrationTokensHandler>();
     }
 

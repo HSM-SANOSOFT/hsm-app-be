@@ -101,11 +101,11 @@ public abstract class ApiHostFactory<TEntryPoint> : WebApplicationFactory<TEntry
             });
         }
 
-        // HS256 keys must be at least 256 bits. The access secret is now the
-        // BEARER handler's verification key too. Task 14 reduces these to the
-        // integration-token secret alone.
+        // The ONE secret this system has, and HS256 requires at least 256 bits
+        // of it: integration access tokens are signed with it and the bearer
+        // handler verifies with it. The refresh secret went with the refresh
+        // JWT — an opaque token has nothing to sign.
         builder.UseSetting("Auth:JwtAccessSecret", "api_test_at_secret_0123456789abcdef");
-        builder.UseSetting("Auth:JwtRefreshSecret", "api_test_rt_secret_0123456789abcdef");
         builder.UseSetting("Auth:Environment", "dev");
         ConfigureModule(builder);
     }

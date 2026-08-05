@@ -4,10 +4,12 @@ using Hsm.Domain.Identity;
 
 namespace Hsm.Application.Auth.Commands.IssueIntegrationTokens;
 
-public sealed class IssueIntegrationTokensHandler(IIntegrationAccountStore accounts, TokenIssuer issuer)
-    : IRequestHandler<IssueIntegrationTokensCommand, TokenPair>
+public sealed class IssueIntegrationTokensHandler(
+    IIntegrationAccountStore accounts, IntegrationTokenIssuer issuer)
+    : IRequestHandler<IssueIntegrationTokensCommand, IntegrationTokens>
 {
-    public async Task<TokenPair> HandleAsync(IssueIntegrationTokensCommand request, CancellationToken ct)
+    public async Task<IntegrationTokens> HandleAsync(
+        IssueIntegrationTokensCommand request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
 

@@ -1,7 +1,7 @@
 using Hsm.Application.Abstractions;
 using Hsm.Application.Auth.Commands.IssueIntegrationTokens;
 using Hsm.Application.Auth.Commands.RevokeIntegrationTokens;
-using Hsm.Application.Auth.Commands.SignupIntegration;
+using Hsm.Application.Auth.Commands.RegisterIntegration;
 using Hsm.Application.Auth.Queries.ListIntegrationAccounts;
 using Hsm.Contracts.Ui;
 using Hsm.Web.Auth;
@@ -11,9 +11,9 @@ namespace Hsm.Web.Services;
 /// <summary>
 /// Host-side integration account administration (plan U18, screen 3): the
 /// actor first, then the pipeline. Token plaintext flows through the returned
-/// DTO exactly once — this service holds no token state, and the stores
-/// persist only bcrypt hashes, so nothing on this path can re-produce a secret
-/// after issuance.
+/// DTO exactly once — this service holds no token state, and the store persists
+/// only a SHA-256 digest, so nothing on this path can re-produce a secret after
+/// issuance.
 ///
 /// <see cref="ShellActor"/> runs first in every method for one reason only:
 /// to publish the circuit's identity so the pipeline's
@@ -49,10 +49,10 @@ public sealed class IntegrationAccountsUiService(
         }
 
         var tokens = await dispatcher.Send(
-            new SignupIntegrationCommand(command.Name, command.Description, command.Functionality),
+            new RegisterIntegrationCommand(command.Name, command.Description, command.Functionality),
             cancellationToken);
         return new IssuedIntegrationTokensDto(
-            AccountId: DecodeAccountId(tokens.AccessToken),
+            AccountId: tokens.AccountId.ToString(),
             AccountName: command.Name,
             AccessToken: tokens.AccessToken,
             RefreshToken: tokens.RefreshToken);
@@ -76,18 +76,10 @@ public sealed class IntegrationAccountsUiService(
         await dispatcher.Send(new RevokeIntegrationTokensCommand(Guid.Parse(accountId)), cancellationToken);
     }
 
-    /// <summary>
-    /// Reads the frozen id claim from a just-minted JWT (no validation — this
-    /// host signed it a moment ago). The provisioning command returns only
-    /// the token pair, so the created account's id rides in the token.
-    /// </summary>
-    private static string DecodeAccountId(string jwt)
-    {
-        var segment = jwt.Split('.')[1].Replace('-', '+').Replace('_', '/');
-        segment += (segment.Length % 4) switch { 2 => "==", 3 => "=", _ => string.Empty };
-        using var doc = System.Text.Json.JsonDocument.Parse(Convert.FromBase64String(segment));
-        return doc.RootElement.TryGetProperty("id", out var id)
-            ? id.GetString() ?? string.Empty
-            : string.Empty;
-    }
+    // The account id used to be recovered here by base64-decoding the access
+    // token's payload, unvalidated, because the provisioning command returned
+    // only a token pair. It returns the id now (IntegrationTokens.AccountId),
+    // so a JWT parser in the UI layer — which would have gone on reading a
+    // credential this screen has no business reading, and would have broken
+    // silently the moment the claim layout moved — is gone with it.
 }

@@ -79,3 +79,27 @@ public sealed record AntiforgeryTokenResource(string Token);
 /// oracle those routes exist to withhold.
 /// </summary>
 public sealed record AcknowledgedResource(string Message);
+
+/// <summary>
+/// An integration account's credential, returned by registering and by
+/// refreshing — the only two responses in this API that carry a secret.
+///
+/// <para><c>ExpiresInSeconds</c> describes the ACCESS token and nothing else. It
+/// is stated so a client can schedule its renewal without parsing a credential
+/// it has no business decoding; the refresh token has no expiry to report,
+/// because rotation, not a clock, is what retires it.</para>
+/// </summary>
+public sealed record IntegrationTokenResource(
+    string AccessToken, string RefreshToken, int ExpiresInSeconds);
+
+public sealed record RegisterIntegrationRequest(string Name, string Description, string Functionality);
+
+/// <summary>The token to revoke — either half of an integration's pair.</summary>
+public sealed record LogoutIntegrationRequest(string Token);
+
+/// <summary>
+/// The refresh token, in the body rather than in a header or a query string. A
+/// query string is logged by every proxy in the path; <c>Authorization</c> is
+/// the wrong home for a credential this route does not authenticate with.
+/// </summary>
+public sealed record RefreshRequest(string RefreshToken);

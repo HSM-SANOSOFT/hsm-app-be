@@ -12,11 +12,17 @@ public sealed class AuthenticationFactory : ApiFactory
     protected override string DatabaseName => "hsm_api_tests_authn";
 
     /// <summary>
-    /// Signs a real access token for a real account, the way
-    /// <c>TokenIssuer</c> does, so a test can exercise the BEARER half of the
-    /// adaptive scheme end to end. It goes through the host's own
-    /// <see cref="IAuthTokenCodec"/> rather than hand-rolling a JWT, so the
-    /// claim layout under test is the one the system actually issues.
+    /// Signs an access token for a real HUMAN account so a test can exercise the
+    /// BEARER half of the adaptive scheme end to end. It goes through the host's
+    /// own <see cref="IIntegrationTokenCodec"/> rather than hand-rolling a JWT,
+    /// so the claim layout under test is the one the system actually issues.
+    ///
+    /// <para>No ROUTE signs a person one of these — people hold session cookies,
+    /// and the codec's issuer refuses a non-integration principal outright. The
+    /// signing primitive is reached directly here on purpose: the three tests
+    /// below are about the bearer HANDLER reading roles and subject, and they
+    /// need a role a machine account does not have (admin, nurse) to prove that
+    /// the claims were weighed rather than the token merely accepted.</para>
     /// </summary>
     public async Task<(string Bearer, Guid UserId)> BearerForSeededUserAsync(
         string role, bool onboarded = true)
@@ -26,7 +32,7 @@ public sealed class AuthenticationFactory : ApiFactory
             username, SeedPassword, role, onboarded ? DateTimeOffset.UtcNow : null);
 
         using var scope = Services.CreateScope();
-        var codec = scope.ServiceProvider.GetRequiredService<IAuthTokenCodec>();
+        var codec = scope.ServiceProvider.GetRequiredService<IIntegrationTokenCodec>();
         var principal = new AuthPrincipal
         {
             Id = id.ToString(),
@@ -35,7 +41,7 @@ public sealed class AuthenticationFactory : ApiFactory
             OnboardingCompletedAt = onboarded ? DateTimeOffset.UtcNow.ToString("O") : null,
             HasOnboardingClaim = true,
         };
-        return (codec.Sign(principal, TokenKind.Access, TokenLifetimes.UserAccess), id);
+        return (codec.Sign(principal, TimeSpan.FromMinutes(15)), id);
     }
 }
 

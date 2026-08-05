@@ -116,7 +116,7 @@ public static class IdentityRegistration
         authentication.AddJwtBearer(options =>
         {
             // Inbound claim MAPPING is off on purpose. The JWT layout is
-            // IAuthTokenCodec's and is contract (sub/id/roles/username/…);
+            // IIntegrationTokenCodec's (sub/id/roles/name/…);
             // with the map on, whether "roles" reaches ClaimTypes.Role depends
             // on a framework lookup table rather than on anything stated here,
             // and an integration whose roles silently vanish authenticates

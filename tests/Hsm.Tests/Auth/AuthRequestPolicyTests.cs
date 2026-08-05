@@ -6,11 +6,11 @@ using Hsm.Application.Auth.Commands.IssueIntegrationTokens;
 using Hsm.Application.Auth.Commands.Login;
 using Hsm.Application.Auth.Commands.LogoutIntegration;
 using Hsm.Application.Auth.Commands.RecoverUsername;
-using Hsm.Application.Auth.Commands.RefreshTokens;
+using Hsm.Application.Auth.Commands.RefreshIntegrationTokens;
 using Hsm.Application.Auth.Commands.ResetPassword;
 using Hsm.Application.Auth.Commands.RevokeIntegrationTokens;
 using Hsm.Application.Auth.Commands.Register;
-using Hsm.Application.Auth.Commands.SignupIntegration;
+using Hsm.Application.Auth.Commands.RegisterIntegration;
 using Hsm.Application.Auth.Queries.GetMe;
 using Hsm.Application.Auth.Queries.ListIntegrationAccounts;
 using Hsm.Domain.Identity;
@@ -30,13 +30,13 @@ public class AuthRequestPolicyTests
     public static TheoryData<Type> AnonymousRequests => new(
         typeof(LoginCommand),
         typeof(RegisterCommand),
-        typeof(RefreshTokensCommand),
+        typeof(RefreshIntegrationTokensCommand),
         typeof(ForgotPasswordCommand),
         typeof(ResetPasswordCommand),
         typeof(RecoverUsernameCommand));
 
     public static TheoryData<Type> AdminOnlyRequests => new(
-        typeof(SignupIntegrationCommand),
+        typeof(RegisterIntegrationCommand),
         typeof(ListIntegrationAccountsQuery),
         typeof(IssueIntegrationTokensCommand),
         typeof(RevokeIntegrationTokensCommand));
@@ -109,15 +109,32 @@ public class AuthRequestPolicyTests
     [Fact]
     public void Refreshing_a_token_is_reachable_without_a_principal_and_gives_no_privilege()
     {
-        // The last /v1/auth route (see IntegrationRefreshEndpoint). Anonymous
-        // because the refresh TOKEN is the credential — the request is
+        // Anonymous because the refresh TOKEN is the credential — the request is
         // reachable precisely when the access token is not. That makes the
-        // absence of a role requirement load-bearing rather than incidental:
-        // the handler's own integration-only refusal is what limits it, and a
+        // absence of a role requirement load-bearing rather than incidental: a
         // [RequireRole] here could not run at all, since there is no principal
-        // for the pipeline to weigh.
+        // for the pipeline to weigh. What limits the command instead is that the
+        // token is the ONLY thing identifying the caller, and only an
+        // integration account has one.
         Assert.NotNull(
-            typeof(RefreshTokensCommand).GetCustomAttribute<AllowAnonymousRequestAttribute>());
-        Assert.Null(typeof(RefreshTokensCommand).GetCustomAttribute<RequireRoleAttribute>());
+            typeof(RefreshIntegrationTokensCommand).GetCustomAttribute<AllowAnonymousRequestAttribute>());
+        Assert.Null(
+            typeof(RefreshIntegrationTokensCommand).GetCustomAttribute<RequireRoleAttribute>());
+    }
+
+    [Fact]
+    public void Provisioning_an_integration_is_admin_only_and_never_anonymous()
+    {
+        // The most valuable thing this module hands out: a credential that
+        // renews itself forever. It is covered by the theory above too, and
+        // stated again here because the register ROUTE is anonymous-adjacent —
+        // it sits beside POST /api/v1/identity/register, which is deliberately
+        // open to the public — and a copy-paste of the wrong policy between
+        // neighbours is exactly the mistake this pins.
+        var policy = typeof(RegisterIntegrationCommand).GetCustomAttribute<RequireRoleAttribute>();
+        Assert.NotNull(policy);
+        Assert.Equal([Roles.Admin], policy.Roles);
+        Assert.Null(
+            typeof(RegisterIntegrationCommand).GetCustomAttribute<AllowAnonymousRequestAttribute>());
     }
 }

@@ -1,12 +1,32 @@
 namespace Hsm.Application.Auth;
 
-/// <summary>An access/refresh token pair, the frozen ITokens shape.</summary>
-public sealed record TokenPair(string AccessToken, string RefreshToken);
+/// <summary>
+/// An integration account's issued credential: a JWT access token, an opaque
+/// refresh token, and the id of the account both belong to.
+///
+/// <para>The two halves are deliberately different KINDS of thing. The access
+/// token is a signed statement about who is calling, so it must be readable by
+/// the bearer handler that validates it. The refresh token states nothing — it
+/// is 256 bits of entropy whose only property is matching a stored digest — so
+/// there is nothing in it to read, validate or leak. See
+/// <see cref="IntegrationTokenIssuer"/>.</para>
+///
+/// <para><c>AccountId</c> rides along because the caller that provisions an
+/// account needs it, and the alternative was worse: the shell used to recover
+/// it by base64-decoding the access token's payload without validating it.</para>
+/// </summary>
+public sealed record IntegrationTokens(Guid AccountId, string AccessToken, string RefreshToken);
 
 /// <summary>
-/// The identity carried in a JWT: a human user (username/email/... set) or an
-/// integration account (Name set, Roles contains "integration"). Field names
-/// mirror the frozen JWT claims exactly — they are contract.
+/// The identity carried in an integration's access JWT: an id, the account
+/// name, and the <c>integration</c> role.
+///
+/// <para>It is still shaped for a human as well — username, email, the
+/// onboarding claim — because the shell builds one to publish a signed-in staff
+/// member's identity onto a Blazor circuit
+/// (<c>Hsm.Web.Auth.AuthPrincipalClaims</c>), and the API suites build one to
+/// exercise the bearer handler. Nothing SIGNS a human one any more: people hold
+/// an Identity session cookie.</para>
 /// </summary>
 public sealed record AuthPrincipal
 {
@@ -37,23 +57,4 @@ public sealed record AuthPrincipal
     public long? ExpiresAt { get; init; }
 
     public bool IsIntegration => Roles.Contains(Domain.Identity.Roles.Integration);
-}
-
-/// <summary>Which of the two signing secrets a token belongs to.</summary>
-public enum TokenKind
-{
-    Access,
-    Refresh,
-}
-
-/// <summary>
-/// Frozen token lifetimes (auth.service.ts generateTokens): browser users get
-/// 15m access / 1d refresh; integrations get 1d access / 30d refresh.
-/// </summary>
-public static class TokenLifetimes
-{
-    public static readonly TimeSpan UserAccess = TimeSpan.FromMinutes(15);
-    public static readonly TimeSpan UserRefresh = TimeSpan.FromDays(1);
-    public static readonly TimeSpan IntegrationAccess = TimeSpan.FromDays(1);
-    public static readonly TimeSpan IntegrationRefresh = TimeSpan.FromDays(30);
 }

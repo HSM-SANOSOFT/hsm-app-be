@@ -192,11 +192,6 @@ app.MapHealthChecks("/health");
 app.MapSystemEndpoints();
 app.MapFhirEndpoints();
 app.MapIdentityEndpoints();
-
-// The one route left at a /v1 path, and the only reason this call exists —
-// see IntegrationRefreshEndpoint for why it outlives the rest of /v1/auth by
-// exactly one task.
-app.MapIntegrationRefreshEndpoint();
 app.MapUserEndpoints();
 app.MapSettingsEndpoints();
 app.MapTemplateEndpoints();

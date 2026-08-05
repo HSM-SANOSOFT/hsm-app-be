@@ -423,6 +423,7 @@ public class IdentityEndpointTests(IdentityEndpointFactory factory)
     [InlineData("POST", "/v1/auth/pin/validate")]
     [InlineData("POST", "/v1/auth/signup/integration")]
     [InlineData("POST", "/v1/auth/logout/integration")]
+    [InlineData("GET", "/v1/auth/refresh")]
     [InlineData("POST", "/api/v1/auth/login")]
     [InlineData("GET", "/api/v1/auth/profile")]
     public async Task The_retired_auth_surface_is_unrouted(string method, string route)
@@ -439,18 +440,23 @@ public class IdentityEndpointTests(IdentityEndpointFactory factory)
     }
 
     [Fact]
-    public async Task The_integration_refresh_route_is_deliberately_still_routed()
+    public async Task Nothing_is_routed_under_v1_any_more()
     {
-        // The ONE survivor of /v1/auth, and the only reason this task did not
-        // delete AuthEndpoints outright: an integration's refresh token has no
-        // other redemption path until Task 14 introduces
-        // POST /api/v1/identity/refresh. 401 (no credential presented), not
-        // 404 — the route is there.
+        // GET /v1/auth/refresh was kept alive for exactly one task, because
+        // deleting it before its replacement existed would have made every
+        // refresh token the integration-accounts screen had handed out inert.
+        // Its replacement — POST /api/v1/identity/refresh, over an opaque token
+        // — landed with this suite's sibling, so the last /v1 path is gone and
+        // the theory above now covers it. This test states the invariant that
+        // outlives it: the prefix itself is unrouted.
         using var client = factory.CreateApiClient();
 
-        var response = await client.GetAsync("/v1/auth/refresh", CancellationToken.None);
-
-        await ProblemAssert.ProblemAsync(response, 401);
+        foreach (var method in new[] { HttpMethod.Get, HttpMethod.Post })
+        {
+            using var request = new HttpRequestMessage(method, "/v1/auth/refresh");
+            var response = await client.SendAsync(request, CancellationToken.None);
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
     }
 }
 

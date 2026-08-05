@@ -6,53 +6,57 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Hsm.Infrastructure.Identity;
 
-/// <summary>Secrets for the two frozen JWT families (JWT_AT/RT_SECRET).</summary>
-public sealed class AuthTokenOptions
+/// <summary>
+/// The signing key for integration access tokens (<c>Auth:JwtAccessSecret</c>).
+/// It is also the key <c>AddJwtBearer</c> verifies with, so there is exactly one
+/// secret in this system and no way for signer and verifier to disagree.
+/// </summary>
+public sealed class IntegrationTokenOptions
 {
     public string AccessSecret { get; set; } = string.Empty;
-    public string RefreshSecret { get; set; } = string.Empty;
 }
 
 /// <summary>
-/// HS256 JWTs with the frozen claim layout: sub + id (both), username, email,
-/// firstName, firstLastName, roles[], onboardingCompletedAt for users;
-/// sub + id, name, roles[] for integrations.
+/// HS256 access tokens for integration accounts: sub + id, name, roles[].
+///
+/// <para>The refresh half of this type is gone. It used to sign a second JWT
+/// with a second secret, which meant a refresh token was a readable document
+/// asserting claims that only its own re-signing ever consumed. Refresh tokens
+/// are opaque now (<see cref="IntegrationTokenIssuer"/>), so the second key,
+/// the second validation-parameter pair and the whole notion of a token "kind"
+/// went with them.</para>
 /// </summary>
-public sealed class JwtAuthTokenCodec : IAuthTokenCodec
+public sealed class IntegrationTokenCodec : IIntegrationTokenCodec
 {
     private static readonly JsonWebTokenHandler Handler = new();
 
-    private readonly SigningCredentials _accessCredentials;
-    private readonly SigningCredentials _refreshCredentials;
-    private readonly TokenValidationParameters _accessParameters;
-    private readonly TokenValidationParameters _accessParametersNoLifetime;
-    private readonly TokenValidationParameters _refreshParameters;
-    private readonly TokenValidationParameters _refreshParametersNoLifetime;
+    private readonly SigningCredentials _credentials;
+    private readonly TokenValidationParameters _parameters;
+    private readonly TokenValidationParameters _parametersNoLifetime;
 
-    public JwtAuthTokenCodec(AuthTokenOptions options)
+    public IntegrationTokenCodec(IntegrationTokenOptions options)
     {
-        // The options are a singleton — keys, credentials, and the four
+        ArgumentNullException.ThrowIfNull(options);
+
+        // The options are a singleton — the key, the credentials and both
         // validation-parameter variants are built once, not per call.
-        var accessKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.AccessSecret));
-        var refreshKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.RefreshSecret));
-        _accessCredentials = new SigningCredentials(accessKey, SecurityAlgorithms.HmacSha256);
-        _refreshCredentials = new SigningCredentials(refreshKey, SecurityAlgorithms.HmacSha256);
-        _accessParameters = ParametersFor(accessKey, validateLifetime: true);
-        _accessParametersNoLifetime = ParametersFor(accessKey, validateLifetime: false);
-        _refreshParameters = ParametersFor(refreshKey, validateLifetime: true);
-        _refreshParametersNoLifetime = ParametersFor(refreshKey, validateLifetime: false);
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.AccessSecret));
+        _credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        _parameters = ParametersFor(key, validateLifetime: true);
+        _parametersNoLifetime = ParametersFor(key, validateLifetime: false);
     }
 
-    public string Sign(AuthPrincipal principal, TokenKind kind, TimeSpan lifetime)
+    public string Sign(AuthPrincipal principal, TimeSpan lifetime)
     {
-        var claims = new Dictionary<string, object>
+        ArgumentNullException.ThrowIfNull(principal);
+
+        var claims = new Dictionary<string, object>(StringComparer.Ordinal)
         {
             ["sub"] = principal.Id,
             ["id"] = principal.Id,
             ["roles"] = principal.Roles.ToArray(),
-            // Uniqueness claim (not in the frozen payload): guarantees two
-            // tokens minted in the same second still differ, so refresh
-            // rotation ALWAYS revokes the prior token's hash.
+            // Uniqueness claim: guarantees two tokens minted in the same second
+            // still differ, so no caller can mistake a re-issue for a replay.
             ["jti"] = Guid.NewGuid().ToString("N"),
         };
         if (principal.Username is not null)
@@ -82,8 +86,7 @@ public sealed class JwtAuthTokenCodec : IAuthTokenCodec
 
         if (principal.HasOnboardingClaim)
         {
-            // Serializes as an explicit null while pending, as the frozen
-            // payload did.
+            // Serializes as an explicit null while pending.
             claims["onboardingCompletedAt"] = (object?)principal.OnboardingCompletedAt!;
         }
 
@@ -94,20 +97,14 @@ public sealed class JwtAuthTokenCodec : IAuthTokenCodec
             IssuedAt = now,
             NotBefore = now,
             Expires = now + lifetime,
-            SigningCredentials = kind == TokenKind.Access ? _accessCredentials : _refreshCredentials,
+            SigningCredentials = _credentials,
         };
         return Handler.CreateToken(descriptor);
     }
 
-    public async Task<TokenValidation> ValidateAsync(string token, TokenKind kind, bool ignoreExpiration = false)
+    public async Task<TokenValidation> ValidateAsync(string token, bool ignoreExpiration = false)
     {
-        var parameters = (kind, ignoreExpiration) switch
-        {
-            (TokenKind.Access, false) => _accessParameters,
-            (TokenKind.Access, true) => _accessParametersNoLifetime,
-            (_, false) => _refreshParameters,
-            (_, true) => _refreshParametersNoLifetime,
-        };
+        var parameters = ignoreExpiration ? _parametersNoLifetime : _parameters;
 
         var result = await Handler.ValidateTokenAsync(token, parameters).ConfigureAwait(false);
         if (!result.IsValid)
@@ -160,7 +157,8 @@ public sealed class JwtAuthTokenCodec : IAuthTokenCodec
         ValidateAudience = false,
         ValidateLifetime = validateLifetime,
         IssuerSigningKey = key,
-        // The frozen verifier had no clock tolerance.
+        // No clock tolerance: a default five-minute skew is five extra minutes
+        // of life for a revoked integration token.
         ClockSkew = TimeSpan.Zero,
     };
 }

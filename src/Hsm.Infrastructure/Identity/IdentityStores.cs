@@ -61,6 +61,30 @@ public sealed class IntegrationRefreshTokenStore(HsmDbContext db) : IIntegration
         db.IntegrationRefreshTokens
             .FirstOrDefaultAsync(t => t.IntegrationAccountId == integrationAccountId && t.IsActive, ct);
 
+    public async Task<Guid?> FindActiveAccountByHashAsync(string tokenHash, CancellationToken ct = default) =>
+        await db.IntegrationRefreshTokens
+            .AsNoTracking()
+            .Where(t => t.TokenHash == tokenHash && t.IsActive)
+            .Select(t => (Guid?)t.IntegrationAccountId)
+            .FirstOrDefaultAsync(ct);
+
+    /// <summary>
+    /// A CONDITIONAL update, not a read followed by a write, and the whole race
+    /// guard of refresh rotation rests on that. Two transactions issuing this
+    /// statement for the same digest contend on one row: the second blocks until
+    /// the first commits, then re-evaluates <c>is_active</c> against the
+    /// committed version and matches nothing. It reports 0 and its caller
+    /// refuses.
+    /// </summary>
+    public Task<int> ClaimActiveAsync(string tokenHash, CancellationToken ct = default) =>
+        db.IntegrationRefreshTokens
+            .Where(t => t.TokenHash == tokenHash && t.IsActive)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(t => t.IsActive, false)
+                    .SetProperty(t => t.UpdatedAt, DateTimeOffset.UtcNow),
+                ct);
+
     public Task<int> DeactivateActiveAsync(Guid integrationAccountId, CancellationToken ct = default) =>
         db.IntegrationRefreshTokens
             .Where(t => t.IntegrationAccountId == integrationAccountId && t.IsActive)
@@ -116,8 +140,10 @@ public sealed class IntegrationAccountStore(HsmDbContext db) : IIntegrationAccou
 /// because TransactionBehavior opens one — the work runs inside that transaction
 /// and commits or rolls back with it, instead of asking EF for a nested
 /// transaction it refuses outright. That is what lets shared collaborators below
-/// the pipeline keep their own <c>ExecuteInTransactionAsync</c> calls, TokenIssuer's
-/// refresh rotation first among them. A caller that needs an INDEPENDENT
+/// the pipeline keep their own <c>ExecuteInTransactionAsync</c> calls,
+/// <c>IntegrationTokenIssuer</c>'s refresh rotation first among them — its
+/// deactivate-then-insert commits with the command that triggered it, which is
+/// what makes a rotation all-or-nothing. A caller that needs an INDEPENDENT
 /// transaction (an audit row, an outbox write, or a compensating delete that must
 /// survive an outer rollback) must NOT use this type: it will be silently
 /// absorbed into the outer unit. The join is logged at Debug so the case is
