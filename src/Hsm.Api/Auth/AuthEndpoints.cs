@@ -8,6 +8,7 @@ using Hsm.Application.Auth.Commands.ForgotPassword;
 using Hsm.Application.Auth.Commands.GeneratePin;
 using Hsm.Application.Auth.Commands.LogoutIntegration;
 using Hsm.Application.Auth.Commands.RecoverUsername;
+using Hsm.Application.Auth.Commands.RefreshTokens;
 using Hsm.Application.Auth.Commands.ResetPassword;
 using Hsm.Application.Auth.Commands.Signup;
 using Hsm.Application.Auth.Commands.SignupIntegration;
@@ -21,18 +22,17 @@ namespace Hsm.Api.Auth;
 /// <c>/api/v1/identity</c>. Success bodies still ride the frozen envelope; POST
 /// returns 201 and GET 200, matching the frozen runtime.
 ///
-/// <para><b>Four routes left in Task 12, with the mechanism they were.</b>
+/// <para><b>Three routes left in Task 12, with the mechanism they were.</b>
 /// <c>POST /login</c> and <c>GET /csrf</c> were replaced in the same commit by
 /// <c>POST /api/v1/identity/login</c> and <c>GET /api/v1/identity/csrf</c>:
 /// keeping the old pair would have meant two sign-in routes writing two
 /// different session mechanisms and two antiforgery issuers, which is the
-/// divergence this rewrite exists to remove. <c>GET /refresh</c> went with the
-/// browser refresh token itself — the Identity session cookie is sliding, so
-/// there is no rotation left to trigger. <c>GET /logout</c> went with the JWT
-/// cookies it cleared: its frozen contract is "present a token, have its
+/// divergence this rewrite exists to remove. <c>GET /logout</c> went with the
+/// JWT cookies it cleared: its frozen contract is "present a token, have its
 /// stored hash revoked", and after Task 12 a browser has no token to present.
 /// Task 13 restores sign-out as <c>POST /api/v1/identity/logout</c> →
-/// <c>SignInManager.SignOutAsync</c>.</para>
+/// <c>SignInManager.SignOutAsync</c>. <c>GET /refresh</c> lost its BROWSER
+/// half only — see its own comment.</para>
 ///
 /// <para><b>Everything else is untouched in contract.</b> The routes below no
 /// longer call <c>RequestAuth.GateAsync</c> because
@@ -55,6 +55,7 @@ public static class AuthEndpoints
         var auth = app.MapGroup("/v1/auth");
 
         auth.MapPost("/signup", Signup);
+        auth.MapGet("/refresh", Refresh);
         auth.MapPost("/onboarding", Onboarding);
         auth.MapPost("/signup/integration", SignupIntegration);
         auth.MapPost("/logout/integration", LogoutIntegration);
@@ -87,6 +88,53 @@ public static class AuthEndpoints
         // the created user and a session cookie.
         var tokens = await dispatcher.Send(command, ctx.RequestAborted);
         return ApiEnvelope.Success(ctx, StatusCodes.Status201Created, TokensJson(tokens));
+    }
+
+    /// <summary>
+    /// Integration refresh rotation. The BROWSER half of this route is gone
+    /// with the JWT cookies it read: a browser holds a sliding, encrypted
+    /// session and has no refresh token to present. The INTEGRATION half was
+    /// never a browser concern and is still the only way an integration
+    /// exchanges its long-lived refresh token for a fresh pair —
+    /// <c>TokenIssuer.RotateRefreshTokenAsync</c>'s integration branch, and the
+    /// credential the operator is handed by the integration-accounts screen.
+    /// Task 14 replaces it with <c>POST /api/v1/identity/refresh</c> over an
+    /// opaque token; until then, deleting it would strand every issued refresh
+    /// token.
+    /// </summary>
+    private static async Task<IResult> Refresh(HttpContext ctx, IDispatcher dispatcher)
+    {
+        // Read from the Authorization header ONLY. The token is presented
+        // explicitly here, never ambiently — which is also why the adaptive
+        // scheme's bearer handler cannot have authenticated this request: a
+        // refresh token is signed with the refresh secret, so HttpContext.User
+        // is anonymous and RefreshTokensCommand's [AllowAnonymousRequest] is
+        // what lets it through. The TOKEN is the credential, and the two checks
+        // that verify it — signature/expiry here, stored hash in the handler —
+        // both still run.
+        var rawToken = Bearer(ctx);
+        if (string.IsNullOrEmpty(rawToken))
+        {
+            throw new UnauthorizedException();
+        }
+
+        var codec = ctx.RequestServices.GetRequiredService<IAuthTokenCodec>();
+        var validation = await codec.ValidateAsync(rawToken, TokenKind.Refresh);
+        var principal = validation.Principal
+            ?? throw new UnauthorizedException(validation.IsExpired ? "token expired" : "Invalid token");
+
+        var tokens = await dispatcher.Send(
+            new RefreshTokensCommand(principal, rawToken), ctx.RequestAborted);
+        return ApiEnvelope.Success(ctx, StatusCodes.Status200OK, TokensJson(tokens));
+    }
+
+    /// <summary>The raw <c>Authorization: Bearer</c> value, or null.</summary>
+    private static string? Bearer(HttpContext ctx)
+    {
+        var authorization = ctx.Request.Headers.Authorization.ToString();
+        return authorization.StartsWith("Bearer ", StringComparison.Ordinal)
+            ? authorization["Bearer ".Length..].Trim()
+            : null;
     }
 
     private static async Task<IResult> Onboarding(HttpContext ctx, IDispatcher dispatcher)

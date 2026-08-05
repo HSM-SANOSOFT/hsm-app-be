@@ -1,12 +1,42 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
+using Hsm.Application.Auth;
 using Hsm.Domain.Identity;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Hsm.Api.Tests.Identity;
 
 public sealed class AuthenticationFactory : ApiFactory
 {
     protected override string DatabaseName => "hsm_api_tests_authn";
+
+    /// <summary>
+    /// Signs a real access token for a real account, the way
+    /// <c>TokenIssuer</c> does, so a test can exercise the BEARER half of the
+    /// adaptive scheme end to end. It goes through the host's own
+    /// <see cref="IAuthTokenCodec"/> rather than hand-rolling a JWT, so the
+    /// claim layout under test is the one the system actually issues.
+    /// </summary>
+    public async Task<(string Bearer, Guid UserId)> BearerForSeededUserAsync(
+        string role, bool onboarded = true)
+    {
+        var username = $"u{Guid.NewGuid():N}"[..20];
+        var id = await SeedUserAsync(
+            username, SeedPassword, role, onboarded ? DateTimeOffset.UtcNow : null);
+
+        using var scope = Services.CreateScope();
+        var codec = scope.ServiceProvider.GetRequiredService<IAuthTokenCodec>();
+        var principal = new AuthPrincipal
+        {
+            Id = id.ToString(),
+            Username = username,
+            Roles = [role],
+            OnboardingCompletedAt = onboarded ? DateTimeOffset.UtcNow.ToString("O") : null,
+            HasOnboardingClaim = true,
+        };
+        return (codec.Sign(principal, TokenKind.Access, TokenLifetimes.UserAccess), id);
+    }
 }
 
 public class AuthenticationTests(AuthenticationFactory factory)
@@ -81,5 +111,64 @@ public class AuthenticationTests(AuthenticationFactory factory)
         var response = await client.GetAsync("/api/v1/templates", CancellationToken.None);
 
         await ProblemAssert.ProblemAsync(response, 403);
+    }
+
+    // ----- the BEARER half, end to end through the pipeline ----------------
+    //
+    // These three exist because the bearer handler maps no inbound claims and
+    // names the frozen `roles`/`sub` claims itself. If that mapping is wrong,
+    // a bearer caller still AUTHENTICATES — it just arrives with no id or no
+    // roles — so nothing short of authorizing a role-gated command catches it.
+
+    [Fact]
+    public async Task A_valid_bearer_token_authorizes_a_role_gated_request()
+    {
+        var (bearer, _) = await factory.BearerForSeededUserAsync(Roles.Admin);
+        using var client = factory.CreateApiClient();
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {bearer}");
+
+        var response = await client.GetAsync("/api/v1/users?pageSize=1", CancellationToken.None);
+
+        // 200 means the whole chain held: JWT → JwtBearer → ClaimsPrincipal →
+        // RequestActorFactory.CreateAsync(ClaimsPrincipal) → an actor carrying
+        // the `roles` claim → AuthorizationBehavior's [RequireRole(Admin)].
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_bearer_tokens_roles_are_read_rather_than_assumed()
+    {
+        var (bearer, _) = await factory.BearerForSeededUserAsync(Roles.Nurse);
+        using var client = factory.CreateApiClient();
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {bearer}");
+
+        var response = await client.GetAsync("/api/v1/users", CancellationToken.None);
+
+        // 403, not 401 and not 200: the roles were parsed and WEIGHED. Without
+        // this the test above could pass on an actor with no roles at all if
+        // the pipeline ever stopped requiring them.
+        await ProblemAssert.ProblemAsync(response, 403);
+    }
+
+    [Fact]
+    public async Task A_bearer_actor_carries_the_tokens_own_subject_as_its_id()
+    {
+        var (bearer, userId) = await factory.BearerForSeededUserAsync(Roles.Admin);
+        using var client = factory.CreateApiClient();
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {bearer}");
+
+        // /me resolves the target from ICurrentPrincipal.Actor.Id and nothing
+        // else, so the row it returns IS the actor's id — a stronger statement
+        // than "some actor was installed". No antiforgery token is sent: a
+        // bearer caller never needs one.
+        var response = await client.PatchAsJsonAsync(
+            "/api/v1/users/me",
+            new { firstName = "Bearer" },
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
+        Assert.Equal(userId, body.GetProperty("id").GetGuid());
+        Assert.Equal("Bearer", body.GetProperty("firstName").GetString());
     }
 }

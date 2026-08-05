@@ -33,6 +33,17 @@ public sealed class ChangeUserRoleHandler(UserManager<HsmUser> users)
         }
 
         (await users.AddToRoleAsync(user, request.Role)).ThrowIfFailed("role");
+
+        // A role change is a REVOCATION, and a revocation that a live session
+        // does not hear about is not one. Bumping the security stamp is how
+        // Identity says "every session for this account is now stale": the
+        // cookie's OnValidatePrincipal compares the stamp on the next request,
+        // finds the mismatch, and signs the holder out — so a demoted admin
+        // stops being an admin on their next request rather than whenever
+        // their session happens to expire. Inside the same transaction as the
+        // role rows, so a rollback cannot leave the stamp bumped for a role
+        // change that never happened.
+        (await users.UpdateSecurityStampAsync(user)).ThrowIfFailed("role");
         return new UserWithRoles(user, [request.Role]);
     }
 }

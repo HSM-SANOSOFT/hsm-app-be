@@ -82,6 +82,14 @@ public static class IdentityRegistration
 
         var cookieSecure = configuration.GetValue("Auth:CookieSecure", defaultValue: false);
 
+        // The frozen COOKIE_DOMAIN. It is not decoration: with Hsm.Api and
+        // Hsm.Web on sibling subdomains, a host-only cookie is scoped to the
+        // door that issued it and "one sign-in serves both doors" quietly stops
+        // being true — invisibly, because a single-origin test host can never
+        // see it. Null (the default) keeps the cookie host-only, which is right
+        // for a single-origin deployment.
+        var cookieDomain = configuration["Auth:CookieDomain"];
+
         // Read at COMPOSITION time, not inside AddJwtBearer's lazy callback: a
         // deployment that forgot the secret should fail to boot, not fail on
         // the first integration call with a 500 nobody is watching for.
@@ -139,9 +147,28 @@ public static class IdentityRegistration
             options.Cookie.SecurePolicy =
                 cookieSecure ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
             options.Cookie.Path = "/";
+            options.Cookie.Domain = cookieDomain;
             options.ExpireTimeSpan = TimeSpan.FromHours(8);
             options.SlidingExpiration = true;
         });
+
+        // The security stamp is this system's ONLY session-revocation channel:
+        // a role change, a password change or a forced sign-out all work by
+        // bumping it, and the cookie's OnValidatePrincipal is what notices. It
+        // notices only after this interval elapses — and a revocation honoured
+        // "within 30 minutes" (the framework default) is not a revocation. Zero
+        // means every cookie-authenticated request re-reads the user row: one
+        // indexed primary-key lookup, on a request that already runs several
+        // queries, in exchange for role and password changes taking effect on
+        // the NEXT request instead of half an hour later.
+        //
+        // It buys a second thing for free. When the stamp still matches, the
+        // validator REBUILDS the principal from the row, so a caller's role
+        // claims are re-read rather than trusted for the cookie's whole
+        // lifetime — the property the frozen 15-minute access token had, now
+        // without the 15 minutes.
+        services.Configure<SecurityStampValidatorOptions>(
+            options => options.ValidationInterval = TimeSpan.Zero);
 
         services.AddScoped<IUserClaimsPrincipalFactory<HsmUser>, HsmUserClaimsPrincipalFactory>();
 
@@ -163,6 +190,11 @@ public static class IdentityRegistration
             options.Cookie.SameSite = SameSiteMode.Strict;
             options.Cookie.SecurePolicy =
                 cookieSecure ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
+            // Same domain as the session it protects — the hand-rolled CSRF
+            // cookie it replaces set COOKIE_DOMAIN too, and a token scoped
+            // narrower than the session it guards refuses valid mutations on
+            // the other door.
+            options.Cookie.Domain = cookieDomain;
         });
 
         return services;

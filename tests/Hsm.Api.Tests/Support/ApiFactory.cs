@@ -228,8 +228,9 @@ public abstract class ApiHostFactory<TEntryPoint> : WebApplicationFactory<TEntry
                 $"Seed sign-in for role '{role}' failed with {(int)response.StatusCode}.");
         }
 
-        var cookies = SetCookies(response);
-        client.DefaultRequestHeaders.Add("Cookie", string.Join("; ", cookies));
+        var jar = new CookieJar();
+        jar.Accept(response);
+        client.DefaultRequestHeaders.Add("Cookie", jar.Header);
 
         // GET /api/v1/identity/csrf stores the cookie half and returns the half
         // the caller must echo in X-XSRF-TOKEN. Both must ride every subsequent
@@ -243,9 +244,9 @@ public abstract class ApiHostFactory<TEntryPoint> : WebApplicationFactory<TEntry
                 $"Seed antiforgery handshake failed with {(int)csrf.StatusCode}.");
         }
 
-        cookies.AddRange(SetCookies(csrf));
+        jar.Accept(csrf);
         client.DefaultRequestHeaders.Remove("Cookie");
-        client.DefaultRequestHeaders.Add("Cookie", string.Join("; ", cookies));
+        client.DefaultRequestHeaders.Add("Cookie", jar.Header);
 
         using var body = await csrf.Content.ReadAsStreamAsync(CancellationToken.None);
         var payload = await JsonSerializer.DeserializeAsync<JsonElement>(
@@ -256,11 +257,36 @@ public abstract class ApiHostFactory<TEntryPoint> : WebApplicationFactory<TEntry
         return client;
     }
 
-    /// <summary>The name=value halves of a response's Set-Cookie headers.</summary>
-    private static List<string> SetCookies(HttpResponseMessage response) =>
-        [.. response.Headers.TryGetValues("Set-Cookie", out var values)
-            ? values.Select(value => value.Split(';', 2)[0])
-            : []];
+    /// <summary>
+    /// The little of a browser cookie jar this seam needs: accumulate
+    /// Set-Cookie across responses, LAST value per NAME wins.
+    ///
+    /// <para>Deduplication is not tidiness. The security-stamp validator
+    /// rebuilds the principal on every cookie-authenticated request and asks
+    /// for the session cookie to be renewed, so the antiforgery response
+    /// re-issues <c>hsm.session</c> — and a naive append would send that name
+    /// twice in one Cookie header, which is not a request any browser makes and
+    /// not a shape the server has to make sense of.</para>
+    /// </summary>
+    private sealed class CookieJar
+    {
+        private readonly Dictionary<string, string> _values = new(StringComparer.Ordinal);
+
+        public string Header => string.Join("; ", _values.Select(pair => $"{pair.Key}={pair.Value}"));
+
+        public void Accept(HttpResponseMessage response)
+        {
+            if (!response.Headers.TryGetValues("Set-Cookie", out var setCookies))
+            {
+                return;
+            }
+
+            foreach (var pair in setCookies.Select(value => value.Split(';', 2)[0].Split('=', 2)))
+            {
+                _values[pair[0]] = pair.Length > 1 ? pair[1] : string.Empty;
+            }
+        }
+    }
 
     public async Task<T> WithDbAsync<T>(Func<HsmDbContext, Task<T>> work)
     {
