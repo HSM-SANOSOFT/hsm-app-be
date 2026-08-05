@@ -6,6 +6,9 @@ using Hsm.Application.Users.Commands.UpdateOwnProfile;
 using Hsm.Application.Users.Queries.GetUser;
 using Hsm.Application.Users.Queries.ListUsers;
 using Hsm.Contracts;
+using Hsm.Domain.Identity;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Identity;
 
 namespace Hsm.Api.Users;
 
@@ -91,10 +94,31 @@ public static class UserEndpoints
             new UpdateOwnProfileCommand(request.FirstName, request.Email), ct)));
 
     private static async Task<IResult> ChangeOwnPassword(
-        ChangeOwnPasswordRequest request, IDispatcher dispatcher, CancellationToken ct)
+        ChangeOwnPasswordRequest request,
+        HttpContext context,
+        IDispatcher dispatcher,
+        SignInManager<HsmUser> signInManager,
+        CancellationToken ct)
     {
-        await dispatcher.Send(
+        var user = await dispatcher.Send(
             new ChangeOwnPasswordCommand(request.CurrentPassword, request.NewPassword), ct);
+
+        // The change rotated the security stamp, so every cookie for this
+        // account — the caller's included — is now stale and would be refused
+        // on its next request. Every OTHER session losing its cookie is the
+        // point; this one losing it is not, and on the shell it presents as
+        // "I changed my password and got bounced to the sign-in screen".
+        // RefreshSignInAsync reissues THIS session's cookie with the new stamp.
+        //
+        // Only when the caller actually has a cookie session: an integration
+        // authenticated by bearer must not be handed one as a side effect of a
+        // password change, and AuthenticateAsync's per-request cache makes the
+        // check free.
+        if ((await context.AuthenticateAsync(IdentityConstants.ApplicationScheme)).Succeeded)
+        {
+            await signInManager.RefreshSignInAsync(user);
+        }
+
         return Results.NoContent();
     }
 }

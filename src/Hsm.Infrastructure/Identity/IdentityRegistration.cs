@@ -156,14 +156,22 @@ public static class IdentityRegistration
         // a role change, a password change or a forced sign-out all work by
         // bumping it, and the cookie's OnValidatePrincipal is what notices. It
         // notices only after this interval elapses — and a revocation honoured
-        // "within 30 minutes" (the framework default) is not a revocation. Zero
-        // means every cookie-authenticated request re-reads the user row: one
-        // indexed primary-key lookup, on a request that already runs several
-        // queries, in exchange for role and password changes taking effect on
-        // the NEXT request instead of half an hour later.
+        // "within 30 minutes" (the framework default) is not a revocation.
+        //
+        // Zero means every cookie-authenticated request revalidates, and the
+        // cost is not one query. Rebuilding the principal runs roughly half a
+        // dozen: the user lookup, its claims, its roles, and then each role's
+        // own row and claims. It also sets ShouldRenew, so every validated
+        // response carries a fresh Set-Cookie (which is why the test seam needs
+        // a cookie jar rather than an append). That is an accepted trade HERE —
+        // an internal hospital application, indexed lookups, no public
+        // high-QPS surface — bought in exchange for role and password changes
+        // taking effect on the NEXT request instead of half an hour later. On a
+        // hotter surface the honest alternatives are a short interval or a
+        // cached stamp, not leaving revocation unenforced.
         //
         // It buys a second thing for free. When the stamp still matches, the
-        // validator REBUILDS the principal from the row, so a caller's role
+        // validator rebuilds the principal from the row, so a caller's role
         // claims are re-read rather than trusted for the cookie's whole
         // lifetime — the property the frozen 15-minute access token had, now
         // without the 15 minutes.

@@ -94,6 +94,60 @@ public class SessionRevocationTests(SessionRevocationFactory factory)
         Assert.Equal(HttpStatusCode.OK, stillFine.StatusCode);
     }
 
+    [Fact]
+    public async Task Changing_your_own_password_keeps_your_own_session_alive()
+    {
+        using var client = await factory.AuthenticatedClientAsync(Roles.Admin);
+
+        var changed = await client.PostAsJsonAsync(
+            "/api/v1/users/me/password",
+            new { currentPassword = SessionRevocationFactory.SeedPassword, newPassword = "New-Passw0rd1" },
+            CancellationToken.None);
+        Assert.Equal(HttpStatusCode.NoContent, changed.StatusCode);
+
+        // The change rotated the stamp, so the endpoint must have handed back a
+        // REPLACEMENT cookie — without it the caller is signed out by their own
+        // password change.
+        // Last one wins, the way a cookie jar resolves it — the point is that a
+        // replacement was issued at all, not how many writers touched it.
+        var renewed = changed.Headers.GetValues("Set-Cookie")
+            .Last(c => c.StartsWith("hsm.session=", StringComparison.Ordinal));
+        Replace(client, renewed.Split(';', 2)[0]);
+
+        var after = await client.GetAsync("/api/v1/users?pageSize=1", CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, after.StatusCode);
+    }
+
+    [Fact]
+    public async Task Changing_a_password_still_revokes_the_accounts_other_sessions()
+    {
+        // The other half of the same mechanism, and the reason it exists: a
+        // password change is how you evict someone holding the old one.
+        var username = $"u{Guid.NewGuid():N}"[..20];
+        using var first = await factory.AuthenticatedClientAsync(Roles.Admin, username: username);
+        using var second = await SignedInAsync(username);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await second.GetAsync("/api/v1/users?pageSize=1", CancellationToken.None)).StatusCode);
+
+        var changed = await first.PostAsJsonAsync(
+            "/api/v1/users/me/password",
+            new { currentPassword = SessionRevocationFactory.SeedPassword, newPassword = "New-Passw0rd2" },
+            CancellationToken.None);
+        Assert.Equal(HttpStatusCode.NoContent, changed.StatusCode);
+
+        var evicted = await second.GetAsync("/api/v1/users?pageSize=1", CancellationToken.None);
+
+        await ProblemAssert.ProblemAsync(evicted, 401);
+    }
+
+    private static void Replace(HttpClient client, string cookie)
+    {
+        client.DefaultRequestHeaders.Remove("Cookie");
+        client.DefaultRequestHeaders.Add("Cookie", cookie);
+    }
+
     /// <summary>The id behind a session, read through its own profile update.</summary>
     private static async Task<Guid> OwnIdAsync(HttpClient client)
     {

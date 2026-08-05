@@ -76,6 +76,50 @@ public class IntegrationTokenTests(IntegrationTokenFactory factory)
     }
 
     [Fact]
+    public async Task A_humans_refresh_token_is_refused_by_the_integration_only_route()
+    {
+        // The escalation this closes: rotation re-signs the presented token's
+        // OWN claims without reading the user row, so a doctor demoted to nurse
+        // — whose cookie session the security-stamp bump correctly kills —
+        // could otherwise trade a refresh token kept from onboarding for a
+        // fresh access token still claiming `doctor`, indefinitely.
+        var humanRefreshToken = await OnboardedStaffRefreshTokenAsync();
+        using var client = factory.CreateApiClient();
+
+        var response = await RefreshAsync(client, humanRefreshToken);
+
+        // 403, not 401: the token is valid and was verified: what is refused is
+        // the capability, so a client must not retry by re-authenticating.
+        await ProblemAssert.ProblemAsync(response.Response, 403);
+    }
+
+    [Fact]
+    public async Task A_public_signups_refresh_token_is_refused_too()
+    {
+        // The second route that still hands a human a redeemable refresh token.
+        var username = $"p{Guid.NewGuid():N}"[..20];
+        using var anonymous = factory.CreateApiClient();
+        var signup = await anonymous.PostAsJsonAsync(
+            "/v1/auth/signup",
+            new
+            {
+                username,
+                email = $"{username}@signup.test",
+                password = "Signup-Passw0rd",
+                firstName = "Public",
+                firstLastName = "Patient",
+            },
+            CancellationToken.None);
+        Assert.Equal(HttpStatusCode.Created, signup.StatusCode);
+        var body = await signup.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
+
+        var response = await RefreshAsync(
+            anonymous, body.GetProperty("data").GetProperty("refresh_token").GetString()!);
+
+        await ProblemAssert.ProblemAsync(response.Response, 403);
+    }
+
+    [Fact]
     public async Task An_access_token_cannot_be_used_as_a_refresh_token()
     {
         // The two families are signed with different secrets, and the refresh
@@ -86,6 +130,32 @@ public class IntegrationTokenTests(IntegrationTokenFactory factory)
         var response = await RefreshAsync(client, issued.AccessToken);
 
         await ProblemAssert.ProblemAsync(response.Response, 401);
+    }
+
+    /// <summary>
+    /// Drives a pending staff account through first-login onboarding and
+    /// returns the refresh token that route still hands out — the exact
+    /// credential a demoted user would otherwise redeem.
+    /// </summary>
+    private async Task<string> OnboardedStaffRefreshTokenAsync()
+    {
+        var username = $"s{Guid.NewGuid():N}"[..20];
+        using var pending = await factory.AuthenticatedClientAsync(
+            Roles.Doctor, onboarded: false, username: username);
+
+        var response = await pending.PostAsJsonAsync(
+            "/v1/auth/onboarding",
+            new
+            {
+                newPassword = "Onboarded-Passw0rd",
+                phoneNumber = "+34600111222",
+                confirmEmail = $"{username}@api.test",
+            },
+            CancellationToken.None);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
+        return body.GetProperty("data").GetProperty("refresh_token").GetString()!;
     }
 
     /// <summary>Provisions an integration account through the admin route.</summary>

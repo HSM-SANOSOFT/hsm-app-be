@@ -283,7 +283,7 @@ public static class DependencyInjection
         // Policy rides on the request type, so there is nothing to register for
         // authorization — only the handler and its validators.
         services.AddScoped<IRequestHandler<UpdateOwnProfileCommand, UserWithRoles>, UpdateOwnProfileHandler>();
-        services.AddScoped<IRequestHandler<ChangeOwnPasswordCommand, Unit>, ChangeOwnPasswordHandler>();
+        services.AddScoped<IRequestHandler<ChangeOwnPasswordCommand, HsmUser>, ChangeOwnPasswordHandler>();
         services.AddScoped<IRequestHandler<CreateStaffUserCommand, UserWithRoles>, CreateStaffUserHandler>();
         services.AddScoped<IRequestHandler<ChangeUserRoleCommand, UserWithRoles>, ChangeUserRoleHandler>();
         services.AddScoped<

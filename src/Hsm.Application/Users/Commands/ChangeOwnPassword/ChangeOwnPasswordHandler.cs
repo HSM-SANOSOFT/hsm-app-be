@@ -9,16 +9,22 @@ namespace Hsm.Application.Users.Commands.ChangeOwnPassword;
 
 /// <summary>
 /// The current password is verified BEFORE anything is written; a wrong
-/// current password fails without touching the stored hash — and without
-/// revoking refresh tokens or the active session (only the reset-token flow
-/// revokes).
+/// current password fails without touching the stored hash and without
+/// disturbing any session.
+///
+/// <para>A SUCCESSFUL change does revoke sessions: UserManager rotates the
+/// security stamp, and the cookie validator refuses every cookie carrying the
+/// old one on its next request. That is the point — a password change is how
+/// you evict someone who has your old one. The caller's OWN session is the
+/// exception, and the endpoint repairs it by reissuing that one cookie from
+/// the user this returns.</para>
 /// </summary>
 public sealed class ChangeOwnPasswordHandler(
     UserManager<HsmUser> users,
     ICurrentPrincipal principal)
-    : IRequestHandler<ChangeOwnPasswordCommand, Unit>
+    : IRequestHandler<ChangeOwnPasswordCommand, HsmUser>
 {
-    public async Task<Unit> HandleAsync(ChangeOwnPasswordCommand request, CancellationToken ct)
+    public async Task<HsmUser> HandleAsync(ChangeOwnPasswordCommand request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -44,6 +50,9 @@ public sealed class ChangeOwnPasswordHandler(
 
         // Everything else Identity can report here is about the NEW password.
         result.ThrowIfFailed("newPassword");
-        return Unit.Value;
+
+        // Carries the ROTATED security stamp, which the endpoint needs to mint
+        // the caller a replacement cookie.
+        return user;
     }
 }
