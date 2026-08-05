@@ -506,4 +506,32 @@ public class IdentityRateLimitTests(IdentityRateLimitFactory factory)
         Assert.Equal(HttpStatusCode.TooManyRequests, refused.StatusCode);
         Assert.Equal("application/problem+json", refused.Content.Headers.ContentType?.MediaType);
     }
+
+    [Fact]
+    public async Task Refresh_refuses_the_thirty_first_call_in_the_window()
+    {
+        // A DIFFERENT threat from the recovery routes'. Those bound a prober
+        // asking "is this address registered?"; this one bounds an anonymous
+        // caller replaying digests to trip reuse detection, which revokes an
+        // integration's credential — a denial of service against a machine
+        // account, reachable by anyone who ever saw one of its tokens.
+        //
+        // Every call below is refused on its merits too (unissued digests). The
+        // 429 is what stops the attempt from being FREE to repeat.
+        using var client = factory.CreateApiClient();
+        var body = new { refreshToken = Guid.NewGuid().ToString("N") };
+
+        for (var call = 0; call < 30; call++)
+        {
+            var allowed = await client.PostAsJsonAsync(
+                "/api/v1/identity/refresh", body, CancellationToken.None);
+            Assert.NotEqual(HttpStatusCode.TooManyRequests, allowed.StatusCode);
+        }
+
+        var refused = await client.PostAsJsonAsync(
+            "/api/v1/identity/refresh", body, CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, refused.StatusCode);
+        Assert.Equal("application/problem+json", refused.Content.Headers.ContentType?.MediaType);
+    }
 }

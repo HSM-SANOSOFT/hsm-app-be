@@ -1,16 +1,37 @@
 using Hsm.Application.Abstractions;
 using Hsm.Application.Errors;
 using Hsm.Domain.Identity;
+using Microsoft.Extensions.Logging;
 
 namespace Hsm.Application.Auth.Commands.RefreshIntegrationTokens;
 
-public sealed class RefreshIntegrationTokensHandler(
+public sealed partial class RefreshIntegrationTokensHandler(
     IIntegrationRefreshTokenStore refreshTokens,
     IIntegrationAccountStore accounts,
     IAuthUnitOfWork unitOfWork,
-    IntegrationTokenIssuer issuer)
+    IntegrationTokenIssuer issuer,
+    ILogger<RefreshIntegrationTokensHandler> logger)
     : IRequestHandler<RefreshIntegrationTokensCommand, IntegrationTokens>
 {
+    /// <summary>
+    /// How long after a digest is spent a replay of it is read as a client
+    /// colliding with ITSELF rather than as theft.
+    ///
+    /// <para>The trigger it exists for is a machine client with no mutex around
+    /// its own refresh call: two threads both notice the access token is near
+    /// expiry, both present the same token, and the loser arrives milliseconds
+    /// after the winner spent it. Without forgiveness that ordinary scheduling
+    /// overlap revokes the credential the winner just minted and takes a human
+    /// to undo.</para>
+    ///
+    /// <para>Thirty seconds, not sixty. A self-collision resolves in
+    /// milliseconds, so this is already four orders of magnitude of headroom,
+    /// and every extra second is a second in which a real replay goes
+    /// unnoticed — see <see cref="RaiseTheAlarmIfSpentAsync"/> for exactly how
+    /// wide that gap is.</para>
+    /// </summary>
+    private static readonly TimeSpan ReuseGrace = TimeSpan.FromSeconds(30);
+
     /// <summary>
     /// ONE answer for every way this can fail — never existed, already spent,
     /// belongs to a revoked or deleted account. They are the same fact to a
@@ -65,19 +86,61 @@ public sealed class RefreshIntegrationTokensHandler(
     /// — and re-provisioning is a cheap price for the one case this fires
     /// in.</para>
     ///
-    /// <para>The caller still gets the ordinary refusal. Telling an attacker
-    /// that their replay tripped an alarm is a gift.</para>
+    /// <para>The caller still gets the ordinary refusal either way. Telling an
+    /// attacker that their replay tripped an alarm is a gift.</para>
     ///
-    /// <para>It costs one indexed read, and only on the path that was already
-    /// going to fail.</para>
+    /// <para><b>The one exemption</b> is <see cref="ReuseGrace"/>, and it is
+    /// deliberately narrow: only the account's MOST RECENTLY spent digest, and
+    /// only for seconds after it was spent. Anything older, and any digest with
+    /// a newer rotation behind it, still trips.</para>
+    ///
+    /// <para>What that costs, stated plainly rather than waved at: a theft goes
+    /// unnoticed if the victim's own next refresh happens to land inside the
+    /// same thirty seconds as the thief's redemption. The victim refreshes on
+    /// its own schedule against a day-long access token, so that overlap is
+    /// vanishingly unlikely — and every LATER refresh still trips, because by
+    /// then the digest it presents is no longer the most recent one. The
+    /// detection is delayed in that corner, never lost.</para>
+    ///
+    /// <para>Cost: one indexed read always, a second one only when a spent
+    /// digest is actually found — both on a path that was already going to
+    /// fail.</para>
     /// </summary>
     private async Task RaiseTheAlarmIfSpentAsync(string hash, CancellationToken ct)
     {
-        if (await refreshTokens.FindAccountByHashAsync(hash, ct) is { } compromised)
+        if (await refreshTokens.FindAccountByHashAsync(hash, ct) is not { } compromised)
         {
-            await refreshTokens.DeactivateActiveAsync(compromised, ct);
+            // Never issued. A guess, not a replay — nothing to revoke and
+            // nothing to report.
+            return;
         }
+
+        var newest = await refreshTokens.FindMostRecentlySpentAsync(compromised, ct);
+        if (newest is not null
+            && string.Equals(newest.TokenHash, hash, StringComparison.Ordinal)
+            && DateTimeOffset.UtcNow - newest.UpdatedAt <= ReuseGrace)
+        {
+            return;
+        }
+
+        // Logged BEFORE the revocation, and at Warning: this is the only signal
+        // a human gets. The alternative is an integration that silently stops
+        // working and an operator with nothing to search for. The account id is
+        // the whole point of the message — it is what makes the report
+        // actionable — and no digest or token is logged, because a log is
+        // exactly where a credential must not end up.
+        LogRefreshTokenReuseDetected(logger, compromised, newest?.UpdatedAt);
+        await refreshTokens.DeactivateActiveAsync(compromised, ct);
     }
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Integration refresh token REUSE detected for account {IntegrationAccountId}: a "
+            + "digest that was already spent was presented again (last rotation {LastRotatedAt}). "
+            + "The account's active credential has been revoked and it must be re-provisioned. "
+            + "Treat this as a possible credential compromise.")]
+    private static partial void LogRefreshTokenReuseDetected(
+        ILogger logger, Guid integrationAccountId, DateTimeOffset? lastRotatedAt);
 
     private async Task<IntegrationTokens> RotateAsync(
         string hash, Guid accountId, CancellationToken ct)

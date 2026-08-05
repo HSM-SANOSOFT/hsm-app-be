@@ -35,6 +35,17 @@ public interface IIntegrationRefreshTokenStore
     Task<Guid?> FindAccountByHashAsync(string tokenHash, CancellationToken ct = default);
 
     /// <summary>
+    /// The account's most recently spent row — the digest its LAST rotation
+    /// retired — or null if it has never rotated.
+    ///
+    /// <para>Ordered by <c>UpdatedAt</c>, which is stamped at the moment a row
+    /// is deactivated. That is what makes "was this spent just now?" answerable
+    /// without a clock seam or a new column.</para>
+    /// </summary>
+    Task<IntegrationRefreshToken?> FindMostRecentlySpentAsync(
+        Guid integrationAccountId, CancellationToken ct = default);
+
+    /// <summary>
     /// Deactivates the active row carrying <paramref name="tokenHash"/> and
     /// returns how many rows that was — 1 for the caller that won the token, 0
     /// for anyone presenting it afterwards, including a concurrent redemption

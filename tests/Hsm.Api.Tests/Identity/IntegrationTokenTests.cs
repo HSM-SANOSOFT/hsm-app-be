@@ -3,14 +3,42 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Hsm.Application.Auth;
 using Hsm.Domain.Identity;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 
 namespace Hsm.Api.Tests.Identity;
 
 public sealed class IntegrationTokenFactory : ApiFactory
 {
     protected override string DatabaseName => "hsm_api_tests_integration_tokens";
+
+    /// <summary>
+    /// This suite exercises what refresh DOES, not how often it may be called,
+    /// and it makes ~25 refresh calls from one address inside one 60-second
+    /// window. Left at the production budget it would sit a few calls from a
+    /// 429 that has nothing to do with anything under test, and the next
+    /// refresh test anyone adds would fail for a reason its author could not
+    /// guess. The throttle itself is pinned by <c>IdentityRateLimitTests</c>,
+    /// on its own host, at the real number.
+    /// </summary>
+    protected override void ConfigureModule(IWebHostBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        builder.UseSetting("Auth:RefreshRequestsPerMinute", "10000");
+
+        // The reuse alarm's ONLY output is a log line, so the log has to be
+        // readable for the alarm to be testable at all.
+        builder.ConfigureServices(services => services.AddFakeLogging());
+    }
+
+    /// <summary>Every log record this host has written.</summary>
+    public IReadOnlyList<FakeLogRecord> LogRecords =>
+        Services.GetRequiredService<FakeLogCollector>().GetSnapshot();
 }
 
 /// <summary>
@@ -182,18 +210,83 @@ public class IntegrationTokenTests(IntegrationTokenFactory factory)
         var issued = await ProvisionAsync();
         using var client = factory.CreateApiClient();
 
-        var rotated = await RefreshAsync(client, issued.RefreshToken);
-        Assert.Equal(HttpStatusCode.OK, rotated.Response.StatusCode);
+        // TWICE, so the replayed digest is not the account's most recently spent
+        // one. That is the "this token is genuinely stale" shape — a digest two
+        // rotations back cannot be a client colliding with itself.
+        var second = await RefreshAsync(client, issued.RefreshToken);
+        var third = await RefreshAsync(client, second.RefreshToken);
+        Assert.Equal(HttpStatusCode.OK, third.Response.StatusCode);
 
-        // The spent token comes back — the alarm.
+        // The stale token comes back — the alarm.
+        var before = factory.LogRecords.Count;
         var replayed = await RefreshAsync(client, issued.RefreshToken);
         await ProblemAssert.ProblemAsync(replayed.Response, 401);
 
         // ...and the chain is dead. This is the assertion that distinguishes
         // reuse DETECTION from merely refusing a spent token: the live
         // credential minted a moment ago no longer works either.
-        var afterAlarm = await RefreshAsync(client, rotated.RefreshToken);
+        var afterAlarm = await RefreshAsync(client, third.RefreshToken);
         await ProblemAssert.ProblemAsync(afterAlarm.Response, 401);
+
+        // AND SOMEBODY WAS TOLD. The 401 is identical to an ordinary failure by
+        // design, so without a log the only signal a human ever gets is an
+        // integration that mysteriously stopped working. The account id is what
+        // makes the record actionable; the token must never appear in it.
+        var alarm = Assert.Single(
+            factory.LogRecords.Skip(before),
+            r => r.Level == LogLevel.Warning
+                && r.Message.Contains("REUSE detected", StringComparison.Ordinal));
+        Assert.Contains(
+            issued.AccountIdFromAccessToken, alarm.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(issued.RefreshToken, alarm.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_recent_replay_of_the_most_recent_digest_is_refused_without_revoking()
+    {
+        // THE GRACE WINDOW, tested deterministically. This is the same state a
+        // client colliding with itself produces — a digest spent moments ago,
+        // still the account's most recent — reached by rotating and replaying in
+        // sequence rather than by racing, so the assertion does not depend on
+        // which request the scheduler happened to run first.
+        //
+        // The replay is still REFUSED. The window forgives the alarm, not the
+        // token: a caller that lands here gets a clean 401 and should refresh
+        // again from the credential it holds. It is explicitly NOT handed the
+        // successor token, which would make a spent digest redeemable and give
+        // a thief exactly the replay they want.
+        var issued = await ProvisionAsync();
+        using var client = factory.CreateApiClient();
+        var rotated = await RefreshAsync(client, issued.RefreshToken);
+
+        await ProblemAssert.ProblemAsync(
+            (await RefreshAsync(client, issued.RefreshToken)).Response, 401);
+
+        // The live credential survived, which is the whole point.
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await RefreshAsync(client, rotated.RefreshToken)).Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_stale_replay_of_the_most_recent_digest_still_revokes_the_chain()
+    {
+        // The grace window is a window in TIME, not an exemption for the most
+        // recent digest. This is the same replay the window forgives, aged past
+        // it by backdating the row's UpdatedAt — the one thing a test cannot
+        // wait out — so the boundary itself is pinned rather than assumed.
+        var issued = await ProvisionAsync();
+        using var client = factory.CreateApiClient();
+        var rotated = await RefreshAsync(client, issued.RefreshToken);
+
+        await AgeSpentTokenAsync(issued.RefreshToken, TimeSpan.FromMinutes(5));
+
+        await ProblemAssert.ProblemAsync(
+            (await RefreshAsync(client, issued.RefreshToken)).Response, 401);
+
+        // Outside the window, a replay is theft again.
+        await ProblemAssert.ProblemAsync(
+            (await RefreshAsync(client, rotated.RefreshToken)).Response, 401);
     }
 
     [Fact]
@@ -305,13 +398,21 @@ public class IntegrationTokenTests(IntegrationTokenFactory factory)
         // cannot is insert a SECOND live token for the loser. Counting rows
         // across the pair sees that directly.
         //
-        // Deliberately not asserted: whether the winner's token still redeems
-        // afterwards. That depends on interleaving — if the loser's first lookup
-        // lands after the winner committed, it sees a SPENT digest and trips
-        // reuse detection, which revokes the winner's brand-new token on
-        // purpose. Both aftermaths are correct; asserting either would be
-        // asserting a scheduling accident.
         Assert.Equal(1, await TokenRowCountAsync() - before);
+
+        // AND THE LOSER DID NOT REVOKE THE WINNER. This is the grace window's
+        // whole reason for existing, and it is the dominant real-world trigger:
+        // a machine client with two threads and no mutex around its own refresh
+        // call, both noticing the access token is near expiry. Without the
+        // window the loser sees a digest spent milliseconds ago, reads it as
+        // theft, and kills the credential the winner just minted — turning an
+        // ordinary scheduling overlap into an outage that needs a human to
+        // re-provision.
+        using var client = factory.CreateApiClient();
+        var winner = outcomes.Single(o => o.Response.StatusCode == HttpStatusCode.OK);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await RefreshAsync(client, winner.RefreshToken)).Response.StatusCode);
     }
 
     // ----- logout ----------------------------------------------------------
@@ -448,6 +549,22 @@ public class IntegrationTokenTests(IntegrationTokenFactory factory)
         factory.WithDbAsync(db => db.IntegrationRefreshTokens.CountAsync(CancellationToken.None));
 
     /// <summary>
+    /// Backdates a spent row's <c>UpdatedAt</c>, which is the only clock the
+    /// grace window reads. Moving the row rather than mocking a clock keeps the
+    /// production path — including the comparison under test — completely
+    /// unmodified.
+    /// </summary>
+    private Task<int> AgeSpentTokenAsync(string refreshToken, TimeSpan by)
+    {
+        var hash = IntegrationTokenIssuer.HashRefreshToken(refreshToken);
+        return factory.WithDbAsync(db => db.IntegrationRefreshTokens
+            .Where(t => t.TokenHash == hash)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(t => t.UpdatedAt, DateTimeOffset.UtcNow - by),
+                CancellationToken.None));
+    }
+
+    /// <summary>
     /// A value indistinguishable in shape from a real refresh token, and issued
     /// to nobody — so a refusal can only be about the row it fails to match.
     /// </summary>
@@ -464,6 +581,22 @@ public class IntegrationTokenTests(IntegrationTokenFactory factory)
     private sealed record IssuedTokens(
         HttpResponseMessage Response, string AccessToken, string RefreshToken, int ExpiresInSeconds)
     {
+        /// <summary>
+        /// The account id, read from the access token's subject claim. The
+        /// register response does not carry it — the resource is the credential
+        /// and nothing else — and the access token is the one place a caller can
+        /// legitimately find it.
+        /// </summary>
+        public string AccountIdFromAccessToken
+        {
+            get
+            {
+                using var payload = JsonDocument.Parse(
+                    Base64Url.DecodeFromChars(AccessToken.Split('.')[1]));
+                return payload.RootElement.GetProperty("sub").GetString()!;
+            }
+        }
+
         public static async Task<IssuedTokens> FromAsync(HttpResponseMessage response)
         {
             if (!response.IsSuccessStatusCode)

@@ -55,6 +55,27 @@ public static class IdentityEndpoints
     /// </summary>
     public const string RecoveryRateLimitPolicy = "auth-recovery";
 
+    /// <summary>
+    /// The per-IP throttle on refresh: 30 per 60 seconds (configured in
+    /// <c>Program.cs</c>). Its own policy rather than a share of
+    /// <see cref="RecoveryRateLimitPolicy"/>, because it answers a different
+    /// threat with a different budget.
+    ///
+    /// <para>The recovery limit bounds a prober asking "is this address
+    /// registered?". This one bounds an anonymous caller replaying digests to
+    /// trip reuse detection — which REVOKES an integration's credential, so
+    /// every attempt that lands is a denial of service against a machine
+    /// account, and the attempts are otherwise free and repeatable.</para>
+    ///
+    /// <para>30, because an integration holding a day-long access token refreshes
+    /// on the order of once a day; even a badly written client is bounded by its
+    /// own traffic, so this is orders of magnitude of headroom for legitimate
+    /// use while capping an attacker at 30 tries a minute per address. It does
+    /// not make the attack impossible — nothing at this layer can, against a
+    /// distributed caller holding a leaked token — it makes it cost something.</para>
+    /// </summary>
+    public const string RefreshRateLimitPolicy = "identity-refresh";
+
     public static void MapIdentityEndpoints(this IEndpointRouteBuilder app)
     {
         ArgumentNullException.ThrowIfNull(app);
@@ -121,7 +142,8 @@ public static class IdentityEndpoints
         // split login and register sit on either side of.
         identity.MapPost("/refresh", Refresh)
             .WithSummary("Redeem an integration's refresh token for a fresh credential.")
-            .Produces<IntegrationTokenResource>();
+            .Produces<IntegrationTokenResource>()
+            .RequireRateLimiting(RefreshRateLimitPolicy);
     }
 
     private static async Task<IResult> Register(

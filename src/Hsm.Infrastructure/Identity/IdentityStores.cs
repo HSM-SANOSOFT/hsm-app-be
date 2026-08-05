@@ -75,6 +75,14 @@ public sealed class IntegrationRefreshTokenStore(HsmDbContext db) : IIntegration
             .Select(t => (Guid?)t.IntegrationAccountId)
             .FirstOrDefaultAsync(ct);
 
+    public Task<IntegrationRefreshToken?> FindMostRecentlySpentAsync(
+        Guid integrationAccountId, CancellationToken ct = default) =>
+        db.IntegrationRefreshTokens
+            .AsNoTracking()
+            .Where(t => t.IntegrationAccountId == integrationAccountId && !t.IsActive)
+            .OrderByDescending(t => t.UpdatedAt)
+            .FirstOrDefaultAsync(ct);
+
     /// <summary>
     /// A CONDITIONAL update, not a read followed by a write, and the whole race
     /// guard of refresh rotation rests on that. Two transactions issuing this

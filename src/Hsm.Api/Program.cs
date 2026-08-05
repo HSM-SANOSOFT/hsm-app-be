@@ -138,6 +138,27 @@ builder.Services.AddRateLimiter(limiter =>
                 Window = TimeSpan.FromSeconds(60),
                 QueueLimit = 0,
             }));
+
+    // Refresh: 30 per 60s per IP. A separate budget for a separate threat —
+    // replaying digests to trip reuse detection revokes a machine account's
+    // credential, so an unthrottled route makes that free and repeatable. See
+    // IdentityEndpoints.RefreshRateLimitPolicy for the number's reasoning.
+    // Configurable, unlike the recovery limit, for two reasons that point the
+    // same way: a deployment whose integrations sit behind one NAT gateway
+    // shares a single source IP and may genuinely need a larger budget, and a
+    // test suite exercising refresh BEHAVIOUR should not be spending a
+    // throttle that a different suite exists to pin.
+    var refreshPermitLimit = builder.Configuration.GetValue("Auth:RefreshRequestsPerMinute", 30);
+    limiter.AddPolicy(IdentityEndpoints.RefreshRateLimitPolicy, ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = refreshPermitLimit,
+                Window = TimeSpan.FromSeconds(60),
+                QueueLimit = 0,
+            }));
+
     limiter.OnRejected = async (context, cancellationToken) =>
     {
         // The rejection never reaches an endpoint, so nothing throws — the 429
