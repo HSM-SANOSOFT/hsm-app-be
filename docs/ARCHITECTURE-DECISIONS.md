@@ -144,7 +144,7 @@ per-project dependency arrows.
 ### 5.2 ⭐ Client isolation — test-enforced, not compiler-enforced (Option B)
 
 Interactive UI components live inside `Hsm.Web` itself, not in a separate Razor Class Library —
-folding the screens back into the host project (rewrite Task 16) meant `Hsm.Web` legitimately
+folding the screens back into the host project (clean-CQRS-plan Task 16) meant `Hsm.Web` legitimately
 needs `Hsm.Application`/`Hsm.Infrastructure` references for its own DI wiring. That made the
 original "the client project cannot even compile a shortcut" guarantee impossible to keep,
 because the project as a whole is no longer a leaf.
@@ -437,8 +437,9 @@ monolith that was frozen and used as the specification
    gap), LXC provisioning, clinical module ports, and — when prioritized —
    the WebAssembly mobile host with auth across render modes.
 9. **The freeze ended 2026-08-03.** The frozen contract snapshot (since removed
-   from the working tree; §0) governed the modules rebuilt through Task 16 of
-   `docs/plans/2026-08-03-001-refactor-standard-api-surface-plan.md`; that plan
+   from the working tree; §0) governed the modules rebuilt contract-test-first
+   under `docs/plans/2026-07-28-001-refactor-clean-cqrs-three-host-plan.md`
+   (item 4 above). Its successor, `docs/plans/2026-08-03-001-refactor-standard-api-surface-plan.md`,
    then un-froze the wire — plain `/api/v1` resource JSON, RFC 9457 problem
    responses, no envelope reproducing a system nobody runs any more (decision
    #30). The frozen contract is **retired**: it no longer governs behavior, and
@@ -492,7 +493,7 @@ monolith that was frozen and used as the specification
 | 26 | CQRS command/query segregation, one pipeline, per-module vertical slices | One database, no event sourcing; `Hsm.Application/Users/` is the reference slice shape (command or query + handler, own folder, module port at top level) copied by every other module | ✅ Executed |
 | 27 | Three-deployable split: `Hsm.Api` / `Hsm.Web` / `Hsm.Worker` | Independent restart and deploy per door (§5.1, §7.5); none talks to another over HTTP — all three share one `Hsm.Application`/`Hsm.Infrastructure` core | ✅ Executed |
 | 28 | Redis Streams as a durable job queue, correcting the original in-process queue (U14) | The rewrite plan's first cut queued jobs in-process, which could not survive a restart or run against more than one worker; Streams + consumer groups + a delayed sorted set + a dead-letter stream, drained solely by `Hsm.Worker`, replaced it. Redis is consequently no longer disposable — see §6.4 | ✅ Executed — corrects U14 |
-| 29 | Client isolation: Option B, test-enforced | Folding screens into `Hsm.Web` (Task 16) removed the compiler guarantee Option A relied on; two architecture tests (`ScreenIsolationTests`) replace it, at the cost of an audit pass before any future mobile/WASM extraction — see §5.2 | ✅ Executed |
+| 29 | Client isolation: Option B, test-enforced | Folding screens into `Hsm.Web` (clean-CQRS-plan Task 16) removed the compiler guarantee Option A relied on; two architecture tests (`ScreenIsolationTests`) replace it, at the cost of an audit pass before any future mobile/WASM extraction — see §5.2 | ✅ Executed |
 | 30 | Un-freeze the wire: `/api/v1` resources, plain JSON, RFC 9457 problems | The frozen NestJS envelope existed only to reproduce a system nobody runs any more; the project is greenfield as of 2026-08-03 and clients adapt afterwards | ✅ Executed |
 | 31 | One `IExceptionHandler` over a closed exception set, no general 400 | A status-code catch-all lets any handler raise any status; five named exceptions make the mapping total and reviewable, and a refusal that is not about request shape is a Conflict or a bug | ✅ Executed |
 | 32 | FluentValidation in the pipeline as the only validation system | Two systems (a hand-rolled pipeline validator plus a 776-line edge `ValidationPipe` clone) meant HTTP and in-process dispatch could disagree; one assembly-scanned validator per request cannot | ✅ Executed |

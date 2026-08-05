@@ -103,15 +103,25 @@ commits — see "NoAmbientTransaction is not a general escape hatch" below.
   job one layer too early and outside the transaction. If a guard doesn't fit either bucket, it is
   misdiagnosed, not a sign that a third mechanism is needed.
 
-- **Slice results are domain entities, not DTOs.** `CreateStaffUserHandler` returns a `User`, not
-  a `UserResponseDto`; the wire shape is produced at the endpoint by projecting into a
-  `*Resource` record (e.g. `UserResource`), which is what keeps `PasswordHash` and other sensitive
-  fields off the wire without a parallel DTO type per slice. The `*Resource` record is an
-  **allow-list**: it names every field that goes on the wire, so a new column added to the entity
-  later cannot leak by being forgotten — it has to be added to the resource record on purpose to
-  ever reach a caller. **New slices follow the same shape** — return the entity from the handler,
-  project it into a `*Resource` record at the endpoint (or UI service) boundary. Do not add a DTO
-  layer beyond the resource record preemptively.
+- **Slice results are domain entities, not DTOs.** `CreateTemplateHandler` returns a `Template`
+  (`Hsm.Domain.Templates.Template`), not a `TemplateResponseDto`; the wire shape is produced at the
+  endpoint by projecting into a `*Resource` record (`TemplateResource`), which is what keeps
+  internal-only fields off the wire without a parallel DTO type per slice. The `*Resource` record
+  is an **allow-list**: it names every field that goes on the wire, so a new column added to the
+  entity later cannot leak by being forgotten — it has to be added to the resource record on
+  purpose to ever reach a caller. **New slices follow the same shape** — return the entity from the
+  handler, project it into a `*Resource` record at the endpoint (or UI service) boundary. Do not
+  add a DTO layer beyond the resource record preemptively.
+
+  The sanctioned exception is a handler that must carry more than the entity alone: `HsmUser` has
+  no `Roles` navigation (Identity keeps role assignments in their own join table, reached through
+  `UserManager` — an eager collection on the entity would be a second, drifting source of truth),
+  so `CreateStaffUserHandler` and its siblings return `UserWithRoles` (`Hsm.Application.Users`), an
+  application-layer pair of `(HsmUser User, IReadOnlyList<string> Roles)` — explicitly documented
+  in its own file as "not an entity." `UserResource.From` projects that pair, not a bare `HsmUser`,
+  into the wire shape. Reach for a result type like this only when a genuine relationship the
+  entity itself cannot carry needs to travel with it — it is still one projection at the endpoint
+  boundary, not a DTO layer duplicating the entity's own fields.
 
 - **Never serialize a request payload into a span, log, or queue envelope blindly.**
   `TelemetryBehavior` records only the request's type name — nothing about its field values —
