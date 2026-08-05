@@ -6,6 +6,54 @@ using Microsoft.Extensions.Logging;
 
 namespace Hsm.Infrastructure.Identity;
 
+/// <summary>
+/// EF Core adapter for the open-session table.
+///
+/// <para>Every method here writes or reads through <c>ExecuteUpdate</c>/
+/// <c>ExecuteDelete</c> or a no-tracking key lookup rather than through the
+/// change tracker: these run inside the COOKIE VALIDATION path, outside any
+/// request the pipeline opened a transaction for, so there is no ambient
+/// <c>SaveChanges</c> to ride on and nothing may be left pending in a context
+/// that is about to be reused by the request proper.</para>
+/// </summary>
+public sealed class UserSessionStore(HsmDbContext db) : IUserSessionStore
+{
+    public async Task OpenAsync(
+        Guid sessionId, Guid userId, DateTimeOffset expiresAt, CancellationToken ct = default)
+    {
+        // Reclaim this user's dead rows on the way in. It is the cheapest place
+        // to do it — one indexed delete on an account that is already being
+        // written to — and it means the table needs no scheduled sweeper.
+        await db.UserSessions
+            .Where(s => s.UserId == userId && s.ExpiresAt <= DateTimeOffset.UtcNow)
+            .ExecuteDeleteAsync(ct);
+
+        db.UserSessions.Add(new UserSession
+        {
+            Id = sessionId,
+            UserId = userId,
+            CreatedAt = DateTimeOffset.UtcNow,
+            ExpiresAt = expiresAt,
+        });
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<DateTimeOffset?> ExpiresAtAsync(Guid sessionId, CancellationToken ct = default) =>
+        await db.UserSessions
+            .AsNoTracking()
+            .Where(s => s.Id == sessionId)
+            .Select(s => (DateTimeOffset?)s.ExpiresAt)
+            .FirstOrDefaultAsync(ct);
+
+    public Task ExtendAsync(Guid sessionId, DateTimeOffset expiresAt, CancellationToken ct = default) =>
+        db.UserSessions
+            .Where(s => s.Id == sessionId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(s => s.ExpiresAt, expiresAt), ct);
+
+    public async Task<bool> CloseAsync(Guid sessionId, CancellationToken ct = default) =>
+        await db.UserSessions.Where(s => s.Id == sessionId).ExecuteDeleteAsync(ct) > 0;
+}
+
 /// <summary>EF Core adapter for the INTEGRATION refresh-token store.</summary>
 public sealed class IntegrationRefreshTokenStore(HsmDbContext db) : IIntegrationRefreshTokenStore
 {

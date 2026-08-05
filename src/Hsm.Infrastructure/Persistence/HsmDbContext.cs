@@ -27,6 +27,7 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options)
     // membership tables are declared here.
     public DbSet<IntegrationAccount> IntegrationAccounts => Set<IntegrationAccount>();
     public DbSet<IntegrationRefreshToken> IntegrationRefreshTokens => Set<IntegrationRefreshToken>();
+    public DbSet<UserSession> UserSessions => Set<UserSession>();
 
     public DbSet<AppSetting> AppSettings => Set<AppSetting>();
     public DbSet<AppSettingAudit> AppSettingAudits => Set<AppSettingAudit>();
@@ -152,6 +153,22 @@ public class HsmDbContext(DbContextOptions<HsmDbContext> options)
             account.ToTable("users_integration");
             account.HasKey(a => a.Id);
             account.Property(a => a.Name).HasColumnType("citext");
+        });
+
+        modelBuilder.Entity<UserSession>(session =>
+        {
+            session.ToTable("user_sessions");
+            session.HasKey(s => s.Id);
+
+            // The validation path looks a session up BY ID, so the primary key
+            // is the whole index it needs. The second index serves the other two
+            // accesses, both of which are per user: reclaiming expired rows at
+            // sign-in, and cascading when an account is deleted.
+            session.HasIndex(s => new { s.UserId, s.ExpiresAt });
+            session.HasOne<HsmUser>()
+                .WithMany()
+                .HasForeignKey(s => s.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<IntegrationRefreshToken>(token =>

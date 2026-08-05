@@ -7,6 +7,7 @@ using Hsm.Application.Users.Queries.GetUser;
 using Hsm.Application.Users.Queries.ListUsers;
 using Hsm.Contracts;
 using Hsm.Domain.Identity;
+using Hsm.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 
@@ -97,9 +98,10 @@ public static class UserEndpoints
         ChangeOwnPasswordRequest request,
         HttpContext context,
         IDispatcher dispatcher,
-        SignInManager<HsmUser> signInManager,
+        HsmSessionSignIn sessions,
         CancellationToken ct)
     {
+        ArgumentNullException.ThrowIfNull(sessions);
         var user = await dispatcher.Send(
             new ChangeOwnPasswordCommand(request.CurrentPassword, request.NewPassword), ct);
 
@@ -108,7 +110,13 @@ public static class UserEndpoints
         // on its next request. Every OTHER session losing its cookie is the
         // point; this one losing it is not, and on the shell it presents as
         // "I changed my password and got bounced to the sign-in screen".
-        // RefreshSignInAsync reissues THIS session's cookie with the new stamp.
+        // RefreshAsync reissues THIS session's cookie with the new stamp.
+        //
+        // Through HsmSessionSignIn rather than SignInManager.RefreshSignInAsync:
+        // the latter rebuilds the principal and carries only `amr` across, so it
+        // would drop the session claim and the caller's very next request would
+        // be refused for having no session — turning "keep my own session" into
+        // the exact sign-out it exists to prevent.
         //
         // Only when the caller actually has a cookie session: an integration
         // authenticated by bearer must not be handed one as a side effect of a
@@ -116,7 +124,7 @@ public static class UserEndpoints
         // check free.
         if ((await context.AuthenticateAsync(IdentityConstants.ApplicationScheme)).Succeeded)
         {
-            await signInManager.RefreshSignInAsync(user);
+            await sessions.RefreshAsync(user, ct);
         }
 
         return Results.NoContent();

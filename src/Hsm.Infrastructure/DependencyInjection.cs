@@ -318,6 +318,7 @@ public static class DependencyInjection
         // three reads UserManager cannot do.
         services.AddHsmIdentity();
 
+        services.AddScoped<IUserSessionStore, UserSessionStore>();
         services.AddScoped<IIntegrationRefreshTokenStore, IntegrationRefreshTokenStore>();
         services.AddScoped<IIntegrationAccountStore, IntegrationAccountStore>();
         services.AddScoped<IAuthUnitOfWork, AuthUnitOfWork>();

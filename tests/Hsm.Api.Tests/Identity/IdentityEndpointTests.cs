@@ -135,25 +135,100 @@ public class IdentityEndpointTests(IdentityEndpointFactory factory)
     }
 
     [Fact]
-    public async Task Logout_returns_204_and_expires_the_session_cookie()
+    public async Task Logout_returns_204_and_revokes_the_cookie_it_was_called_with()
     {
+        // The regression this pins: SignInManager.SignOutAsync ALONE only asks
+        // the browser to drop the cookie. An Identity cookie is self-contained,
+        // so a copy taken beforehand — a shared workstation, a proxy log,
+        // malware — would keep authenticating for the rest of the sliding 8-hour
+        // window. This client deliberately REPLAYS the same cookie header after
+        // signing out, which is exactly what such a copy would do.
         using var client = await factory.AuthenticatedClientAsync(Roles.Doctor);
+        var before = await client.GetAsync("/api/v1/identity/me", CancellationToken.None);
+        Assert.Equal(HttpStatusCode.OK, before.StatusCode);
 
         var response = await client.PostAsync(
             new Uri("/api/v1/identity/logout", UriKind.Relative), content: null, CancellationToken.None);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        // Sign-out is the cookie being taken back, so the proof is the
-        // Set-Cookie that empties it rather than a later request failing: this
-        // client replays a fixed header and would keep sending the old value.
         var cleared = Assert.Single(
             SetCookies(response), c => c.StartsWith("hsm.session=;", StringComparison.Ordinal));
         Assert.Contains("expires=Thu, 01 Jan 1970", cleared, StringComparison.OrdinalIgnoreCase);
 
-        // And a caller that honours it — i.e. any browser — is anonymous again.
+        // Same cookie, still sent. Refused — because the SESSION is gone, not
+        // because the cookie was forgotten.
+        var replayed = await client.GetAsync("/api/v1/identity/me", CancellationToken.None);
+        await ProblemAssert.ProblemAsync(replayed, 401);
+    }
+
+    [Fact]
+    public async Task Signing_out_one_session_leaves_the_users_other_sessions_alone()
+    {
+        // Per-SESSION revocation, and the reason it is not the security stamp:
+        // bumping the stamp would end every session this person has open on
+        // every device. Signing out of the ward's shared workstation must not
+        // sign the same doctor out on their own.
+        var username = Unique("u");
+        await factory.SeedUserAsync(
+            username, IdentityEndpointFactory.SeedPassword, Roles.Doctor, DateTimeOffset.UtcNow);
+        using var workstation = await factory.SignedInClientAsync(
+            username, IdentityEndpointFactory.SeedPassword);
+        using var ownDevice = await factory.SignedInClientAsync(
+            username, IdentityEndpointFactory.SeedPassword);
+
+        var signedOut = await workstation.PostAsync(
+            new Uri("/api/v1/identity/logout", UriKind.Relative), content: null, CancellationToken.None);
+        Assert.Equal(HttpStatusCode.NoContent, signedOut.StatusCode);
+
+        await ProblemAssert.ProblemAsync(
+            await workstation.GetAsync("/api/v1/identity/me", CancellationToken.None), 401);
+        var survivor = await ownDevice.GetAsync("/api/v1/identity/me", CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.OK, survivor.StatusCode);
+        var me = await survivor.Content.ReadFromJsonAsync<JsonElement>(CancellationToken.None);
+        Assert.Equal(username, me.GetProperty("username").GetString());
+    }
+
+    [Fact]
+    public async Task A_cookie_naming_no_session_is_refused()
+    {
+        // Fail-closed, stated as a test: the session claim is not a cache like
+        // the onboarding one. A principal that names no open session — a
+        // pre-feature cookie, a hand-assembled one — must not be waved through,
+        // because "authenticate as if sessions did not exist" would disable the
+        // whole mechanism silently.
+        using var client = await factory.AuthenticatedClientAsync(Roles.Doctor);
+        await client.PostAsync(
+            new Uri("/api/v1/identity/logout", UriKind.Relative), content: null, CancellationToken.None);
+
+        // The cookie is intact and its security stamp still matches; only the
+        // session row is gone. If the stamp check were the only one, this would
+        // be a 200.
+        var response = await client.GetAsync("/api/v1/templates", CancellationToken.None);
+
+        await ProblemAssert.ProblemAsync(response, 401);
+    }
+
+    [Fact]
+    public async Task Signing_out_without_a_session_is_still_204()
+    {
+        // Sign-out does not require a session. A browser that honoured the
+        // first sign-out sends no session cookie on the second, and gets the
+        // same answer — refusing it would strand anyone holding a cookie the
+        // server no longer recognises, which is the state the route exists to
+        // fix. (A client that instead REPLAYS the revoked cookie is refused by
+        // antiforgery, whose token no longer matches the now-anonymous
+        // principal; its cookie is cleared regardless, by the validator.)
+        using var client = await factory.AuthenticatedClientAsync(Roles.Doctor);
+
+        var first = await client.PostAsync(
+            new Uri("/api/v1/identity/logout", UriKind.Relative), content: null, CancellationToken.None);
         client.DefaultRequestHeaders.Remove("Cookie");
-        var after = await client.GetAsync("/api/v1/identity/me", CancellationToken.None);
-        await ProblemAssert.ProblemAsync(after, 401);
+        var second = await client.PostAsync(
+            new Uri("/api/v1/identity/logout", UriKind.Relative), content: null, CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.NoContent, first.StatusCode);
+        Assert.Equal(HttpStatusCode.NoContent, second.StatusCode);
     }
 
     [Fact]

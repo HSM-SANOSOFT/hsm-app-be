@@ -148,8 +148,17 @@ public static class IdentityRegistration
                 cookieSecure ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
             options.Cookie.Path = "/";
             options.Cookie.Domain = cookieDomain;
-            options.ExpireTimeSpan = TimeSpan.FromHours(8);
+            options.ExpireTimeSpan = SessionPolicy.Lifetime;
             options.SlidingExpiration = true;
+
+            // Per-SESSION revocation, chained after Identity's own
+            // security-stamp check rather than replacing it. This is what makes
+            // POST /api/v1/identity/logout mean something: an Identity cookie is
+            // self-contained, so deleting it from the browser leaves any copy
+            // taken beforehand working for the rest of the sliding window. The
+            // server now holds the other half of every session and sign-out
+            // deletes it. See HsmSessionValidator.
+            HsmSessionValidator.ChainOnto(options);
         });
 
         // The security stamp is this system's ONLY session-revocation channel:
@@ -175,10 +184,33 @@ public static class IdentityRegistration
         // claims are re-read rather than trusted for the cookie's whole
         // lifetime — the property the frozen 15-minute access token had, now
         // without the 15 minutes.
-        services.Configure<SecurityStampValidatorOptions>(
-            options => options.ValidationInterval = TimeSpan.Zero);
+        services.Configure<SecurityStampValidatorOptions>(options =>
+        {
+            options.ValidationInterval = TimeSpan.Zero;
+
+            // When the stamp still matches, the validator REBUILDS the principal
+            // from the claims factory — which knows about the user row and
+            // nothing about the session this cookie belongs to. Without carrying
+            // the claim across, the session id would survive exactly one request
+            // and every cookie caller would then be refused for having no
+            // session. This hook is the only place the framework offers to do
+            // it, and it is why the whole mechanism is not silently broken.
+            options.OnRefreshingPrincipal = context =>
+            {
+                if (context.CurrentPrincipal?.FindFirst(HsmClaims.SessionId) is { } session
+                    && context.NewPrincipal?.Identities.FirstOrDefault() is { } identity)
+                {
+                    identity.AddClaim(session);
+                }
+
+                return Task.CompletedTask;
+            };
+        });
 
         services.AddScoped<IUserClaimsPrincipalFactory<HsmUser>, HsmUserClaimsPrincipalFactory>();
+
+        // The one way either door opens, renews or closes a session.
+        services.AddScoped<HsmSessionSignIn>();
 
         // SignInManager is the only thing that writes the session cookie, and
         // it needs the schemes above — which is why it registers here rather

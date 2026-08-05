@@ -7,6 +7,7 @@ using Hsm.Application.Auth.Commands.Register;
 using Hsm.Application.Auth.Commands.ResetPassword;
 using Hsm.Application.Auth.Queries.GetMe;
 using Hsm.Domain.Identity;
+using Hsm.Infrastructure.Identity;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
@@ -102,11 +103,12 @@ public static class IdentityEndpoints
     private static async Task<IResult> Register(
         RegisterRequest request,
         IDispatcher dispatcher,
-        SignInManager<HsmUser> signInManager,
+        HsmSessionSignIn sessions,
+        UserManager<HsmUser> users,
         CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        ArgumentNullException.ThrowIfNull(signInManager);
+        ArgumentNullException.ThrowIfNull(sessions);
 
         var user = await dispatcher.Send(
             new RegisterCommand(
@@ -121,63 +123,67 @@ public static class IdentityEndpoints
                 request.Gender),
             ct);
 
-        await signInManager.SignInAsync(user, isPersistent: false);
+        await sessions.SignInAsync(user, ct);
 
         // Location is /me rather than /api/v1/users/{id}: that collection is
         // admin-only, and a patient who has just registered would get a 403
         // following it.
-        return Results.Created(
-            "/api/v1/identity/me", await MeAsync(user, signInManager.UserManager));
+        return Results.Created("/api/v1/identity/me", await MeAsync(user, users));
     }
 
     private static async Task<IResult> Login(
         LoginRequest request,
         IDispatcher dispatcher,
-        SignInManager<HsmUser> signInManager,
+        HsmSessionSignIn sessions,
+        UserManager<HsmUser> users,
         CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        ArgumentNullException.ThrowIfNull(signInManager);
+        ArgumentNullException.ThrowIfNull(sessions);
 
         // The COMMAND verifies the credential (and owns lockout accounting);
         // the ENDPOINT writes the cookie. Credential checking is application
         // logic that a Blazor circuit needs too; writing a cookie is transport
         // and only this door does it.
         //
-        // SignInAsync, deliberately NOT PasswordSignInAsync: the latter would
-        // look the account up itself through UserManager.FindByNameAsync, which
-        // does not filter soft-deleted rows and can therefore resolve a
-        // different account than LoginHandler just authenticated (the filtered
-        // unique indexes let a deleted row and a live row share a username).
-        // This overload issues a cookie for an already-resolved user and looks
-        // nothing up.
+        // Each sign-in opens its OWN revocable session — see HsmSessionSignIn,
+        // which is also where the reason for SignInAsync over
+        // PasswordSignInAsync lives.
         var user = await dispatcher.Send(
             new LoginCommand(request.Username, request.Password), ct);
-        await signInManager.SignInAsync(user, isPersistent: false);
-        return Results.Ok(await MeAsync(user, signInManager.UserManager));
+        await sessions.SignInAsync(user, ct);
+        return Results.Ok(await MeAsync(user, users));
     }
 
     /// <summary>
     /// Sign-out. Nothing is dispatched because nothing in the application
     /// changes: the session IS the cookie, and this hands it back.
     ///
-    /// <para>Unconditional, and 204 even for a caller with no session. The
-    /// frozen <c>LogoutCommand</c> was <c>[AllowAnonymousRequest]</c> for the
-    /// reason that still applies — sign-out must always be possible — and
-    /// refusing an unauthenticated caller here would leave a browser holding a
-    /// stale or unreadable cookie with no way to be rid of it, which is the one
-    /// state this route exists to fix.</para>
+    /// Nothing is dispatched: closing a session is not application state a
+    /// Blazor circuit would need to change identically, it is this door taking
+    /// its own credential back.
     ///
-    /// <para>What it does NOT do is revoke the cookie server-side. An Identity
-    /// cookie is self-contained, so a copy taken before sign-out stays valid
-    /// until it expires; the account-wide kill switch is the security stamp,
-    /// which a password change rotates. Bumping it here would sign the user out
-    /// of every other device too, which is not what "log out" means.</para>
+    /// <para>It revokes SERVER-SIDE, which is the whole point.
+    /// <c>SignOutAsync</c> alone only asks the browser to drop the cookie, and
+    /// an Identity cookie is self-contained — a copy taken beforehand from a
+    /// shared workstation, a proxy log or malware would keep authenticating for
+    /// the rest of the sliding window. <see cref="HsmSessionSignIn.SignOutAsync"/>
+    /// deletes this session's row first, so the next request presenting that
+    /// copy finds no session and is refused. Scoped to THIS session: the same
+    /// person stays signed in on their other devices, which is what
+    /// distinguishes signing out from a password change.</para>
+    ///
+    /// <para>204 even for a caller with no session. The frozen
+    /// <c>LogoutCommand</c> was <c>[AllowAnonymousRequest]</c> for the reason
+    /// that still applies — refusing would leave a browser holding a stale or
+    /// unreadable cookie with no way to be rid of it, which is the one state
+    /// this route exists to fix. (An authenticated caller still passes
+    /// antiforgery on the way in, like every other cookie-borne mutation.)</para>
     /// </summary>
-    private static async Task<IResult> Logout(SignInManager<HsmUser> signInManager)
+    private static async Task<IResult> Logout(HsmSessionSignIn sessions, CancellationToken ct)
     {
-        ArgumentNullException.ThrowIfNull(signInManager);
-        await signInManager.SignOutAsync();
+        ArgumentNullException.ThrowIfNull(sessions);
+        await sessions.SignOutAsync(ct);
         return Results.NoContent();
     }
 
@@ -189,11 +195,12 @@ public static class IdentityEndpoints
         OnboardingRequest request,
         HttpContext context,
         IDispatcher dispatcher,
-        SignInManager<HsmUser> signInManager,
+        HsmSessionSignIn sessions,
+        UserManager<HsmUser> users,
         CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
-        ArgumentNullException.ThrowIfNull(signInManager);
+        ArgumentNullException.ThrowIfNull(sessions);
 
         var user = await dispatcher.Send(
             new CompleteOnboardingCommand(
@@ -204,19 +211,19 @@ public static class IdentityEndpoints
         // this account — the caller's included — is now stale and would be
         // refused on its next request. Every OTHER session dying is the point;
         // this one is not, and on the shell it presents as "I finished
-        // onboarding and got bounced to the sign-in screen". RefreshSignInAsync
-        // reissues THIS session's cookie with the new stamp, and carries the
-        // now-completed onboarding claim with it.
+        // onboarding and got bounced to the sign-in screen". RefreshAsync
+        // reissues THIS session's cookie with the new stamp, KEEPING its
+        // session id, and carries the now-completed onboarding claim with it.
         //
         // Only when the caller actually has a cookie session, for the same
         // reason ChangeOwnPassword guards it: a bearer caller must not be handed
         // one as a side effect.
         if ((await context.AuthenticateAsync(IdentityConstants.ApplicationScheme)).Succeeded)
         {
-            await signInManager.RefreshSignInAsync(user);
+            await sessions.RefreshAsync(user, ct);
         }
 
-        return Results.Ok(await MeAsync(user, signInManager.UserManager));
+        return Results.Ok(await MeAsync(user, users));
     }
 
     private static IResult Csrf(HttpContext context, IAntiforgery antiforgery)

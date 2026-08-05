@@ -216,16 +216,25 @@ public abstract class ApiHostFactory<TEntryPoint> : WebApplicationFactory<TEntry
     {
         var name = username ?? $"u{Guid.NewGuid():N}"[..20];
         await SeedUserAsync(name, SeedPassword, role, onboarded ? DateTimeOffset.UtcNow : null);
+        return await SignedInClientAsync(name, SeedPassword);
+    }
 
+    /// <summary>
+    /// The same handshake for an account that ALREADY exists — which is what a
+    /// second, independent session for one user needs. Each call opens its own
+    /// session, so signing one out must not disturb the other.
+    /// </summary>
+    public async Task<HttpClient> SignedInClientAsync(string name, string password)
+    {
         var client = CreateApiClient();
         var response = await client.PostAsJsonAsync(
             "/api/v1/identity/login",
-            new { username = name, password = SeedPassword },
+            new { username = name, password },
             CancellationToken.None);
         if (!response.IsSuccessStatusCode)
         {
             throw new InvalidOperationException(
-                $"Seed sign-in for role '{role}' failed with {(int)response.StatusCode}.");
+                $"Seed sign-in for '{name}' failed with {(int)response.StatusCode}.");
         }
 
         var jar = new CookieJar();
