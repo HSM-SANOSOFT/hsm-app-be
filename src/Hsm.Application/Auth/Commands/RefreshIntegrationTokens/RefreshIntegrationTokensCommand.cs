@@ -18,7 +18,17 @@ namespace Hsm.Application.Auth.Commands.RefreshIntegrationTokens;
 /// property comes from the token being the sole thing that identifies the
 /// caller, rather than from a policy. A browser has no refresh token; a cookie
 /// buys nothing here.</para>
+///
+/// <see cref="NoAmbientTransactionAttribute"/> for the same reason
+/// <c>LoginCommand</c> carries it: a REFUSAL from this handler can have written
+/// something that must survive it. Replaying a spent token revokes the account's
+/// whole chain and then throws, and under the pipeline's transaction that
+/// revocation would roll back with the exception — turning the alarm into a
+/// no-op that also happens to log nothing. The handler opens its own transaction
+/// around the rotation instead, so the happy path keeps its all-or-nothing
+/// property.
 /// </summary>
 [AllowAnonymousRequest]
+[NoAmbientTransaction]
 public sealed record RefreshIntegrationTokensCommand(string RawRefreshToken)
     : ICommand<IntegrationTokens>;

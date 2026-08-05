@@ -13,11 +13,7 @@ public sealed class LogoutIntegrationHandler(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var accountId = await IdentifyAsync(request.Token, ct)
-            ?? throw new UnauthorizedException("Invalid token");
-
-        var affected = await refreshTokens.DeactivateActiveAsync(accountId, ct);
-        if (affected == 0)
+        if (await RevokeAsync(request.Token, ct) == 0)
         {
             throw new ConflictException("No active session to end.");
         }
@@ -27,15 +23,16 @@ public sealed class LogoutIntegrationHandler(
     }
 
     /// <summary>
-    /// Which account the presented token belongs to, by the only two routes
-    /// there are: a signed access token SAYS so; an opaque refresh token matches
-    /// a stored digest.
+    /// Revokes whatever the presented token's account currently holds, and
+    /// returns how many rows that was. Two ways in, because either half of the
+    /// pair identifies an account: a signed access token SAYS which; an opaque
+    /// refresh token MATCHES a stored digest.
     ///
     /// <para>Expiry is ignored on the access token deliberately — revoking the
     /// credential of an account whose access token lapsed an hour ago is exactly
     /// what an operator reaching for this route is trying to do.</para>
     /// </summary>
-    private async Task<Guid?> IdentifyAsync(string token, CancellationToken ct)
+    private async Task<int> RevokeAsync(string token, CancellationToken ct)
     {
         var principal = (await codec.ValidateAsync(token, ignoreExpiration: true)).Principal;
         if (principal is not null)
@@ -43,10 +40,36 @@ public sealed class LogoutIntegrationHandler(
             // A signed token that is NOT an integration's is refused rather than
             // fallen through on: it is a real credential aimed at the wrong kind
             // of subject, and there is nothing here to revoke for it.
-            return principal.IsIntegration ? Guid.Parse(principal.Id) : null;
+            if (!principal.IsIntegration)
+            {
+                throw new UnauthorizedException("Invalid token");
+            }
+
+            // No digest to key on — an access token names an account, not a
+            // specific refresh row — so this is inherently "kill whatever is
+            // live for this account". The store's own retry is what keeps that
+            // honest against a concurrent rotation; see DeactivateActiveAsync.
+            return await refreshTokens.DeactivateActiveAsync(Guid.Parse(principal.Id), ct);
         }
 
-        return await refreshTokens.FindActiveAccountByHashAsync(
-            IntegrationTokenIssuer.HashRefreshToken(token), ct);
+        // Key on the DIGEST first, so an admin revoking the exact token they
+        // were handed contends on the same row a concurrent refresh would —
+        // rather than issuing an account-scoped update that can lose that race
+        // and report "nothing to revoke" while a successor goes live.
+        var hash = IntegrationTokenIssuer.HashRefreshToken(token);
+        if (await refreshTokens.ClaimActiveAsync(hash, ct) == 1)
+        {
+            return 1;
+        }
+
+        // The presented token is not the live one. Either it was never issued —
+        // a guess, refused — or the account has rotated past it, which is also
+        // exactly what losing that race looks like from here. In both of those
+        // last cases the operator's intent is unchanged: this account's access
+        // is to end, so kill the successor too.
+        var accountId = await refreshTokens.FindAccountByHashAsync(hash, ct)
+            ?? throw new UnauthorizedException("Invalid token");
+
+        return await refreshTokens.DeactivateActiveAsync(accountId, ct);
     }
 }

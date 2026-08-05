@@ -1,5 +1,6 @@
 using System.Buffers.Text;
 using System.Net;
+using System.Security.Cryptography;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Hsm.Domain.Identity;
@@ -151,15 +152,74 @@ public class IntegrationTokenTests(IntegrationTokenFactory factory)
         Assert.False(string.IsNullOrEmpty(refreshed.AccessToken));
         Assert.NotEqual(issued.RefreshToken, refreshed.RefreshToken);
 
+        // The new token works, so rotation REPLACED the credential rather than
+        // merely destroying it. Asserted before the replay below, not after:
+        // replaying a spent token is reuse detection's trigger and revokes the
+        // whole chain, so afterwards nothing works by design.
+        var again = await RefreshAsync(client, refreshed.RefreshToken);
+        Assert.Equal(HttpStatusCode.OK, again.Response.StatusCode);
+
         // Rotation means the OLD token stops working — otherwise a leaked
         // refresh token stays valid forever no matter what.
         var replayed = await RefreshAsync(client, issued.RefreshToken);
         await ProblemAssert.ProblemAsync(replayed.Response, 401);
+    }
 
-        // ...and the new one does work, so rotation replaced the credential
-        // rather than merely destroying it.
-        var again = await RefreshAsync(client, refreshed.RefreshToken);
-        Assert.Equal(HttpStatusCode.OK, again.Response.StatusCode);
+    [Fact]
+    public async Task Replaying_a_spent_refresh_token_revokes_the_whole_chain()
+    {
+        // REUSE DETECTION. A spent digest coming back means two parties hold
+        // copies of a credential that has since moved on — the legitimate
+        // integration and whoever took it. There is no way to tell which one is
+        // asking, so the only safe answer is to trust neither: kill what is
+        // currently live and make the account's own next refresh fail too.
+        //
+        // Without this, the first party to redeem a stolen token simply BECOMES
+        // the account. The legitimate holder's next refresh 401s exactly like a
+        // normal failure, nothing is alerted, and the takeover is permanent and
+        // silent. Failing loudly for both parties is the correct outcome: it
+        // forces a human to re-provision.
+        var issued = await ProvisionAsync();
+        using var client = factory.CreateApiClient();
+
+        var rotated = await RefreshAsync(client, issued.RefreshToken);
+        Assert.Equal(HttpStatusCode.OK, rotated.Response.StatusCode);
+
+        // The spent token comes back — the alarm.
+        var replayed = await RefreshAsync(client, issued.RefreshToken);
+        await ProblemAssert.ProblemAsync(replayed.Response, 401);
+
+        // ...and the chain is dead. This is the assertion that distinguishes
+        // reuse DETECTION from merely refusing a spent token: the live
+        // credential minted a moment ago no longer works either.
+        var afterAlarm = await RefreshAsync(client, rotated.RefreshToken);
+        await ProblemAssert.ProblemAsync(afterAlarm.Response, 401);
+    }
+
+    [Fact]
+    public async Task A_refresh_body_with_no_token_is_400_and_not_500()
+    {
+        // {} binds RefreshToken as null. Without a validator that reaches
+        // HashRefreshToken(null) and leaves the closed exception set's default
+        // branch to render an ArgumentNullException as a 500 — a caller error
+        // reported as a server fault.
+        using var client = factory.CreateApiClient();
+
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/identity/refresh", new { }, CancellationToken.None);
+
+        await ProblemAssert.ProblemAsync(response, 400);
+    }
+
+    [Fact]
+    public async Task A_register_body_with_no_fields_is_400_and_not_500()
+    {
+        using var admin = await factory.AuthenticatedClientAsync(Roles.Admin);
+
+        var response = await admin.PostAsJsonAsync(
+            "/api/v1/identity/integrations/register", new { }, CancellationToken.None);
+
+        await ProblemAssert.ProblemAsync(response, 400);
     }
 
     [Fact]
@@ -206,9 +266,13 @@ public class IntegrationTokenTests(IntegrationTokenFactory factory)
         // has no refresh token to present — it holds a sliding session cookie —
         // and the cookie itself buys nothing here: presenting one alongside an
         // unredeemable value is still a 401, not a rotation.
+        //
+        // The value sent is shaped exactly like a real refresh token (32 URL-safe
+        // random bytes) rather than empty, so the 401 cannot come from the
+        // validator. What is being refused is the CALLER, not the syntax.
         using var browser = await factory.AuthenticatedClientAsync(Roles.Doctor);
 
-        var response = await RefreshAsync(browser, string.Empty);
+        var response = await RefreshAsync(browser, WellFormedButUnissuedToken());
 
         await ProblemAssert.ProblemAsync(response.Response, 401);
     }
@@ -225,6 +289,7 @@ public class IntegrationTokenTests(IntegrationTokenFactory factory)
         using var first = factory.CreateApiClient();
         using var second = factory.CreateApiClient();
 
+        var before = await TokenRowCountAsync();
         var outcomes = await Task.WhenAll(
             RefreshAsync(first, issued.RefreshToken),
             RefreshAsync(second, issued.RefreshToken));
@@ -233,12 +298,20 @@ public class IntegrationTokenTests(IntegrationTokenFactory factory)
         var loser = Assert.Single(outcomes, o => o.Response.StatusCode != HttpStatusCode.OK);
         await ProblemAssert.ProblemAsync(loser.Response, 401);
 
-        // Exactly one active row survives — the winner's.
-        var winner = outcomes.Single(o => o.Response.StatusCode == HttpStatusCode.OK);
-        using var client = factory.CreateApiClient();
-        Assert.Equal(
-            HttpStatusCode.OK,
-            (await RefreshAsync(client, winner.RefreshToken)).Response.StatusCode);
+        // EXACTLY ONE ROW WAS WRITTEN, and this is the assertion that catches
+        // the bug rather than merely describing the responses. The broken
+        // version — deactivating by account instead of by digest — also returns
+        // one 200 and one 401 under some interleavings; what it does that this
+        // cannot is insert a SECOND live token for the loser. Counting rows
+        // across the pair sees that directly.
+        //
+        // Deliberately not asserted: whether the winner's token still redeems
+        // afterwards. That depends on interleaving — if the loser's first lookup
+        // lands after the winner committed, it sees a SPENT digest and trips
+        // reuse detection, which revokes the winner's brand-new token on
+        // purpose. Both aftermaths are correct; asserting either would be
+        // asserting a scheduling accident.
+        Assert.Equal(1, await TokenRowCountAsync() - before);
     }
 
     // ----- logout ----------------------------------------------------------
@@ -276,6 +349,56 @@ public class IntegrationTokenTests(IntegrationTokenFactory factory)
             CancellationToken.None);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Signing_out_with_a_superseded_refresh_token_still_kills_what_is_live()
+    {
+        // The revoke path's version of the same stale-snapshot race. An admin
+        // holding a token the account has since rotated past is exactly what
+        // losing a race to a concurrent refresh looks like from the admin's
+        // side: the token they presented is no longer the live one. Reporting
+        // "nothing to revoke" there would tell an operator the credential is
+        // dead while a successor is live — the worst possible answer to
+        // "revoke this".
+        //
+        // Deterministic here rather than timing-dependent: rotating first
+        // produces the exact state the race produces.
+        var issued = await ProvisionAsync();
+        using var client = factory.CreateApiClient();
+        var rotated = await RefreshAsync(client, issued.RefreshToken);
+
+        using var admin = await factory.AuthenticatedClientAsync(Roles.Admin);
+        var response = await admin.PostAsJsonAsync(
+            "/api/v1/identity/integrations/logout",
+            new { token = issued.RefreshToken },
+            CancellationToken.None);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        // The successor is dead too, which is what the operator asked for.
+        await ProblemAssert.ProblemAsync(
+            (await RefreshAsync(client, rotated.RefreshToken)).Response, 401);
+    }
+
+    [Fact]
+    public async Task Signing_out_an_integration_twice_reports_that_there_was_nothing_left()
+    {
+        // The 409 is still real, and still means what it says — it just no
+        // longer fires for a token that merely lost a race.
+        var issued = await ProvisionAsync();
+        using var admin = await factory.AuthenticatedClientAsync(Roles.Admin);
+        var body = new { token = issued.AccessToken };
+
+        Assert.Equal(
+            HttpStatusCode.NoContent,
+            (await admin.PostAsJsonAsync(
+                "/api/v1/identity/integrations/logout", body, CancellationToken.None)).StatusCode);
+
+        var again = await admin.PostAsJsonAsync(
+            "/api/v1/identity/integrations/logout", body, CancellationToken.None);
+
+        await ProblemAssert.ProblemAsync(again, 409);
     }
 
     [Fact]
@@ -319,6 +442,17 @@ public class IntegrationTokenTests(IntegrationTokenFactory factory)
             "/api/v1/identity/refresh",
             new { refreshToken },
             CancellationToken.None));
+
+    /// <summary>Every refresh-token row in the store, spent ones included.</summary>
+    private Task<int> TokenRowCountAsync() =>
+        factory.WithDbAsync(db => db.IntegrationRefreshTokens.CountAsync(CancellationToken.None));
+
+    /// <summary>
+    /// A value indistinguishable in shape from a real refresh token, and issued
+    /// to nobody — so a refusal can only be about the row it fails to match.
+    /// </summary>
+    private static string WellFormedButUnissuedToken() =>
+        Base64Url.EncodeToString(RandomNumberGenerator.GetBytes(32));
 
     private HttpClient BearerClient(string accessToken)
     {

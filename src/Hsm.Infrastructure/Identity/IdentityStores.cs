@@ -68,6 +68,13 @@ public sealed class IntegrationRefreshTokenStore(HsmDbContext db) : IIntegration
             .Select(t => (Guid?)t.IntegrationAccountId)
             .FirstOrDefaultAsync(ct);
 
+    public async Task<Guid?> FindAccountByHashAsync(string tokenHash, CancellationToken ct = default) =>
+        await db.IntegrationRefreshTokens
+            .AsNoTracking()
+            .Where(t => t.TokenHash == tokenHash)
+            .Select(t => (Guid?)t.IntegrationAccountId)
+            .FirstOrDefaultAsync(ct);
+
     /// <summary>
     /// A CONDITIONAL update, not a read followed by a write, and the whole race
     /// guard of refresh rotation rests on that. Two transactions issuing this
@@ -85,7 +92,31 @@ public sealed class IntegrationRefreshTokenStore(HsmDbContext db) : IIntegration
                     .SetProperty(t => t.UpdatedAt, DateTimeOffset.UtcNow),
                 ct);
 
-    public Task<int> DeactivateActiveAsync(Guid integrationAccountId, CancellationToken ct = default) =>
+    /// <summary>
+    /// Account-scoped revocation, and it takes TWO statements to be honest
+    /// about its own result.
+    ///
+    /// <para>Under READ COMMITTED a statement that blocks on a row lock wakes up
+    /// still holding its original snapshot. So if a rotation is committing while
+    /// this update waits, the update re-checks the row it can see, finds it
+    /// inactive, and reports 0 — without ever seeing the successor row the
+    /// rotation inserted. The caller then believes the account has no live
+    /// credential at the exact moment it acquired a new one. A SECOND statement
+    /// gets a fresh snapshot and finds it.</para>
+    ///
+    /// <para>One retry, not a loop: the successor is committed and visible by
+    /// the time the first statement returns, so the second cannot miss it for
+    /// the same reason. A further rotation would have to start after this call
+    /// began and commit before the retry — at which point it is a new request
+    /// arriving after a completed revocation, not a lost race.</para>
+    /// </summary>
+    public async Task<int> DeactivateActiveAsync(Guid integrationAccountId, CancellationToken ct = default)
+    {
+        var affected = await DeactivateOnceAsync(integrationAccountId, ct);
+        return affected > 0 ? affected : await DeactivateOnceAsync(integrationAccountId, ct);
+    }
+
+    private Task<int> DeactivateOnceAsync(Guid integrationAccountId, CancellationToken ct) =>
         db.IntegrationRefreshTokens
             .Where(t => t.IntegrationAccountId == integrationAccountId && t.IsActive)
             .ExecuteUpdateAsync(

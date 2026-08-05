@@ -1,6 +1,7 @@
 using System.Reflection;
 using Hsm.Application.Abstractions;
 using Hsm.Application.Auth.Commands.Login;
+using Hsm.Application.Auth.Commands.RefreshIntegrationTokens;
 using Hsm.Application.Coms.Commands.DispatchEmailBatch;
 using Hsm.Application.Docs.Commands.RenderDocument;
 
@@ -33,21 +34,30 @@ public class RequestPolicyClosureTests
     }
 
     [Fact]
-    public void The_NoAmbientTransaction_carrier_set_is_exactly_the_three_known_commands()
+    public void The_NoAmbientTransaction_carrier_set_is_exactly_the_four_known_commands()
     {
         var carriers = RequestTypes()
             .Where(t => t.GetCustomAttribute<NoAmbientTransactionAttribute>() is not null)
             .Select(t => t.Name)
             .OrderBy(n => n, StringComparer.Ordinal);
 
-        // Two queued jobs whose contract is to persist what went wrong and then
-        // throw — and, since Task 11, LoginCommand, for the same reason: the
-        // lockout counter must survive the refusal that incremented it.
+        // Every carrier is here for ONE reason: a refusal from its handler
+        // writes something that must survive being refused.
+        //
+        // - Two queued jobs whose contract is to persist what went wrong and
+        //   then throw.
+        // - LoginCommand (Task 11): the lockout counter must survive the refusal
+        //   that incremented it.
+        // - RefreshIntegrationTokensCommand (Task 14): replaying a spent token
+        //   revokes the account's whole chain and then throws; an ambient
+        //   transaction would roll the revocation back with the exception,
+        //   silently turning reuse detection into a no-op.
         Assert.Equal(
             new[]
             {
                 nameof(DispatchEmailBatchCommand),
                 nameof(LoginCommand),
+                nameof(RefreshIntegrationTokensCommand),
                 nameof(RenderDocumentCommand),
             }.OrderBy(n => n, StringComparer.Ordinal),
             carriers);
